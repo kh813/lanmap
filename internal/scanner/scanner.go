@@ -156,7 +156,6 @@ func (s *Scanner) scanSegmentInternal(ctx context.Context, seg *db.Segment) ([]*
 		pingResults[r.ip.String()] = r.result
 	}
 
-	// Read updated ARP cache table after ping sweep
 	arpEntries := GetAllARPEntries()
 
 	respondedIPs := make(map[string]bool)
@@ -190,6 +189,15 @@ func (s *Scanner) scanSegmentInternal(ctx context.Context, seg *db.Segment) ([]*
 			ttl = pingRes.TTL
 		}
 		osVendor := DetectOSByTTL(ttl)
+
+		// Non-intrusive refined fingerprinting (OS, banner, model)
+		fp := FingerprintHost(ipStr, hostname, vendor, osVendor)
+		if fp.RefinedVendor != "" {
+			vendor = fp.RefinedVendor
+		}
+		if fp.RefinedOS != "" {
+			osVendor = fp.RefinedOS
+		}
 
 		hostObj := &db.Host{
 			IP:          ipStr,

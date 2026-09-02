@@ -18,10 +18,11 @@ func TestOUILookup(t *testing.T) {
 		{"00:03:93:11:22:33", "Apple"},
 		{"00-03-93-aa-bb-cc", "Apple"},
 		{"000393aabbcc", "Apple"},
-		{"00:00:0C:11:22:33", "Cisco Systems"},
+		{"00:00:0C:11:22:33", "Cisco"},
 		{"00:11:32:44:55:66", "Synology"},
-		{"B8:27:EB:00:11:22", "Raspberry Pi Foundation"},
+		{"B8:27:EB:00:11:22", "Raspberry Pi"},
 		{"00:00:00:00:00:00", ""},
+		{"8a:22:c1:5c:85:f7", "端末 (プライベートMAC / Wi-Fi匿名化)"},
 		{"invalid", ""},
 	}
 

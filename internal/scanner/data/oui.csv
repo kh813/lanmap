@@ -1,5 +1,5 @@
-00000C,Cisco Systems
-000142,Cisco Systems
+00000C,Cisco
+000142,Cisco
 00016C,Foxconn
 0001E8,Force10 Networks
 000393,Apple
@@ -7,149 +7,151 @@
 000A27,Apple
 000A95,Apple
 000C29,VMware
-000C41,Cisco Systems
+000C41,Cisco
 000D3A,Microsoft
 001018,Broadcom
 001124,Apple
+001132,Synology
 0013E8,Intel
 001422,Dell
+001478,TP-Link
 00155D,Microsoft
 00163E,Xen
 001788,Philips Lighting
+0018E7,Raspberry Pi
 001A11,Google
+001A8C,Sophos
 001C42,Parallels
+001D43,Sony
+001E2A,Netgear
 001E67,Intel
+001FC6,ASUS
 00216A,Intel
 002312,Apple
-00248C,ASUSTek Computer
-002590,Super Micro Computer
+002482,BUFFALO
+00248C,ASUS
+00248D,Sony PlayStation
+0024B2,Netgear
+002590,Super Micro
 0026BB,Apple
+0026F2,Netgear
 005056,VMware
 0090A9,Western Digital
-00E04C,Realtek Semiconductor
+00E04C,Realtek
+0418D6,Ubiquiti
+04D9F5,ASUS
 080027,Oracle VirtualBox
 0C4DE9,Apple
 1008B1,Apple
 106530,Apple
+107B44,ASUS
 109ADD,Apple
 147DDA,Apple
 149877,Apple
+14CC20,TP-Link
+1831BF,ASUS
 186590,Apple
+18E829,Ubiquiti
 1C1B0D,Apple
+1C60DE,TP-Link
 20A2E4,Apple
+20E52A,Netgear
 244BFE,Apple
+245A4C,Ubiquiti
+24A074,Espressif
+28CDC1,Raspberry Pi
 28CFE9,Apple
 2C3033,Apple
+2C4D54,ASUS
 3096FB,Apple
+30AEA4,Espressif
+30B5C2,TP-Link
 34363B,Apple
+34EE16,Apple
+3897A4,TP-Link
 38F9D3,Apple
 3C0754,Apple
 3C15C2,Apple
+3C71BF,Espressif
 406C8F,Apple
 44D884,Apple
 48D705,Apple
+4C0BBE,BUFFALO
 4C3275,Apple
+4C7525,Espressif
 50BC96,Apple
+50C7BF,TP-Link
 542696,Apple
 5855CA,Apple
 5C80B6,Apple
 600308,Apple
+6045BD,ASUS
+60A44C,TP-Link
 644B7E,Apple
 68A86D,Apple
+68D79A,Ubiquiti
 6CD68A,Apple
 701124,Apple
+708BCD,ASUS
+709E29,Sony PlayStation
 74E1B6,Apple
 784F43,Apple
+788A20,Ubiquiti
+7C2EBD,Google
 7CE070,Apple
+802AA8,Ubiquiti
 80E650,Apple
+841B5E,Netgear
 843835,Apple
+84F3EB,Espressif
 88665A,Apple
 8C8590,Apple
 90840D,Apple
 941625,Apple
+94DB56,Xiaomi / Tuya
 9801A7,Apple
+984827,TP-Link
+9C3DCF,Netgear
 9CD917,Apple
 A0999B,Apple
+A0F3C1,TP-Link
 A45E60,Apple
+A4CF12,Espressif
 A82066,Apple
+AC84C6,TP-Link
 AC87A3,Apple
+AC9E17,ASUS
 B03495,Apple
+B06EBF,ASUS
 B418D1,Apple
+B4FBE4,Ubiquiti
+B827EB,Raspberry Pi
 B87826,Apple
+B8BEBF,BUFFALO
 BC52B7,Apple
+BCA511,Amazon
+BCEE7B,ASUS
+C006C3,TP-Link
 C0847A,Apple
 C42C03,Apple
 C869CD,Apple
 CC29F5,Apple
 D0034B,Apple
+D0C5D3,Samsung
 D4619D,Apple
 D83062,Apple
+D83ADD,Raspberry Pi
 DC2B61,Apple
+DCFB02,BUFFALO
+DCA632,Raspberry Pi
 E0ACCB,Apple
+E45F01,Raspberry Pi
 E4CE8F,Apple
 E8802E,Apple
 EC3586,Apple
+EC94CB,Espressif
 F01898,Apple
 F4F15A,Apple
 F82793,Apple
+F8461C,Sony PlayStation
 FC253F,Apple
-001132,Synology
-002482,BUFFALO
-4C0BBE,BUFFALO
-B8BEBF,BUFFALO
-DCFB02,BUFFALO
-0018E7,Raspberry Pi Foundation
-B827EB,Raspberry Pi Foundation
-DCA632,Raspberry Pi Foundation
-E45F01,Raspberry Pi Foundation
-28CDC1,Raspberry Pi Trading
-D83ADD,Raspberry Pi Trading
-001FC6,ASUSTek Computer
-04D9F5,ASUSTek Computer
-107B44,ASUSTek Computer
-1831BF,ASUSTek Computer
-2C4D54,ASUSTek Computer
-6045BD,ASUSTek Computer
-708BCD,ASUSTek Computer
-AC9E17,ASUSTek Computer
-B06EBF,ASUSTek Computer
-BCEE7B,ASUSTek Computer
-001478,TP-Link Technologies
-14CC20,TP-Link Technologies
-1C60DE,TP-Link Technologies
-30B5C2,TP-Link Technologies
-50C7BF,TP-Link Technologies
-60A44C,TP-Link Technologies
-984827,TP-Link Technologies
-A0F3C1,TP-Link Technologies
-AC84C6,TP-Link Technologies
-C006C3,TP-Link Technologies
-000FB5,NETGEAR
-001E2A,NETGEAR
-0024B2,NETGEAR
-20E52A,NETGEAR
-841B5E,NETGEAR
-9C3DCF,NETGEAR
-0005CD,Denon
-0009B0,Onkyo
-001D43,Sony
-00248D,Sony Interactive Entertainment
-709E29,Sony Interactive Entertainment
-F8461C,Sony Interactive Entertainment
-24A074,Espressif
-30AEA4,Espressif
-3C71BF,Espressif
-84F3EB,Espressif
-A4CF12,Espressif
-EC94CB,Espressif
-00044B,NVIDIA
-0004F2,Polycom
-001A8C,Sophos
-0026F2,Netgear
-0418D6,Ubiquiti Networks
-18E829,Ubiquiti Networks
-245A4C,Ubiquiti Networks
-68D79A,Ubiquiti Networks
-788A20,Ubiquiti Networks
-802AA8,Ubiquiti Networks
-B4FBE4,Ubiquiti Networks

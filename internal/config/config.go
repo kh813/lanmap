@@ -22,11 +22,11 @@ type Config struct {
 	LogLevel        string
 }
 
-// Default settings
+// Default settings (DefaultScanIntervalMin is 2 minutes: safe, responsive, negligible network load)
 const (
 	DefaultPort            = 3002
-	DefaultScanIntervalMin = 10
-	DefaultScanConcurrency = 20
+	DefaultScanIntervalMin = 2
+	DefaultScanConcurrency = 30
 	DefaultLogLevel        = "INFO"
 )
 
