@@ -36,6 +36,12 @@ func TestPayloadFormatting(t *testing.T) {
 		t.Errorf("unexpected Discord payload: %+v", discord)
 	}
 
+	// Google Chat
+	gchat := FormatGoogleChatPayload(hosts)
+	if gchat["text"] == "" {
+		t.Errorf("unexpected Google Chat payload: %+v", gchat)
+	}
+
 	// Teams
 	teams := FormatTeamsPayload(hosts)
 	if teams["title"] == "" || len(teams["sections"].([]map[string]interface{})) != 1 {

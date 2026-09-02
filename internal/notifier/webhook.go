@@ -74,6 +74,7 @@ func (n *Notifier) NotifyUnapprovedHosts(ctx context.Context, hosts []*db.Host) 
 		return fmt.Errorf("failed to load webhook settings: %w", err)
 	}
 
+	gchatURL := strings.TrimSpace(settings["webhook_gchat_url"])
 	slackURL := strings.TrimSpace(settings["webhook_slack_url"])
 	discordURL := strings.TrimSpace(settings["webhook_discord_url"])
 	teamsURL := strings.TrimSpace(settings["webhook_teams_url"])
@@ -81,6 +82,13 @@ func (n *Notifier) NotifyUnapprovedHosts(ctx context.Context, hosts []*db.Host) 
 	lineURL := strings.TrimSpace(settings["webhook_line_url"])
 
 	var errs []string
+
+	// Google Chat
+	if gchatURL != "" {
+		if err := n.sendGoogleChat(ctx, gchatURL, hosts); err != nil {
+			errs = append(errs, fmt.Sprintf("Google Chat: %v", err))
+		}
+	}
 
 	// Slack
 	if slackURL != "" {
@@ -326,6 +334,37 @@ func (n *Notifier) postJSON(ctx context.Context, endpoint string, data interface
 	return lastErr
 }
 
+// FormatGoogleChatPayload creates rich text message payload for Google Chat
+func FormatGoogleChatPayload(hosts []*db.Host) map[string]interface{} {
+	var sb strings.Builder
+	sb.WriteString(fmt.Sprintf("🚨 *【lanmap 警戒】未承認端末を検出しました (%d 件)*\n\n", len(hosts)))
+	for _, h := range hosts {
+		hostName := h.Hostname
+		if hostName == "" {
+			hostName = "ホスト名なし"
+		}
+		vendor := h.VendorModel
+		if vendor == "" {
+			vendor = "不明"
+		}
+		mac := h.MACAddress
+		if mac == "" {
+			mac = "Unknown MAC"
+		}
+		sb.WriteString(fmt.Sprintf("• *IP*: `%s` (%s)\n  *MAC*: `%s` / *メーカー*: %s\n  *初回検出*: %s\n\n",
+			h.IP, hostName, mac, vendor, h.FirstSeen.Format("2006-01-02 15:04:05")))
+	}
+
+	return map[string]interface{}{
+		"text": strings.TrimSpace(sb.String()),
+	}
+}
+
+func (n *Notifier) sendGoogleChat(ctx context.Context, webhookURL string, hosts []*db.Host) error {
+	payload := FormatGoogleChatPayload(hosts)
+	return n.postJSON(ctx, webhookURL, payload)
+}
+
 // NotifyBroadcastStorm sends high-priority broadcast storm / excessive traffic alert
 func (n *Notifier) NotifyBroadcastStorm(ctx context.Context, host *db.Host, count1m int) error {
 	settings, err := n.db.GetAllSettings()
@@ -336,6 +375,12 @@ func (n *Notifier) NotifyBroadcastStorm(ctx context.Context, host *db.Host, coun
 	title := fmt.Sprintf("🚨 【lanmap 警戒アラート】ブロードキャスト過多を検知 (%s)", host.IP)
 	body := fmt.Sprintf("端末 %s (%s / %s) から直近1分間に %d パケットのブロードキャスト通信を検知しました。\n機器の暴走、ループ配線、または不正スキャンの可能性があります。",
 		host.IP, host.Hostname, host.VendorModel, count1m)
+
+	if gchatURL := settings["webhook_gchat_url"]; gchatURL != "" {
+		_ = n.postJSON(ctx, gchatURL, map[string]interface{}{
+			"text": fmt.Sprintf("*%s*\n%s", title, body),
+		})
+	}
 
 	if slackURL := settings["webhook_slack_url"]; slackURL != "" {
 		_ = n.postJSON(ctx, slackURL, map[string]interface{}{

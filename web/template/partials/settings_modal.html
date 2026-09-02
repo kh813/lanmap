@@ -51,10 +51,16 @@
                 </label>
                 <div class="space-y-2">
                     <div>
-                        <span class="text-slate-500 dark:text-slate-400 text-[11px]">Slack Webhook URL:</span>
+                        <span class="text-slate-500 dark:text-slate-400 text-[11px] font-medium">Google Chat Webhook URL:</span>
+                        <input type="url" name="webhook_gchat_url" value="{{.Settings.webhook_gchat_url}}"
+                               placeholder="https://chat.googleapis.com/v1/spaces/.../messages?key=...&token=..."
+                               class="w-full mt-1 bg-white dark:bg-slate-900 border border-slate-300 dark:border-slate-700 rounded px-3 py-1.5 text-slate-800 dark:text-slate-200 focus:outline-none focus:border-blue-500 font-mono text-[11px]">
+                    </div>
+                    <div>
+                        <span class="text-slate-500 dark:text-slate-400 text-[11px] font-medium">Slack Webhook URL:</span>
                         <input type="url" name="webhook_slack_url" value="{{.Settings.webhook_slack_url}}"
                                placeholder="https://hooks.slack.com/services/..."
-                               class="w-full mt-1 bg-white dark:bg-slate-900 border border-slate-300 dark:border-slate-700 rounded px-3 py-1.5 text-slate-800 dark:text-slate-200 focus:outline-none focus:border-blue-500">
+                               class="w-full mt-1 bg-white dark:bg-slate-900 border border-slate-300 dark:border-slate-700 rounded px-3 py-1.5 text-slate-800 dark:text-slate-200 focus:outline-none focus:border-blue-500 font-mono text-[11px]">
                     </div>
                     <div>
                         <span class="text-slate-500 dark:text-slate-400 text-[11px]">Discord Webhook URL:</span>
