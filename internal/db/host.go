@@ -2,6 +2,7 @@ package db
 
 import (
 	"database/sql"
+	"fmt"
 	"strings"
 	"time"
 )
@@ -35,6 +36,32 @@ func (h *Host) IsNewHost() bool {
 		return false
 	}
 	return time.Since(h.FirstSeen) < 24*time.Hour
+}
+
+// HasPingRTT returns true if Ping RTT measurement exists
+func (h *Host) HasPingRTT() bool {
+	return h.PingRTTMs != nil && *h.PingRTTMs >= 0
+}
+
+// PingRTTFormatted returns formatted RTT string (e.g. "2.3 ms")
+func (h *Host) PingRTTFormatted() string {
+	if h.PingRTTMs == nil {
+		return "-"
+	}
+	return fmt.Sprintf("%.1f ms", *h.PingRTTMs)
+}
+
+// PingRTTLevel returns quality level for CSS badge styling
+func (h *Host) PingRTTLevel() string {
+	if h.PingRTTMs == nil {
+		return "none"
+	}
+	if *h.PingRTTMs < 15.0 {
+		return "fast"
+	} else if *h.PingRTTMs < 60.0 {
+		return "normal"
+	}
+	return "slow"
 }
 
 // UpsertHostOnScan inserts a newly scanned host or updates an existing host

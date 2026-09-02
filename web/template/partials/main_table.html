@@ -154,18 +154,18 @@
 
                         <!-- Ping RTT (Network Quality) -->
                         <td class="py-3 px-3 text-center">
-                            {{if .PingRTTMs}}
-                                {{if lt .PingRTTMs 15.0}}
+                            {{if .HasPingRTT}}
+                                {{if eq .PingRTTLevel "fast"}}
                                 <span class="inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-mono font-medium bg-emerald-100 text-emerald-800 dark:bg-emerald-500/10 dark:text-emerald-400" title="応答速度: 良好 (有線 / 強電波)">
-                                    ⚡ {{printf "%.1f ms" .PingRTTMs}}
+                                    ⚡ {{.PingRTTFormatted}}
                                 </span>
-                                {{else if lt .PingRTTMs 60.0}}
+                                {{else if eq .PingRTTLevel "normal"}}
                                 <span class="inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-mono font-medium bg-amber-100 text-amber-800 dark:bg-amber-500/10 dark:text-amber-400" title="応答速度: 通常 (Wi-Fi)">
-                                    📶 {{printf "%.1f ms" .PingRTTMs}}
+                                    📶 {{.PingRTTFormatted}}
                                 </span>
                                 {{else}}
                                 <span class="inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-mono font-medium bg-orange-100 text-orange-800 dark:bg-orange-500/10 dark:text-orange-400" title="応答速度: やや遅延 / 混雑">
-                                    🐢 {{printf "%.1f ms" .PingRTTMs}}
+                                    🐢 {{.PingRTTFormatted}}
                                 </span>
                                 {{end}}
                             {{else}}
