@@ -78,11 +78,13 @@
                     {{end}}
 
                     {{range .Hosts}}
-                    <tr id="host-row-{{.IP}}" class="hover:bg-slate-50 dark:hover:bg-slate-900/60 transition {{if not .IsApproved}}bg-red-50/50 dark:bg-red-950/10{{end}}">
+                    <tr id="host-row-{{.IP}}" class="hover:bg-slate-50 dark:hover:bg-slate-900/60 transition {{if .IsStorming}}bg-red-100/70 border-2 border-red-500 dark:bg-red-950/40 dark:border-red-600{{else if not .IsApproved}}bg-red-50/50 dark:bg-red-950/10{{end}}">
                         <!-- IP & MAC -->
                         <td class="py-3 px-3">
                             <div class="flex items-center space-x-1.5">
-                                {{if not .IsApproved}}
+                                {{if .IsStorming}}
+                                <span title="🚨 ブロードキャスト過多・ストーム異常検知" class="text-red-600 font-bold text-base animate-bounce">💥</span>
+                                {{else if not .IsApproved}}
                                 <span title="未承認端末 (警戒対象)" class="text-red-500 font-bold">⚠️</span>
                                 {{end}}
                                 <div>
@@ -140,7 +142,12 @@
 
                         <!-- Up/Down Status -->
                         <td class="py-3 px-3 text-center">
-                            {{if eq .Status "up"}}
+                            {{if .IsStorming}}
+                            <span class="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-bold bg-red-600 text-white animate-pulse"
+                                  title="直近1分間のブロードキャスト送信数: {{.BroadcastCount1m}} パケット (異常過多)">
+                                💥 異常通信 ({{.BroadcastCount1m}} pkt/分)
+                            </span>
+                            {{else if eq .Status "up"}}
                             <span class="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-medium bg-emerald-100 text-emerald-800 dark:bg-emerald-500/10 dark:text-emerald-400">
                                 🟢 UP
                             </span>

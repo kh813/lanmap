@@ -258,9 +258,12 @@ func (n *Notifier) sendLINENotify(ctx context.Context, token string, hosts []*db
 	for _, h := range hosts {
 		sb.WriteString(fmt.Sprintf("・IP: %s (%s)\n  MAC: %s / %s\n", h.IP, h.Hostname, h.MACAddress, h.VendorModel))
 	}
+	return n.postLineRawMessage(ctx, token, sb.String())
+}
 
+func (n *Notifier) postLineRawMessage(ctx context.Context, token, message string) error {
 	form := url.Values{}
-	form.Set("message", sb.String())
+	form.Set("message", message)
 
 	req, err := http.NewRequestWithContext(ctx, "POST", "https://notify-api.line.me/api/notify", strings.NewReader(form.Encode()))
 	if err != nil {
@@ -321,4 +324,45 @@ func (n *Notifier) postJSON(ctx context.Context, endpoint string, data interface
 
 	log.Printf("[WARN] Webhook POST to %s failed: %v", endpoint, lastErr)
 	return lastErr
+}
+
+// NotifyBroadcastStorm sends high-priority broadcast storm / excessive traffic alert
+func (n *Notifier) NotifyBroadcastStorm(ctx context.Context, host *db.Host, count1m int) error {
+	settings, err := n.db.GetAllSettings()
+	if err != nil {
+		return err
+	}
+
+	title := fmt.Sprintf("🚨 【lanmap 警戒アラート】ブロードキャスト過多を検知 (%s)", host.IP)
+	body := fmt.Sprintf("端末 %s (%s / %s) から直近1分間に %d パケットのブロードキャスト通信を検知しました。\n機器の暴走、ループ配線、または不正スキャンの可能性があります。",
+		host.IP, host.Hostname, host.VendorModel, count1m)
+
+	if slackURL := settings["webhook_slack_url"]; slackURL != "" {
+		_ = n.postJSON(ctx, slackURL, map[string]interface{}{
+			"text": fmt.Sprintf("*%s*\n%s", title, body),
+		})
+	}
+
+	if discordURL := settings["webhook_discord_url"]; discordURL != "" {
+		_ = n.postJSON(ctx, discordURL, map[string]interface{}{
+			"content": fmt.Sprintf("**%s**\n%s", title, body),
+		})
+	}
+
+	if teamsURL := settings["webhook_teams_url"]; teamsURL != "" {
+		_ = n.postJSON(ctx, teamsURL, map[string]interface{}{
+			"@type":      "MessageCard",
+			"@context":   "http://schema.org/extensions",
+			"summary":    title,
+			"themeColor": "DC2626",
+			"title":      title,
+			"text":       body,
+		})
+	}
+
+	if lineToken := settings["webhook_line_token"]; lineToken != "" {
+		_ = n.postLineRawMessage(ctx, lineToken, fmt.Sprintf("\n%s\n%s", title, body))
+	}
+
+	return nil
 }

@@ -153,3 +153,21 @@
 - [x] **7.4 検証 & コミット**
   - [x] 単体テスト実行 (`go test -v ./...`)
   - [x] サーバー起動確認 & Git コミット
+
+---
+
+### 🔹 Phase 8: ブロードキャストストーム & 異常トラフィック検知機能
+- [x] **8.1 DB層 (`internal/db`)**
+  - [x] `hosts` テーブルに `broadcast_count_1m`, `is_storming` カラム追加 (`db.go`, `host.go`)
+  - [x] `UpdateHostBroadcastStats(ip string, count1m int, isStorming bool)` 実装
+- [x] **8.2 パケットリスナー & モニター層 (`internal/monitor/broadcast.go`)**
+  - [x] バックグラウンド UDP ブロードキャストリスナーの実装 (ポート 137, 1900, 5353, 67/68, 0 等)
+  - [x] 1分間のスライディングウィンドウ集計 & 閾値 (120 pkt/min) 判定
+  - [x] 異常ホストのDB更新および Webhook 即時アラート連動
+- [x] **8.3 Webhook 通知連動 (`internal/notifier`)**
+  - [x] `NotifyBroadcastStorm(ctx, host, pktCount)` 実装 (Slack, Discord, Teams, LINE)
+- [x] **8.4 Web UI 表示 (`web/template/partials/main_table.html`)**
+  - [x] ホスト一覧での「💥 ブロードキャスト過多」警告バッジ & 行ハイライト
+- [x] **8.5 検証 & コミット**
+  - [x] 単体テスト作成 & 実行 (`go test -v ./...`)
+  - [x] サーバー起動確認 & Git コミット

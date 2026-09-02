@@ -9,25 +9,27 @@ import (
 
 // Host represents a discovered or monitored network host
 type Host struct {
-	IP           string     `json:"ip"`
-	SegmentID    *int64     `json:"segment_id"`
-	MACAddress   string     `json:"mac_address"`
-	Hostname     string     `json:"hostname"`
-	VendorModel  string     `json:"vendor_model"`
-	DisplayName  string     `json:"display_name"`
-	OSVendor     string     `json:"os_vendor"`
-	Status       string     `json:"status"`
-	PingRTTMs    *float64   `json:"ping_rtt_ms"`
-	IsApproved   bool       `json:"is_approved"`
-	IsProtected  bool       `json:"is_protected"`
-	IsStaticIP   bool       `json:"is_static_ip"`
-	IsMonitored  bool       `json:"is_monitored"`
-	IsPaused     bool       `json:"is_paused"`
-	HasConflict  bool       `json:"has_conflict"`
-	KumaName     string     `json:"kuma_name"`
-	UptimeKumaID *int64     `json:"uptime_kuma_id"`
-	FirstSeen    time.Time  `json:"first_seen"`
-	LastSeen     *time.Time `json:"last_seen"`
+	IP                string     `json:"ip"`
+	SegmentID         *int64     `json:"segment_id"`
+	MACAddress        string     `json:"mac_address"`
+	Hostname          string     `json:"hostname"`
+	VendorModel       string     `json:"vendor_model"`
+	DisplayName       string     `json:"display_name"`
+	OSVendor          string     `json:"os_vendor"`
+	Status            string     `json:"status"`
+	PingRTTMs         *float64   `json:"ping_rtt_ms"`
+	BroadcastCount1m  int        `json:"broadcast_count_1m"`
+	IsStorming        bool       `json:"is_storming"`
+	IsApproved        bool       `json:"is_approved"`
+	IsProtected       bool       `json:"is_protected"`
+	IsStaticIP        bool       `json:"is_static_ip"`
+	IsMonitored       bool       `json:"is_monitored"`
+	IsPaused          bool       `json:"is_paused"`
+	HasConflict       bool       `json:"has_conflict"`
+	KumaName          string     `json:"kuma_name"`
+	UptimeKumaID      *int64     `json:"uptime_kuma_id"`
+	FirstSeen         time.Time  `json:"first_seen"`
+	LastSeen          *time.Time `json:"last_seen"`
 }
 
 // IsNewHost returns true if host was first seen within the last 24 hours and is not yet approved
@@ -78,10 +80,11 @@ func (db *DB) UpsertHostOnScan(h *Host) (isNew bool, isReplaced bool, err error)
 		query := `
 		INSERT INTO hosts (
 			ip, segment_id, mac_address, hostname, vendor_model, display_name,
-			os_vendor, status, ping_rtt_ms, is_approved, is_protected, is_static_ip,
+			os_vendor, status, ping_rtt_ms, broadcast_count_1m, is_storming,
+			is_approved, is_protected, is_static_ip,
 			is_monitored, is_paused, has_conflict, kuma_name, uptime_kuma_id,
 			first_seen, last_seen
-		) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 0, 0, 0, 0, 0, '', NULL, ?, ?)
+		) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, 0, 0, ?, 0, 0, 0, 0, 0, '', NULL, ?, ?)
 		`
 		_, err := db.Exec(query,
 			h.IP, h.SegmentID, normMAC, h.Hostname, h.VendorModel, h.DisplayName,
@@ -158,7 +161,8 @@ func (db *DB) GetHost(ip string) (*Host, error) {
 	query := `
 	SELECT
 		ip, segment_id, mac_address, hostname, vendor_model, display_name,
-		os_vendor, status, ping_rtt_ms, is_approved, is_protected, is_static_ip,
+		os_vendor, status, ping_rtt_ms, broadcast_count_1m, is_storming,
+		is_approved, is_protected, is_static_ip,
 		is_monitored, is_paused, has_conflict, kuma_name, uptime_kuma_id,
 		first_seen, last_seen
 	FROM hosts
@@ -176,7 +180,8 @@ func (db *DB) ListHosts(segmentID *int64, onlineOnly bool) ([]*Host, error) {
 	query.WriteString(`
 	SELECT
 		ip, segment_id, mac_address, hostname, vendor_model, display_name,
-		os_vendor, status, ping_rtt_ms, is_approved, is_protected, is_static_ip,
+		os_vendor, status, ping_rtt_ms, broadcast_count_1m, is_storming,
+		is_approved, is_protected, is_static_ip,
 		is_monitored, is_paused, has_conflict, kuma_name, uptime_kuma_id,
 		first_seen, last_seen
 	FROM hosts
@@ -192,7 +197,7 @@ func (db *DB) ListHosts(segmentID *int64, onlineOnly bool) ([]*Host, error) {
 		query.WriteString(" AND status = 'up'")
 	}
 
-	query.WriteString(" ORDER BY is_approved ASC, ip ASC")
+	query.WriteString(" ORDER BY is_storming DESC, is_approved ASC, ip ASC")
 
 	rows, err := db.Query(query.String(), args...)
 	if err != nil {
@@ -227,6 +232,13 @@ func (db *DB) UpdateHostStatus(ip string, status string) error {
 	}
 
 	_, err := db.Exec(query, args...)
+	return err
+}
+
+// UpdateHostBroadcastStats updates broadcast traffic stats and storm status
+func (db *DB) UpdateHostBroadcastStats(ip string, count1m int, isStorming bool) error {
+	query := "UPDATE hosts SET broadcast_count_1m = ?, is_storming = ? WHERE ip = ?"
+	_, err := db.Exec(query, count1m, isStorming, ip)
 	return err
 }
 
@@ -291,14 +303,16 @@ func (db *DB) CreateManualHost(h *Host) error {
 	query := `
 	INSERT INTO hosts (
 		ip, segment_id, mac_address, hostname, vendor_model, display_name,
-		os_vendor, status, ping_rtt_ms, is_approved, is_protected, is_static_ip,
+		os_vendor, status, ping_rtt_ms, broadcast_count_1m, is_storming,
+		is_approved, is_protected, is_static_ip,
 		is_monitored, is_paused, has_conflict, kuma_name, uptime_kuma_id,
 		first_seen, last_seen
-	) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+	) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
 	`
 	_, err := db.Exec(query,
 		h.IP, h.SegmentID, normMAC, h.Hostname, h.VendorModel, h.DisplayName,
-		h.OSVendor, h.Status, h.PingRTTMs, h.IsApproved, h.IsProtected, h.IsStaticIP,
+		h.OSVendor, h.Status, h.PingRTTMs, h.BroadcastCount1m, h.IsStorming,
+		h.IsApproved, h.IsProtected, h.IsStaticIP,
 		h.IsMonitored, h.IsPaused, h.HasConflict, h.KumaName, h.UptimeKumaID,
 		now, now,
 	)
@@ -333,6 +347,8 @@ func scanHost(s scannable) (*Host, error) {
 		&osVend,
 		&h.Status,
 		&rtt,
+		&h.BroadcastCount1m,
+		&h.IsStorming,
 		&h.IsApproved,
 		&h.IsProtected,
 		&h.IsStaticIP,

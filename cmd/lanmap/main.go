@@ -15,6 +15,7 @@ import (
 	"lanmap/internal/config"
 	"lanmap/internal/db"
 	"lanmap/internal/kuma"
+	"lanmap/internal/monitor"
 	"lanmap/internal/notifier"
 	"lanmap/internal/scanner"
 	"lanmap/internal/service"
@@ -111,6 +112,9 @@ func runServer() {
 			_, _ = km.Sync(ctx)
 		}
 	}()
+
+	bm := monitor.NewBroadcastMonitor(database, notif)
+	bm.Start(ctx)
 
 	// Background Periodic Scanner & Retention Cleanup Task
 	go runBackgroundTasks(ctx, cfg, database, sc, notif, km)
