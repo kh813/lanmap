@@ -20,14 +20,12 @@ func Open(dbPath string) (*DB, error) {
 		return nil, fmt.Errorf("failed to create db directory: %w", err)
 	}
 
-	// Enable WAL mode, foreign keys, busy timeout
 	dsn := fmt.Sprintf("file:%s?_pragma=journal_mode(WAL)&_pragma=foreign_keys(1)&_pragma=busy_timeout(5000)", dbPath)
 	db, err := sql.Open("sqlite", dsn)
 	if err != nil {
 		return nil, fmt.Errorf("failed to open sqlite database: %w", err)
 	}
 
-	// Configure connection pool for SQLite
 	db.SetMaxOpenConns(1)
 
 	wrapped := &DB{DB: db}
@@ -81,18 +79,31 @@ func (db *DB) migrate() error {
 	CREATE INDEX IF NOT EXISTS idx_hosts_segment_id ON hosts(segment_id);
 	CREATE INDEX IF NOT EXISTS idx_hosts_status ON hosts(status);
 	CREATE INDEX IF NOT EXISTS idx_hosts_mac ON hosts(mac_address);
+	CREATE INDEX IF NOT EXISTS idx_hosts_hostname ON hosts(hostname);
 
 	CREATE TABLE IF NOT EXISTS settings (
 		key VARCHAR(50) PRIMARY KEY,
 		value TEXT
 	);
+
+	CREATE TABLE IF NOT EXISTS whitelist_entries (
+		id INTEGER PRIMARY KEY AUTOINCREMENT,
+		hostname VARCHAR(255),
+		mac_address VARCHAR(17),
+		serial_number VARCHAR(100),
+		device_name VARCHAR(255),
+		note TEXT,
+		created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+	);
+
+	CREATE INDEX IF NOT EXISTS idx_whitelist_hostname ON whitelist_entries(hostname);
+	CREATE INDEX IF NOT EXISTS idx_whitelist_mac ON whitelist_entries(mac_address);
 	`
 	_, err := db.Exec(schema)
 	return err
 }
 
 func (db *DB) seed() error {
-	// Seed default "未分類" (Uncategorized) segment if it doesn't exist
 	var count int
 	err := db.QueryRow("SELECT COUNT(*) FROM segments WHERE is_default = 1").Scan(&count)
 	if err != nil {
@@ -105,7 +116,6 @@ func (db *DB) seed() error {
 		}
 	}
 
-	// Seed default retention_days if not set
 	err = db.QueryRow("SELECT COUNT(*) FROM settings WHERE key = 'retention_days'").Scan(&count)
 	if err != nil {
 		return fmt.Errorf("failed to check retention_days setting: %w", err)

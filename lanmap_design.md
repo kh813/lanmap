@@ -181,6 +181,24 @@ CREATE TABLE IF NOT EXISTS settings (
 
 **初期値シード**: DB初期化時、`retention_days` は未設定時のデフォルト値として `"180"` を投入する。Webhook URL系キー（`webhook_slack_url` 等）は未設定 (`NULL`または空文字) で初期化し、未設定の通知チャネルへは送信をスキップする。`tls_cert_path` / `tls_key_path`（10.1節）も未設定で初期化し、未設定時は自己署名証明書を使用する。
 
+### 4.4 ホワイトリスト台帳テーブル (`whitelist_entries`)
+社内管理下にあるPC・端末台帳（ホスト名、MACアドレス、シリアル番号、所有者名等）を保持し、検出時の自動承認照合に利用します。
+
+```sql
+CREATE TABLE IF NOT EXISTS whitelist_entries (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    hostname VARCHAR(255),               -- 登録ホスト名 (照合用)
+    mac_address VARCHAR(17),             -- 登録MACアドレス (照合用、任意)
+    serial_number VARCHAR(100),          -- ハードウェアシリアル番号 (管理・メモ用)
+    device_name VARCHAR(255),            -- 端末表示名 / 所有者名
+    note TEXT,                           -- 備考 (部署、用途等)
+    created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE INDEX IF NOT EXISTS idx_whitelist_hostname ON whitelist_entries(hostname);
+CREATE INDEX IF NOT EXISTS idx_whitelist_mac ON whitelist_entries(mac_address);
+```
+
 ---
 
 ## 5. 古いホストの自動クリーンアップ（Retention Policy）仕様
@@ -289,6 +307,34 @@ DHCP環境等での動的IP割り当てや撤去済み機器によるデータ�
 * **再送条件**: 一度通知済みの未承認端末について、`status` が `down` → `up` に復帰した場合（再出現）は再通知する。単に `is_approved=0` のまま存在し続けるだけでは再送しない。
 * **通知抑制の解除**: `is_approved=1` に変更後、再び未承認相当の状態に戻ることは通常想定しない（MACアドレス不一致による別端末判定時を除く）ため、承認済みホストへの再通知は行わない。
 * **フラッド対策**: 停電・大規模ネットワーク切断からの復旧直後など、単一スキャンで大量の新規未承認端末が同時検出された場合は、個別送信ではなく1回のWebhookに集約（バッチ通知）して送信する。
+
+### 8.2 資産管理台帳（ホワイトリスト）CSV一括インポート & 自動照合承認仕様
+
+社内PC・端末台帳（ホスト名、シリアル番号、MACアドレス等）のリストをあらかじめ登録しておくことで、スキャン検出時に自動照合して「承認済み」に昇格させ、台帳にない未知の端末のみをピンポイントでWebhookアラート通知する機能を提供します。
+
+```text
+[PC台帳 (CSV/TSV)] ──(一括インポート)──► [ホワイトリスト DB (whitelist_entries)]
+                                                       │
+[LANスキャン実行] ──► [ホスト検出 (IP/MAC/ホスト名)] ────┤
+                                                       │
+                      ┌────────────────────────────────┴────────────────────────────────┐
+                      ▼                                                                 ▼
+              【台帳と一致】 (ホスト名 または MAC一致)                          【台帳に存在しない】 (未知端末)
+           ├─ 自動的に is_approved = 1 (承認済み)                            ├─ is_approved = 0 (未承認 ⚠️)
+           ├─ display_name に所有者/端末名を自動反映                         └─ 🚨 Webhook 即時通知 (Slack/Teams等)
+           └─ Webhook アラート通知をスキップ
+```
+
+1. **インポートフォーマット (CSV / TSV)**:
+   * ヘッダー行あり/なし両対応。
+   * 列構成: `ホスト名, MACアドレス(任意), シリアル番号(任意), 端末名/所有者(任意), 備考(任意)`
+   * UI上のモーダル（`whitelist_modal.html`）からCSVファイルのドラッグ＆ドロップまたはテキストエリアへの直接貼り付けで一括投入可能。
+2. **照合ルール**:
+   * **ホスト名照合**: 検出された `hostname`（ドメイン部分を除去した短いホスト名含む）と台帳の `hostname` を大文字小文字を区別せず比較。
+   * **MACアドレス照合**: 台帳に `mac_address` が記載されている場合、MACアドレス完全一致でも照合。
+   * 一致時は `hosts` レコードの `is_approved` を `1`、`display_name` を台帳の `device_name`（または `hostname`）に自動設定。
+3. **既存検出端末への即時適用**:
+   * CSVインポート完了時、既にDBに存在する未承認端末に対しても即座にバックグラウンドで照合バッチを実行し、一致した端末を一括で「🟢 承認済み」へ更新する。
 
 ---
 

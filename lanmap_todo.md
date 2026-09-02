@@ -134,3 +134,22 @@
   - [x] 全体ビルド & 総合テスト実行（Windows/macOS/Linux クロスコンパイル確認含む）
   - [x] E2E統合シナリオ確認（スキャン検出→未承認DB登録→Webhook通知→UI表示→承認操作→Kuma監視開始の一連の流れ）
   - [x] 最終 Git コミット
+
+---
+
+### 🔹 Phase 7: 資産管理台帳（ホワイトリスト）CSV一括インポート & 自動照合承認機能
+- [x] **7.1 DB層 (`internal/db`)**
+  - [x] `whitelist_entries` テーブル定義 & マイグレーション (`db.go`)
+  - [x] ホワイトリスト登録・一覧取得・個別削除・一括削除 CRUD (`whitelist.go`)
+  - [x] 検出ホストのホワイトリスト照合ロジック (`MatchWhitelist(hostname, mac) (*WhitelistEntry, bool)`)
+  - [x] 既存未承認ホストに対する一括再照合バッチ (`ReconcileHostsWithWhitelist()`)
+- [x] **7.2 スキャナー連動 (`internal/scanner`)**
+  - [x] スキャン検出時にホワイトリストと照合し、一致した場合は `is_approved = true` / 表示名自動補完
+  - [x] ホワイトリストに存在しない端末のみを未承認アラート（Webhook）対象とする
+- [x] **7.3 Web UI & HTMX ハンドラー (`web/`, `internal/web`)**
+  - [x] `web/template/partials/whitelist_modal.html` 作成（CSV一括インポート、テキスト直接入力、登録台帳リスト表示・削除）
+  - [x] サイドバーまたは設定画面に「📋 台帳ホワイトリスト登録」導線追加
+  - [x] `/modals/whitelist`, `/api/whitelist/import`, `/api/whitelist/{id}` ルーティング & ハンドラー
+- [x] **7.4 検証 & コミット**
+  - [x] 単体テスト実行 (`go test -v ./...`)
+  - [x] サーバー起動確認 & Git コミット

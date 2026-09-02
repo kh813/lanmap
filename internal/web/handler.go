@@ -202,6 +202,37 @@ func (h *Handler) HandleSegmentModal(w http.ResponseWriter, r *http.Request) {
 	})
 }
 
+// HandleWhitelistModal renders whitelist ledger management modal
+func (h *Handler) HandleWhitelistModal(w http.ResponseWriter, r *http.Request) {
+	entries, _ := h.db.ListWhitelistEntries()
+	_ = h.tmpl.ExecuteTemplate(w, "whitelist_modal.html", map[string]interface{}{
+		"Entries": entries,
+	})
+}
+
+// HandleImportWhitelist imports CSV into whitelist table and auto-reconciles existing hosts
+func (h *Handler) HandleImportWhitelist(w http.ResponseWriter, r *http.Request) {
+	_ = r.ParseForm()
+	csvData := r.FormValue("csv_data")
+	if strings.TrimSpace(csvData) != "" {
+		_, _ = h.db.ImportWhitelistCSV(csvData)
+		_, _ = h.db.ReconcileHostsWithWhitelist()
+	}
+	h.HandleMainTablePartial(w, r)
+}
+
+// HandleDeleteWhitelistEntry deletes a whitelist entry
+func (h *Handler) HandleDeleteWhitelistEntry(w http.ResponseWriter, r *http.Request, id int64) {
+	_ = h.db.DeleteWhitelistEntry(id)
+	h.HandleWhitelistModal(w, r)
+}
+
+// HandleClearWhitelist clears all whitelist entries
+func (h *Handler) HandleClearWhitelist(w http.ResponseWriter, r *http.Request) {
+	_ = h.db.ClearWhitelistEntries()
+	h.HandleMainTablePartial(w, r)
+}
+
 // HandleToggleApproval toggles approval status
 func (h *Handler) HandleToggleApproval(w http.ResponseWriter, r *http.Request, ip string) {
 	_, err := h.db.ToggleApproval(ip)
@@ -431,7 +462,6 @@ func (h *Handler) HandleScanNow(w http.ResponseWriter, r *http.Request) {
 		reports, _ = h.scanner.ScanAll(ctx)
 	}
 
-	// Check if any unapproved hosts detected to send webhooks
 	var unapprovedHosts []*db.Host
 	for _, rep := range reports {
 		if rep.UnapprovedAlert {

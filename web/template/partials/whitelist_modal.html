@@ -1,0 +1,110 @@
+<div class="fixed inset-0 bg-black/60 dark:bg-black/80 backdrop-blur-sm flex items-center justify-center p-4 z-50 overflow-y-auto animate-fade-in" onclick="if(event.target===this) closeModal()">
+    <div class="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl max-w-3xl w-full p-6 shadow-2xl space-y-5 my-8 text-slate-800 dark:text-slate-100">
+        <div class="flex items-center justify-between pb-3 border-b border-slate-200 dark:border-slate-800">
+            <div class="flex items-center space-x-2">
+                <span class="text-xl">📋</span>
+                <div>
+                    <h2 class="text-base font-bold text-slate-900 dark:text-white">社内端末台帳 (ホワイトリスト一括管理)</h2>
+                    <p class="text-[11px] text-slate-500 dark:text-slate-400">
+                        登録されたホスト名・MACアドレスの端末はスキャン時に自動で「🟢 承認済み」となり、アラート通知から除外されます。
+                    </p>
+                </div>
+            </div>
+            <button onclick="closeModal()" class="text-slate-400 hover:text-slate-700 dark:hover:text-white text-lg">&times;</button>
+        </div>
+
+        <!-- CSV / Text Import Form -->
+        <div class="bg-slate-50 dark:bg-slate-950/60 p-4 rounded-lg border border-slate-200 dark:border-slate-800 space-y-3">
+            <div class="flex items-center justify-between">
+                <span class="font-bold text-xs text-slate-800 dark:text-slate-200">
+                    📥 CSV / テキスト貼り付け一括インポート
+                </span>
+                <span class="text-[11px] text-slate-500 font-mono">
+                    形式: ホスト名, MACアドレス, シリアル番号, 端末名/所有者, 備考
+                </span>
+            </div>
+
+            <form hx-post="/api/whitelist/import" hx-target="#main-content" hx-swap="outerHTML" onclick="if(event.submitter) closeModal()" class="space-y-3 text-xs">
+                <textarea name="csv_data" rows="5" required
+                          placeholder="例:
+mbpm1m.parkside.tokyo,,C02XXXXX,高橋MacBook Pro,開発部
+ipad-me1tb-m4,,DLXXX,高橋iPad M4,デザイン部
+watch.parkside.tokyo,,FHXXX,Apple Watch,役員
+rogue-pc,00:11:22:33:44:55,SN12345,検証用Linux,インフラ"
+                          class="w-full bg-white dark:bg-slate-900 border border-slate-300 dark:border-slate-700 rounded p-2.5 text-slate-800 dark:text-slate-200 font-mono text-[11px] focus:outline-none focus:border-blue-500"></textarea>
+
+                <div class="flex items-center justify-between pt-1">
+                    <p class="text-[11px] text-slate-500 dark:text-slate-400">
+                        ※ TSV（Excelコピー）またはカンマ区切りCSVに対応。ヘッダー行の有無は自動判定されます。
+                    </p>
+                    <button type="submit"
+                            class="px-4 py-2 rounded-lg bg-blue-600 hover:bg-blue-500 text-white font-medium shadow transition">
+                        インポート & 即時照合承認
+                    </button>
+                </div>
+            </form>
+        </div>
+
+        <!-- Registered Whitelist Entries Table -->
+        <div class="space-y-2">
+            <div class="flex items-center justify-between">
+                <h3 class="font-bold text-xs text-slate-800 dark:text-slate-200">
+                    登録済みホワイトリスト一覧 ({{len .Entries}} 件)
+                </h3>
+                {{if gt (len .Entries) 0}}
+                <button hx-delete="/api/whitelist" hx-confirm="ホワイトリスト台帳を全件クリアしますか？"
+                        hx-target="#main-content" hx-swap="outerHTML" onclick="closeModal()"
+                        class="text-xs text-red-600 dark:text-red-400 hover:underline">
+                    全件クリア
+                </button>
+                {{end}}
+            </div>
+
+            <div class="border border-slate-200 dark:border-slate-800 rounded-lg overflow-hidden max-h-56 overflow-y-auto bg-white dark:bg-slate-950/40">
+                <table class="w-full text-left text-xs border-collapse">
+                    <thead>
+                        <tr class="bg-slate-100 dark:bg-slate-900 text-slate-600 dark:text-slate-400 text-[11px] font-semibold border-b border-slate-200 dark:border-slate-800">
+                            <th class="py-2 px-3">ホスト名</th>
+                            <th class="py-2 px-3">MACアドレス</th>
+                            <th class="py-2 px-3">シリアル番号</th>
+                            <th class="py-2 px-3">端末名 / 所有者</th>
+                            <th class="py-2 px-3">備考</th>
+                            <th class="py-2 px-3 text-right">操作</th>
+                        </tr>
+                    </thead>
+                    <tbody class="divide-y divide-slate-100 dark:divide-slate-800/60">
+                        {{if eq (len .Entries) 0}}
+                        <tr>
+                            <td colspan="6" class="py-8 text-center text-slate-400">
+                                台帳データはまだ登録されていません。上のフォームからインポートしてください。
+                            </td>
+                        </tr>
+                        {{end}}
+
+                        {{range .Entries}}
+                        <tr class="hover:bg-slate-50 dark:hover:bg-slate-900/40">
+                            <td class="py-2 px-3 font-mono font-medium text-slate-900 dark:text-slate-100">{{if .Hostname}}{{.Hostname}}{{else}}-{{end}}</td>
+                            <td class="py-2 px-3 font-mono text-[11px] text-slate-600 dark:text-slate-400">{{if .MACAddress}}{{.MACAddress}}{{else}}-{{end}}</td>
+                            <td class="py-2 px-3 font-mono text-[11px] text-slate-600 dark:text-slate-400">{{if .SerialNumber}}{{.SerialNumber}}{{else}}-{{end}}</td>
+                            <td class="py-2 px-3 text-slate-800 dark:text-slate-200">{{if .DeviceName}}{{.DeviceName}}{{else}}-{{end}}</td>
+                            <td class="py-2 px-3 text-slate-500 dark:text-slate-400 text-[11px]">{{if .Note}}{{.Note}}{{else}}-{{end}}</td>
+                            <td class="py-2 px-3 text-right">
+                                <button hx-delete="/api/whitelist/{{.ID}}" hx-target="#modal-container" hx-swap="innerHTML"
+                                        title="削除" class="text-slate-400 hover:text-red-600 text-xs">
+                                    🗑️
+                                </button>
+                            </td>
+                        </tr>
+                        {{end}}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+
+        <div class="flex justify-end pt-2 border-t border-slate-200 dark:border-slate-800">
+            <button onclick="closeModal()" class="px-4 py-2 rounded-lg bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-300 font-medium text-xs">
+                閉じる
+            </button>
+        </div>
+    </div>
+</div>

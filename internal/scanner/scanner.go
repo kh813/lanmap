@@ -199,20 +199,40 @@ func (s *Scanner) scanSegmentInternal(ctx context.Context, seg *db.Segment) ([]*
 			osVendor = fp.RefinedOS
 		}
 
+		// Auto-match against Whitelist Ledger (Section 8.2)
+		isApproved := false
+		displayName := ""
+		if wlMatch, ok := s.db.MatchWhitelist(hostname, mac); ok {
+			isApproved = true
+			if wlMatch.DeviceName != "" {
+				displayName = wlMatch.DeviceName
+			} else {
+				displayName = wlMatch.Hostname
+			}
+		}
+
 		hostObj := &db.Host{
 			IP:          ipStr,
 			SegmentID:   &seg.ID,
 			MACAddress:  mac,
 			Hostname:    hostname,
+			DisplayName: displayName,
 			VendorModel: vendor,
 			OSVendor:    osVendor,
 			Status:      "up",
+			IsApproved:  isApproved,
 		}
 
 		isNew, isReplaced, err := s.db.UpsertHostOnScan(hostObj)
 		if err != nil {
 			log.Printf("[ERROR] Scanner: failed to upsert host %s: %v", ipStr, err)
 			continue
+		}
+
+		// If matched whitelist on subsequent scan, ensure approved status
+		if isApproved {
+			_ = s.db.UpdateHostManual(ipStr, displayName, vendor, false)
+			_, _ = s.db.Exec("UPDATE hosts SET is_approved = 1 WHERE ip = ?", ipStr)
 		}
 
 		savedHost, err := s.db.GetHost(ipStr)

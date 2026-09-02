@@ -26,6 +26,15 @@ func NewRouter(h *Handler) http.Handler {
 	mux.HandleFunc("GET /modals/add_host", h.HandleAddHostModal)
 	mux.HandleFunc("GET /modals/edit_host", h.HandleEditHostModal)
 	mux.HandleFunc("GET /modals/conflict", h.HandleConflictModal)
+	mux.HandleFunc("GET /modals/whitelist", h.HandleWhitelistModal)
+
+	// Whitelist API
+	mux.HandleFunc("POST /api/whitelist/import", h.HandleImportWhitelist)
+	mux.HandleFunc("DELETE /api/whitelist", h.HandleClearWhitelist)
+	mux.HandleFunc("DELETE /api/whitelist/{id}", func(w http.ResponseWriter, r *http.Request) {
+		id, _ := strconv.ParseInt(r.PathValue("id"), 10, 64)
+		h.HandleDeleteWhitelistEntry(w, r, id)
+	})
 
 	// Host API
 	mux.HandleFunc("POST /api/hosts", h.HandleCreateHost)
