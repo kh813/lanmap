@@ -89,6 +89,8 @@ func runServer() {
 	log.Printf("[INFO] Database initialized at %s", cfg.DBPath)
 
 	sc := scanner.NewScanner(database, cfg)
+	_ = sc.EnsureLocalSegmentAutoRegistered()
+
 	notif := notifier.NewNotifier(database)
 	km := kuma.NewManager(database)
 	defer km.Close()
@@ -153,7 +155,7 @@ func runServer() {
 	sig := <-sigChan
 	log.Printf("[INFO] Received signal %v. Initiating graceful shutdown...", sig)
 
-	cancel() // Cancel background scanner & sync tasks
+	cancel()
 
 	shutdownCtx, shutdownCancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer shutdownCancel()
@@ -172,15 +174,14 @@ func runBackgroundTasks(ctx context.Context, cfg *config.Config, database *db.DB
 	cleanupTicker := time.NewTicker(6 * time.Hour)
 	defer cleanupTicker.Stop()
 
-	// Run initial cleanup once on startup
 	retDays, _ := database.GetRetentionDays()
 	if deleted, err := database.CleanupOldHosts(retDays); err == nil && deleted > 0 {
 		log.Printf("[INFO] Cleanup: removed %d expired hosts (retention: %d days)", deleted, retDays)
 	}
 
-	// Initial scan in background
+	// Initial scan in background immediately
 	go func() {
-		time.Sleep(2 * time.Second)
+		time.Sleep(1 * time.Second)
 		executeScanCycle(ctx, database, sc, notif, km)
 	}()
 
@@ -219,7 +220,6 @@ func executeScanCycle(ctx context.Context, database *db.DB, sc *scanner.Scanner,
 		_ = notif.NotifyUnapprovedHosts(ctx, unapprovedAlerts)
 	}
 
-	// Periodic Kuma sync
 	_ = km.Connect(ctx)
 	_, _ = km.Sync(ctx)
 }

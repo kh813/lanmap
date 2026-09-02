@@ -14,15 +14,80 @@ import (
 	"time"
 )
 
+// GetAllARPEntries reads and parses the full system ARP cache into a map[IP]MAC
+func GetAllARPEntries() map[string]string {
+	arpMap := make(map[string]string)
+
+	if runtime.GOOS == "linux" {
+		f, err := os.Open("/proc/net/arp")
+		if err == nil {
+			defer f.Close()
+			scanner := bufio.NewScanner(f)
+			for scanner.Scan() {
+				fields := strings.Fields(scanner.Text())
+				if len(fields) >= 4 {
+					ip := fields[0]
+					mac := fields[3]
+					if mac != "00:00:00:00:00:00" && !strings.Contains(mac, "incomplete") {
+						arpMap[ip] = normalizeMAC(mac)
+					}
+				}
+			}
+			return arpMap
+		}
+	}
+
+	// macOS / BSD / Windows fallback
+	ctx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
+	defer cancel()
+
+	var cmd *exec.Cmd
+	if runtime.GOOS == "windows" {
+		cmd = exec.CommandContext(ctx, "arp", "-a")
+	} else {
+		cmd = exec.CommandContext(ctx, "arp", "-an")
+	}
+
+	out, err := cmd.Output()
+	if err != nil {
+		return arpMap
+	}
+
+	// Regex for "(192.168.3.1) at 38:97:a4:4f:84:60" or "192.168.3.1  38-97-a4-4f-84-60"
+	lineScanner := bufio.NewScanner(bytes.NewReader(out))
+	ipRegex := regexp.MustCompile(`(\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3})`)
+	macRegex := regexp.MustCompile(`([0-9a-fA-F]{1,2}[:-]){5}([0-9a-fA-F]{1,2})`)
+
+	for lineScanner.Scan() {
+		line := lineScanner.Text()
+		if strings.Contains(line, "incomplete") {
+			continue
+		}
+		ipMatch := ipRegex.FindString(line)
+		macMatch := macRegex.FindString(line)
+		if ipMatch != "" && macMatch != "" {
+			if macMatch != "ff:ff:ff:ff:ff:ff" && macMatch != "00:00:00:00:00:00" {
+				arpMap[ipMatch] = normalizeMAC(macMatch)
+			}
+		}
+	}
+
+	return arpMap
+}
+
 // ResolveMAC attempts to find MAC address for an IP from the system ARP cache
 func ResolveMAC(ip string) string {
+	arpMap := GetAllARPEntries()
+	if mac, ok := arpMap[ip]; ok {
+		return mac
+	}
+
 	if runtime.GOOS == "linux" {
 		if mac := readLinuxARP(ip); mac != "" {
 			return mac
 		}
 	}
 
-	// Fallback to running arp command
 	return execARPCommand(ip)
 }
 
@@ -106,7 +171,7 @@ func ResolveHostname(ipStr string, timeout time.Duration) string {
 	}
 
 	// 2. NetBIOS Name Service (NBNS) query for Windows / Samba hosts
-	if nbName := QueryNBNS(ipStr, 400*time.Millisecond); nbName != "" {
+	if nbName := QueryNBNS(ipStr, 300*time.Millisecond); nbName != "" {
 		return nbName
 	}
 

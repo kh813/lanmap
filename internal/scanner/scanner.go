@@ -36,10 +36,41 @@ func NewScanner(database *db.DB, cfg *config.Config) *Scanner {
 	}
 }
 
+// EnsureLocalSegmentAutoRegistered auto-creates local LAN segment if no segment has CIDR
+func (s *Scanner) EnsureLocalSegmentAutoRegistered() error {
+	segments, err := s.db.ListSegments()
+	if err != nil {
+		return err
+	}
+
+	hasCustomCIDR := false
+	for _, seg := range segments {
+		if !seg.IsDefault && seg.CIDR != "" {
+			hasCustomCIDR = true
+			break
+		}
+	}
+
+	if !hasCustomCIDR {
+		networks, err := DetectLocalNetworks()
+		if err == nil {
+			for _, n := range networks {
+				segName := fmt.Sprintf("ローカルLAN (%s)", n.Name)
+				_, _ = s.db.CreateSegment(segName, n.CIDR, n.Name, true)
+				log.Printf("[INFO] Auto-detected and registered local network segment: %s (%s)", segName, n.CIDR)
+			}
+		}
+	}
+
+	return nil
+}
+
 // ScanAll scans all enabled segments sequentially to protect bandwidth (2.3)
 func (s *Scanner) ScanAll(ctx context.Context) ([]*ScanReport, error) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
+
+	_ = s.EnsureLocalSegmentAutoRegistered()
 
 	segments, err := s.db.ListSegments()
 	if err != nil {
@@ -84,7 +115,7 @@ func (s *Scanner) scanSegmentInternal(ctx context.Context, seg *db.Segment) ([]*
 
 	concurrency := s.config.ScanConcurrency
 	if concurrency <= 0 {
-		concurrency = 20
+		concurrency = 30
 	}
 
 	type pingTaskResult struct {
@@ -111,7 +142,7 @@ func (s *Scanner) scanSegmentInternal(ctx context.Context, seg *db.Segment) ([]*
 					return
 				default:
 				}
-				res := Ping(ip, 800*time.Millisecond)
+				res := Ping(ip, 600*time.Millisecond)
 				resChan <- pingTaskResult{ip: ip, result: res}
 			}
 		}()
@@ -120,24 +151,45 @@ func (s *Scanner) scanSegmentInternal(ctx context.Context, seg *db.Segment) ([]*
 	wg.Wait()
 	close(resChan)
 
+	pingResults := make(map[string]PingResult)
+	for r := range resChan {
+		pingResults[r.ip.String()] = r.result
+	}
+
+	// Read updated ARP cache table after ping sweep
+	arpEntries := GetAllARPEntries()
+
 	respondedIPs := make(map[string]bool)
 	var reports []*ScanReport
 
-	for r := range resChan {
-		if !r.result.Alive {
+	for _, ip := range ips {
+		ipStr := ip.String()
+		pingRes, pingOk := pingResults[ipStr]
+		macFromARP, hasARP := arpEntries[ipStr]
+
+		isAlive := (pingOk && pingRes.Alive) || (hasARP && macFromARP != "")
+		if !isAlive {
 			continue
 		}
 
-		ipStr := r.ip.String()
 		respondedIPs[ipStr] = true
 
-		mac := ResolveMAC(ipStr)
+		mac := macFromARP
+		if mac == "" {
+			mac = ResolveMAC(ipStr)
+		}
+
 		vendor := ""
 		if mac != "" {
 			vendor = LookupVendor(mac)
 		}
-		hostname := ResolveHostname(ipStr, 500*time.Millisecond)
-		osVendor := DetectOSByTTL(r.result.TTL)
+		hostname := ResolveHostname(ipStr, 400*time.Millisecond)
+
+		ttl := 64
+		if pingOk && pingRes.TTL > 0 {
+			ttl = pingRes.TTL
+		}
+		osVendor := DetectOSByTTL(ttl)
 
 		hostObj := &db.Host{
 			IP:          ipStr,
@@ -191,7 +243,6 @@ func generateIPs(cidr string) ([]net.IP, error) {
 	var ips []net.IP
 	ipv4 := ip.To4()
 	if ipv4 == nil {
-		// IPv6 placeholder (Section 4.2.1 notes IPv4 is primarily targeted for v1.0)
 		return []net.IP{ip}, nil
 	}
 
@@ -199,10 +250,8 @@ func generateIPs(cidr string) ([]net.IP, error) {
 	start := binary.BigEndian.Uint32(ipv4) & mask
 	end := start | ^mask
 
-	// Check subnet size
 	total := end - start + 1
 	if total <= 2 {
-		// /31 or /32 point-to-point
 		for i := start; i <= end; i++ {
 			b := make(net.IP, 4)
 			binary.BigEndian.PutUint32(b, i)
@@ -211,7 +260,6 @@ func generateIPs(cidr string) ([]net.IP, error) {
 		return ips, nil
 	}
 
-	// Exclude network and broadcast addresses
 	for i := start + 1; i < end; i++ {
 		b := make(net.IP, 4)
 		binary.BigEndian.PutUint32(b, i)
