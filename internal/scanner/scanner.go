@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"log"
 	"net"
+	"strings"
 	"sync"
 	"time"
 
@@ -217,6 +218,11 @@ func (s *Scanner) scanSegmentInternal(ctx context.Context, seg *db.Segment) ([]*
 		}
 
 		openPorts := ScanOpenPorts(ipStr, 50*time.Millisecond)
+		if strings.Contains(vendor, "Apple") || osVendor == "macOS / iOS" {
+			openPorts = strings.ReplaceAll(openPorts, "5000:AirPlay / UPnP (またはSynology)", "5000:AirPlay (macOS)")
+		} else if strings.Contains(vendor, "Synology") {
+			openPorts = strings.ReplaceAll(openPorts, "5000:AirPlay / UPnP (またはSynology)", "5000:Synology DSM")
+		}
 
 		// 1. Web Title
 		httpTitle := ExtractWebTitle(ipStr, openPorts)

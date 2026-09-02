@@ -135,7 +135,7 @@ func TestExtendedProbes(t *testing.T) {
 	}
 
 	model2 := ResolveMDNSModel("", "ipad-me1tb-m4.local")
-	if model2 != "Apple iPad Pro (M4)" {
+	if model2 != "Apple iPad Pro (M4 1TB)" {
 		t.Errorf("unexpected model2: %s", model2)
 	}
 
