@@ -1,6 +1,6 @@
-APP_NAME=lmap
-CMD_DIR=./cmd/lanmap
-VERSION=v1.0.0
+BINARY_NAME=lanmap
+CLI_ALIAS=lmap
+VERSION=v0.0.2
 BUILD_DIR=./dist
 
 .PHONY: all build clean test cross-compile
