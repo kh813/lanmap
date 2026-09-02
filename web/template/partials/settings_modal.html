@@ -1,0 +1,132 @@
+<div class="fixed inset-0 bg-black/75 flex items-center justify-center p-4 z-50 overflow-y-auto animate-fade-in" onclick="if(event.target===this) closeModal()">
+    <div class="bg-slate-900 border border-slate-700 rounded-xl max-w-2xl w-full p-6 shadow-2xl space-y-6 my-8">
+        <div class="flex items-center justify-between pb-3 border-b border-slate-800">
+            <div class="flex items-center space-x-2">
+                <span class="text-lg">⚙️</span>
+                <h2 class="text-base font-bold text-white">lanmap システム設定</h2>
+            </div>
+            <button onclick="closeModal()" class="text-slate-400 hover:text-white text-lg">&times;</button>
+        </div>
+
+        <form hx-post="/api/settings" hx-target="#sidebar-container" hx-swap="outerHTML" onclick="if(event.submitter) closeModal()" class="space-y-6 text-xs">
+            <!-- 1. Retention Policy -->
+            <div class="space-y-2 bg-slate-950/60 p-4 rounded-lg border border-slate-800">
+                <label class="block font-bold text-slate-200">
+                    🧹 古いホストの自動クリーンアップ保持期間 (Retention Policy)
+                </label>
+                <p class="text-slate-400 text-[11px]">
+                    最終検出日時から指定期間経過した未保護・未承認端末を自動削除します。
+                </p>
+                <select name="retention_days" class="w-full bg-slate-900 border border-slate-700 rounded px-3 py-2 text-slate-200 focus:outline-none focus:border-blue-500">
+                    <option value="30" {{if eq .Settings.retention_days "30"}}selected{{end}}>30 日間</option>
+                    <option value="60" {{if eq .Settings.retention_days "60"}}selected{{end}}>60 日間</option>
+                    <option value="90" {{if eq .Settings.retention_days "90"}}selected{{end}}>90 日間</option>
+                    <option value="180" {{if or (eq .Settings.retention_days "180") (not .Settings.retention_days)}}selected{{end}}>180 日間 (推奨)</option>
+                    <option value="365" {{if eq .Settings.retention_days "365"}}selected{{end}}>365 日間 (1年)</option>
+                    <option value="0" {{if eq .Settings.retention_days "0"}}selected{{end}}>自動削除しない (無効)</option>
+                </select>
+            </div>
+
+            <!-- 2. Webhook Notifications -->
+            <div class="space-y-3 bg-slate-950/60 p-4 rounded-lg border border-slate-800">
+                <label class="block font-bold text-slate-200">
+                    🚨 未承認端末検出時の Webhook 通知設定 (即時アラート)
+                </label>
+                <div class="space-y-2">
+                    <div>
+                        <span class="text-slate-400 text-[11px]">Slack Webhook URL:</span>
+                        <input type="url" name="webhook_slack_url" value="{{.Settings.webhook_slack_url}}"
+                               placeholder="https://hooks.slack.com/services/..."
+                               class="w-full mt-1 bg-slate-900 border border-slate-700 rounded px-3 py-1.5 text-slate-200 focus:outline-none focus:border-blue-500">
+                    </div>
+                    <div>
+                        <span class="text-slate-400 text-[11px]">Discord Webhook URL:</span>
+                        <input type="url" name="webhook_discord_url" value="{{.Settings.webhook_discord_url}}"
+                               placeholder="https://discord.com/api/webhooks/..."
+                               class="w-full mt-1 bg-slate-900 border border-slate-700 rounded px-3 py-1.5 text-slate-200 focus:outline-none focus:border-blue-500">
+                    </div>
+                    <div>
+                        <span class="text-slate-400 text-[11px]">Microsoft Teams Webhook URL:</span>
+                        <input type="url" name="webhook_teams_url" value="{{.Settings.webhook_teams_url}}"
+                               placeholder="https://outlook.office.com/webhook/..."
+                               class="w-full mt-1 bg-slate-900 border border-slate-700 rounded px-3 py-1.5 text-slate-200 focus:outline-none focus:border-blue-500">
+                    </div>
+                    <div>
+                        <span class="text-slate-400 text-[11px]">LINE Notify アクセストークン:</span>
+                        <input type="text" name="webhook_line_token" value="{{.Settings.webhook_line_token}}"
+                               placeholder="LINE Notify Personal Access Token"
+                               class="w-full mt-1 bg-slate-900 border border-slate-700 rounded px-3 py-1.5 text-slate-200 focus:outline-none focus:border-blue-500">
+                    </div>
+                </div>
+            </div>
+
+            <!-- 3. Uptime Kuma Integration -->
+            <div class="space-y-3 bg-slate-950/60 p-4 rounded-lg border border-slate-800">
+                <div class="flex items-center justify-between">
+                    <label class="block font-bold text-slate-200">
+                        🦭 Uptime Kuma Socket.IO 双方向連携
+                    </label>
+                    <span class="text-[11px] font-medium text-slate-400 bg-slate-900 px-2 py-0.5 rounded border border-slate-800">
+                        状態: {{.KumaStatus}}
+                    </span>
+                </div>
+                <div class="grid grid-cols-1 md:grid-cols-3 gap-2">
+                    <div class="md:col-span-3">
+                        <span class="text-slate-400 text-[11px]">Uptime Kuma URL:</span>
+                        <input type="text" name="kuma_url" value="{{.Settings.kuma_url}}"
+                               placeholder="http://localhost:3001"
+                               class="w-full mt-1 bg-slate-900 border border-slate-700 rounded px-3 py-1.5 text-slate-200 focus:outline-none focus:border-blue-500">
+                    </div>
+                    <div>
+                        <span class="text-slate-400 text-[11px]">ユーザー名 (任意):</span>
+                        <input type="text" name="kuma_username" value="{{.Settings.kuma_username}}"
+                               placeholder="未入力で認証なし接続"
+                               class="w-full mt-1 bg-slate-900 border border-slate-700 rounded px-3 py-1.5 text-slate-200 focus:outline-none focus:border-blue-500">
+                    </div>
+                    <div class="md:col-span-2">
+                        <span class="text-slate-400 text-[11px]">パスワード (任意):</span>
+                        <input type="password" name="kuma_password" value="{{.Settings.kuma_password}}"
+                               placeholder="••••••••"
+                               class="w-full mt-1 bg-slate-900 border border-slate-700 rounded px-3 py-1.5 text-slate-200 focus:outline-none focus:border-blue-500">
+                    </div>
+                </div>
+            </div>
+
+            <!-- 4. TLS Certificates (Section 10.1) -->
+            <div class="space-y-3 bg-slate-950/60 p-4 rounded-lg border border-slate-800">
+                <label class="block font-bold text-slate-200">
+                    🔒 カスタム TLS / HTTPS 証明書設定 (任意)
+                </label>
+                <p class="text-slate-400 text-[11px]">
+                    未指定時は自動生成された自己署名証明書（certs/cert.pem）を使用します。
+                </p>
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-2">
+                    <div>
+                        <span class="text-slate-400 text-[11px]">証明書ファイルパス (cert.pem):</span>
+                        <input type="text" name="tls_cert_path" value="{{.Settings.tls_cert_path}}"
+                               placeholder="/path/to/fullchain.pem"
+                               class="w-full mt-1 bg-slate-900 border border-slate-700 rounded px-3 py-1.5 text-slate-200 focus:outline-none focus:border-blue-500">
+                    </div>
+                    <div>
+                        <span class="text-slate-400 text-[11px]">秘密鍵ファイルパス (key.pem):</span>
+                        <input type="text" name="tls_key_path" value="{{.Settings.tls_key_path}}"
+                               placeholder="/path/to/privkey.pem"
+                               class="w-full mt-1 bg-slate-900 border border-slate-700 rounded px-3 py-1.5 text-slate-200 focus:outline-none focus:border-blue-500">
+                    </div>
+                </div>
+            </div>
+
+            <!-- Modal Action Buttons -->
+            <div class="flex items-center justify-end space-x-2 pt-3 border-t border-slate-800">
+                <button type="button" onclick="closeModal()"
+                        class="px-4 py-2 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-300 font-medium transition">
+                    キャンセル
+                </button>
+                <button type="submit"
+                        class="px-5 py-2 rounded-lg bg-blue-600 hover:bg-blue-500 text-white font-medium transition shadow">
+                    設定を保存
+                </button>
+            </div>
+        </form>
+    </div>
+</div>

@@ -1,0 +1,41 @@
+<div class="fixed inset-0 bg-black/75 flex items-center justify-center p-4 z-50 animate-fade-in" onclick="if(event.target===this) closeModal()">
+    <div class="bg-slate-900 border border-slate-700 rounded-xl max-w-md w-full p-6 shadow-2xl space-y-4">
+        <div class="flex items-center justify-between pb-3 border-b border-slate-800">
+            <h2 class="text-base font-bold text-amber-400 flex items-center space-x-2">
+                <span>⚠️</span>
+                <span>表示名の競合を解決</span>
+            </h2>
+            <button onclick="closeModal()" class="text-slate-400 hover:text-white">&times;</button>
+        </div>
+
+        <p class="text-xs text-slate-300 leading-relaxed">
+            IPアドレス <code class="bg-slate-800 px-1 py-0.5 rounded font-mono text-blue-400">{{.Host.IP}}</code> に対し、lanmap の表示名と Uptime Kuma 側の監視名が一致していません。どちらの名称を採用しますか？
+        </p>
+
+        <div class="space-y-3 pt-2">
+            <!-- Option 1: Adopt Lanmap Name -->
+            <button hx-post="/api/hosts/{{.Host.IP}}/resolve_conflict?adopt=lanmap"
+                    hx-target="#main-content" hx-swap="outerHTML"
+                    onclick="closeModal()"
+                    class="w-full text-left p-3 rounded-lg border border-slate-700 bg-slate-950 hover:border-blue-500 hover:bg-slate-800 transition group">
+                <div class="text-xs font-semibold text-blue-400 group-hover:text-blue-300">lanmap の名称を採用 (Kuma側を上書き)</div>
+                <div class="text-sm font-bold text-white mt-0.5">「{{.Host.DisplayName}}」</div>
+            </button>
+
+            <!-- Option 2: Adopt Kuma Name -->
+            <button hx-post="/api/hosts/{{.Host.IP}}/resolve_conflict?adopt=kuma"
+                    hx-target="#main-content" hx-swap="outerHTML"
+                    onclick="closeModal()"
+                    class="w-full text-left p-3 rounded-lg border border-slate-700 bg-slate-950 hover:border-emerald-500 hover:bg-slate-800 transition group">
+                <div class="text-xs font-semibold text-emerald-400 group-hover:text-emerald-300">Uptime Kuma の名称を採用 (lanmap側を更新)</div>
+                <div class="text-sm font-bold text-white mt-0.5">「{{.Host.KumaName}}」</div>
+            </button>
+        </div>
+
+        <div class="pt-2 flex justify-end">
+            <button onclick="closeModal()" class="px-4 py-2 text-xs font-medium text-slate-400 hover:text-white">
+                キャンセル
+            </button>
+        </div>
+    </div>
+</div>

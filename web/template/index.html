@@ -1,0 +1,71 @@
+<!DOCTYPE html>
+<html lang="ja" class="h-full bg-slate-900 text-slate-100">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>lanmap - LAN Host Manager & Security Detector</title>
+    <script src="/static/htmx.min.js"></script>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    colors: {
+                        primary: '#3b82f6',
+                        secondary: '#64748b',
+                        danger: '#ef4444',
+                        success: '#22c55e',
+                        warning: '#f59e0b',
+                    }
+                }
+            }
+        }
+    </script>
+    <style>
+        /* Custom scrollbar and dropdown utilities */
+        ::-webkit-scrollbar { width: 6px; height: 6px; }
+        ::-webkit-scrollbar-track { background: #0f172a; }
+        ::-webkit-scrollbar-thumb { background: #334155; border-radius: 3px; }
+        ::-webkit-scrollbar-thumb:hover { background: #475569; }
+        .htmx-indicator { display: none; }
+        .htmx-request .htmx-indicator { display: inline-block; }
+        .htmx-request.htmx-indicator { display: inline-block; }
+    </style>
+</head>
+<body class="h-full flex overflow-hidden font-sans antialiased text-sm">
+
+    <!-- Left Sidebar -->
+    <aside id="sidebar-container" class="w-64 flex-shrink-0 bg-slate-950 border-r border-slate-800 flex flex-col justify-between"
+           hx-get="/partials/sidebar" hx-trigger="load, refreshSidebar from:body" hx-swap="outerHTML">
+        <div class="p-4 text-center text-slate-400">Loading sidebar...</div>
+    </aside>
+
+    <!-- Right Main Content Area -->
+    <main class="flex-1 flex flex-col min-w-0 bg-slate-900 overflow-hidden">
+        <!-- Main Content (Table) -->
+        <div id="main-content" class="flex-1 overflow-y-auto p-6"
+             hx-get="/partials/main_table" hx-trigger="load, refreshMainTable from:body" hx-swap="outerHTML">
+            <div class="flex items-center justify-center h-64 text-slate-400">
+                <svg class="animate-spin h-6 w-6 mr-3 text-blue-500" viewBox="0 0 24 24">
+                    <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4" fill="none"></circle>
+                    <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8H4z"></path>
+                </svg>
+                読み込み中...
+            </div>
+        </div>
+    </main>
+
+    <!-- Global Modal Container -->
+    <div id="modal-container"></div>
+
+    <script>
+        function closeModal() {
+            const container = document.getElementById('modal-container');
+            if (container) container.innerHTML = '';
+        }
+        document.addEventListener('keydown', function(e) {
+            if (e.key === 'Escape') closeModal();
+        });
+    </script>
+</body>
+</html>
