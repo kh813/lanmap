@@ -1,42 +1,42 @@
-<div class="fixed inset-0 bg-black/75 flex items-center justify-center p-4 z-50 animate-fade-in" onclick="if(event.target===this) closeModal()">
-    <div class="bg-slate-900 border border-slate-700 rounded-xl max-w-md w-full p-6 shadow-2xl space-y-4">
-        <div class="flex items-center justify-between pb-3 border-b border-slate-800">
-            <h2 class="text-base font-bold text-white flex items-center space-x-2">
+<div class="fixed inset-0 bg-black/60 dark:bg-black/80 backdrop-blur-sm flex items-center justify-center p-4 z-50 animate-fade-in" onclick="if(event.target===this) closeModal()">
+    <div class="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl max-w-md w-full p-6 shadow-2xl space-y-4 text-slate-800 dark:text-slate-100">
+        <div class="flex items-center justify-between pb-3 border-b border-slate-200 dark:border-slate-800">
+            <h2 class="text-base font-bold text-slate-900 dark:text-white flex items-center space-x-2">
                 <span>🏢</span>
                 <span>{{if .Segment.ID}}セグメントの編集{{else}}新規セグメント追加{{end}}</span>
             </h2>
-            <button onclick="closeModal()" class="text-slate-400 hover:text-white text-lg">&times;</button>
+            <button onclick="closeModal()" class="text-slate-400 hover:text-slate-700 dark:hover:text-white text-lg">&times;</button>
         </div>
 
         <form hx-post="{{if .Segment.ID}}/api/segments/{{.Segment.ID}}{{else}}/api/segments{{end}}"
               hx-target="#sidebar-container" hx-swap="outerHTML" onclick="if(event.submitter) closeModal()" class="space-y-4 text-xs">
             <div>
-                <label class="block font-medium text-slate-300">セグメント表示名 <span class="text-red-400">*</span></label>
+                <label class="block font-medium text-slate-700 dark:text-slate-300">セグメント表示名 <span class="text-red-500">*</span></label>
                 <input type="text" name="name" required value="{{.Segment.Name}}" placeholder="例: 本社LAN, 開発拠点VPN"
-                       class="w-full mt-1 bg-slate-950 border border-slate-700 rounded px-3 py-2 text-slate-200 focus:outline-none focus:border-blue-500">
+                       class="w-full mt-1 bg-white dark:bg-slate-950 border border-slate-300 dark:border-slate-700 rounded px-3 py-2 text-slate-800 dark:text-slate-200 focus:outline-none focus:border-blue-500">
             </div>
 
             <div>
-                <label class="block font-medium text-slate-300">CIDR サブネット表記 <span class="text-red-400">*</span></label>
+                <label class="block font-medium text-slate-700 dark:text-slate-300">CIDR サブネット表記 <span class="text-red-500">*</span></label>
                 <input type="text" name="cidr" required value="{{.Segment.CIDR}}" placeholder="例: 192.168.1.0/24, 10.8.0.0/24"
-                       class="w-full mt-1 bg-slate-950 border border-slate-700 rounded px-3 py-2 text-slate-200 focus:outline-none focus:border-blue-500 font-mono">
-                <p class="text-slate-400 text-[11px] mt-1">スキャン対象のIPv4サブネット（CIDR表記）を指定します。</p>
+                       class="w-full mt-1 bg-white dark:bg-slate-950 border border-slate-300 dark:border-slate-700 rounded px-3 py-2 text-slate-800 dark:text-slate-200 focus:outline-none focus:border-blue-500 font-mono">
+                <p class="text-slate-500 dark:text-slate-400 text-[11px] mt-1">スキャン対象のIPv4サブネット（CIDR表記）を指定します。</p>
             </div>
 
             <div>
-                <label class="block font-medium text-slate-300">バインドNIC / インターフェース (任意)</label>
+                <label class="block font-medium text-slate-700 dark:text-slate-300">バインドNIC / インターフェース (任意)</label>
                 <input type="text" name="interface_name" value="{{.Segment.InterfaceName}}" placeholder="例: eth0, en0 (未指定でデフォルト)"
-                       class="w-full mt-1 bg-slate-950 border border-slate-700 rounded px-3 py-2 text-slate-200 focus:outline-none focus:border-blue-500 font-mono">
+                       class="w-full mt-1 bg-white dark:bg-slate-950 border border-slate-300 dark:border-slate-700 rounded px-3 py-2 text-slate-800 dark:text-slate-200 focus:outline-none focus:border-blue-500 font-mono">
             </div>
 
             <div class="flex items-center space-x-2 pt-1">
                 <input type="checkbox" name="is_enabled" id="seg_is_enabled" value="true" {{if or .Segment.IsEnabled (not .Segment.ID)}}checked{{end}}
-                       class="rounded bg-slate-800 border-slate-700 text-blue-600 focus:ring-0">
-                <label for="seg_is_enabled" class="text-slate-300 font-medium cursor-pointer">スキャンを有効にする</label>
+                       class="rounded bg-white dark:bg-slate-800 border-slate-300 dark:border-slate-700 text-blue-600 focus:ring-0">
+                <label for="seg_is_enabled" class="text-slate-700 dark:text-slate-300 font-medium cursor-pointer">スキャンを有効にする</label>
             </div>
 
-            <div class="flex items-center justify-end space-x-2 pt-3 border-t border-slate-800">
-                <button type="button" onclick="closeModal()" class="px-4 py-2 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-300 font-medium">
+            <div class="flex items-center justify-end space-x-2 pt-3 border-t border-slate-200 dark:border-slate-800">
+                <button type="button" onclick="closeModal()" class="px-4 py-2 rounded-lg bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-300 font-medium">
                     キャンセル
                 </button>
                 <button type="submit" class="px-5 py-2 rounded-lg bg-blue-600 hover:bg-blue-500 text-white font-medium shadow">

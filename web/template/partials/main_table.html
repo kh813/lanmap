@@ -1,38 +1,38 @@
-<div id="main-content" class="flex-1 flex flex-col min-w-0 bg-slate-900 overflow-hidden">
+<div id="main-content" class="flex-1 flex flex-col min-w-0 bg-slate-50 dark:bg-slate-900 overflow-hidden">
     <!-- Top Action Bar -->
-    <header class="p-4 border-b border-slate-800 bg-slate-950/40 flex flex-wrap items-center justify-between gap-4">
+    <header class="p-4 border-b border-slate-200 dark:border-slate-800 bg-white/80 dark:bg-slate-950/40 backdrop-blur flex flex-wrap items-center justify-between gap-4">
         <div>
             <div class="flex items-center space-x-2">
-                <h1 class="text-lg font-bold text-white tracking-tight">{{.SegmentTitle}}</h1>
+                <h1 class="text-lg font-bold text-slate-900 dark:text-white tracking-tight">{{.SegmentTitle}}</h1>
                 {{if .SegmentCIDR}}
-                <span class="text-xs font-mono bg-slate-800 text-blue-400 px-2 py-0.5 rounded border border-slate-700">
+                <span class="text-xs font-mono bg-blue-50 text-blue-700 dark:bg-slate-800 dark:text-blue-400 px-2 py-0.5 rounded border border-blue-200 dark:border-slate-700">
                     {{.SegmentCIDR}}
                 </span>
                 {{end}}
             </div>
-            <p class="text-xs text-slate-400 mt-0.5">
+            <p class="text-xs text-slate-500 dark:text-slate-400 mt-0.5">
                 合計 {{len .Hosts}} 台の端末が登録されています
             </p>
         </div>
 
         <div class="flex items-center space-x-2">
             <!-- Filter Switch -->
-            <div class="bg-slate-800/80 p-0.5 rounded-lg flex text-xs border border-slate-700">
+            <div class="bg-slate-200/80 dark:bg-slate-800/80 p-0.5 rounded-lg flex text-xs border border-slate-300 dark:border-slate-700">
                 <button hx-get="/partials/main_table?segment_id={{.CurrentSegmentID}}&online_only=true"
                         hx-target="#main-content" hx-swap="outerHTML"
-                        class="px-2.5 py-1 rounded-md font-medium transition {{if .OnlineOnly}}bg-slate-900 text-white shadow{{else}}text-slate-400 hover:text-slate-200{{end}}">
+                        class="px-2.5 py-1 rounded-md font-medium transition {{if .OnlineOnly}}bg-white text-slate-900 dark:bg-slate-900 dark:text-white shadow-sm{{else}}text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-200{{end}}">
                     🟢 オンラインのみ
                 </button>
                 <button hx-get="/partials/main_table?segment_id={{.CurrentSegmentID}}&online_only=false"
                         hx-target="#main-content" hx-swap="outerHTML"
-                        class="px-2.5 py-1 rounded-md font-medium transition {{if not .OnlineOnly}}bg-slate-900 text-white shadow{{else}}text-slate-400 hover:text-slate-200{{end}}">
+                        class="px-2.5 py-1 rounded-md font-medium transition {{if not .OnlineOnly}}bg-white text-slate-900 dark:bg-slate-900 dark:text-white shadow-sm{{else}}text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-200{{end}}">
                     📋 すべて
                 </button>
             </div>
 
             <!-- Kuma Sync -->
             <button hx-post="/api/kuma/sync" hx-target="#main-content" hx-swap="outerHTML"
-                    class="flex items-center space-x-1.5 px-3 py-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-200 border border-slate-700 text-xs font-medium transition shadow-sm">
+                    class="flex items-center space-x-1.5 px-3 py-1.5 rounded-lg bg-white hover:bg-slate-100 dark:bg-slate-800 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-200 border border-slate-300 dark:border-slate-700 text-xs font-medium transition shadow-sm">
                 <span>🔄</span>
                 <span>Kuma同期</span>
             </button>
@@ -48,10 +48,10 @@
 
     <!-- Table Container -->
     <div class="flex-1 overflow-auto p-4">
-        <div class="border border-slate-800 rounded-lg overflow-hidden bg-slate-950/60 shadow">
+        <div class="border border-slate-200 dark:border-slate-800 rounded-lg overflow-hidden bg-white dark:bg-slate-950/60 shadow-sm">
             <table class="w-full text-left border-collapse text-xs">
                 <thead>
-                    <tr class="border-b border-slate-800 bg-slate-900/80 text-slate-400 font-semibold uppercase tracking-wider text-[11px]">
+                    <tr class="border-b border-slate-200 dark:border-slate-800 bg-slate-100/80 dark:bg-slate-900/80 text-slate-600 dark:text-slate-400 font-semibold uppercase tracking-wider text-[11px]">
                         <th class="py-3 px-3">IPアドレス</th>
                         <th class="py-3 px-3">ホスト名</th>
                         <th class="py-3 px-3">表示名</th>
@@ -64,17 +64,17 @@
                         <th class="py-3 px-3 text-right">操作</th>
                     </tr>
                 </thead>
-                <tbody class="divide-y divide-slate-800/60">
+                <tbody class="divide-y divide-slate-100 dark:divide-slate-800/60">
                     {{if eq (len .Hosts) 0}}
                     <tr>
-                        <td colspan="10" class="py-12 text-center text-slate-500">
+                        <td colspan="10" class="py-12 text-center text-slate-400 dark:text-slate-500">
                             ホストが見つかりません。「Scan Now」を実行するか、手動でホストを追加してください。
                         </td>
                     </tr>
                     {{end}}
 
                     {{range .Hosts}}
-                    <tr id="host-row-{{.IP}}" class="hover:bg-slate-900/60 transition {{if not .IsApproved}}bg-red-950/10{{end}}">
+                    <tr id="host-row-{{.IP}}" class="hover:bg-slate-50 dark:hover:bg-slate-900/60 transition {{if not .IsApproved}}bg-red-50/50 dark:bg-red-950/10{{end}}">
                         <!-- IP & MAC -->
                         <td class="py-3 px-3">
                             <div class="flex items-center space-x-1.5">
@@ -82,24 +82,24 @@
                                 <span title="未承認端末 (警戒対象)" class="text-red-500 font-bold">⚠️</span>
                                 {{end}}
                                 <div>
-                                    <div class="font-mono font-medium text-slate-100">{{.IP}}</div>
-                                    <div class="font-mono text-[10px] text-slate-500">{{if .MACAddress}}{{.MACAddress}}{{else}}-{{end}}</div>
+                                    <div class="font-mono font-medium text-slate-900 dark:text-slate-100">{{.IP}}</div>
+                                    <div class="font-mono text-[10px] text-slate-400 dark:text-slate-500">{{if .MACAddress}}{{.MACAddress}}{{else}}-{{end}}</div>
                                 </div>
                             </div>
                         </td>
 
                         <!-- Hostname -->
-                        <td class="py-3 px-3 font-medium text-slate-200">
-                            {{if .Hostname}}{{.Hostname}}{{else}}<span class="text-slate-600">-</span>{{end}}
+                        <td class="py-3 px-3 font-medium text-slate-800 dark:text-slate-200">
+                            {{if .Hostname}}{{.Hostname}}{{else}}<span class="text-slate-400 dark:text-slate-600">-</span>{{end}}
                         </td>
 
                         <!-- Display Name / Conflict Badge -->
                         <td class="py-3 px-3">
                             <div class="flex items-center space-x-1.5">
-                                <span class="text-slate-200">{{if .DisplayName}}{{.DisplayName}}{{else}}-{{end}}</span>
+                                <span class="text-slate-800 dark:text-slate-200">{{if .DisplayName}}{{.DisplayName}}{{else}}-{{end}}</span>
                                 {{if .HasConflict}}
                                 <button hx-get="/modals/conflict?ip={{.IP}}" hx-target="#modal-container" hx-swap="innerHTML"
-                                        class="px-1.5 py-0.5 rounded text-[10px] font-bold bg-amber-500/20 text-amber-400 border border-amber-500/30 hover:bg-amber-500/30"
+                                        class="px-1.5 py-0.5 rounded text-[10px] font-bold bg-amber-100 text-amber-800 dark:bg-amber-500/20 dark:text-amber-400 border border-amber-300 dark:border-amber-500/30 hover:opacity-80"
                                         title="Uptime Kuma監視名との競合が発生しています。クリックして解消">
                                     ⚠️ 競合
                                 </button>
@@ -108,27 +108,27 @@
                         </td>
 
                         <!-- Vendor / Model -->
-                        <td class="py-3 px-3 text-slate-300">
-                            {{if .VendorModel}}{{.VendorModel}}{{else}}<span class="text-slate-600">Unknown</span>{{end}}
+                        <td class="py-3 px-3 text-slate-600 dark:text-slate-300">
+                            {{if .VendorModel}}{{.VendorModel}}{{else}}<span class="text-slate-400 dark:text-slate-600">Unknown</span>{{end}}
                         </td>
 
                         <!-- OS -->
-                        <td class="py-3 px-3 text-slate-400">
-                            {{if .OSVendor}}{{.OSVendor}}{{else}}<span class="text-slate-600">-</span>{{end}}
+                        <td class="py-3 px-3 text-slate-600 dark:text-slate-400">
+                            {{if .OSVendor}}{{.OSVendor}}{{else}}<span class="text-slate-400 dark:text-slate-600">-</span>{{end}}
                         </td>
 
                         <!-- Approval Status (Section 6.1) -->
                         <td class="py-3 px-3 text-center">
                             {{if .IsApproved}}
-                            <span class="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-medium bg-emerald-500/10 text-emerald-400 border border-emerald-500/20">
+                            <span class="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-medium bg-emerald-100 text-emerald-800 dark:bg-emerald-500/10 dark:text-emerald-400 border border-emerald-200 dark:border-emerald-500/20">
                                 🟢 承認済
                             </span>
                             {{else if .IsNewHost}}
-                            <span class="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-bold bg-purple-500/20 text-purple-300 border border-purple-500/30 animate-pulse">
+                            <span class="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-bold bg-purple-100 text-purple-800 dark:bg-purple-500/20 dark:text-purple-300 border border-purple-200 dark:border-purple-500/30 animate-pulse">
                                 🆕 NEW
                             </span>
                             {{else}}
-                            <span class="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-medium bg-red-500/10 text-red-400 border border-red-500/20">
+                            <span class="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-medium bg-red-100 text-red-800 dark:bg-red-500/10 dark:text-red-400 border border-red-200 dark:border-red-500/20">
                                 🔴 未承認
                             </span>
                             {{end}}
@@ -137,11 +137,11 @@
                         <!-- Up/Down Status -->
                         <td class="py-3 px-3 text-center">
                             {{if eq .Status "up"}}
-                            <span class="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-medium bg-emerald-500/10 text-emerald-400">
+                            <span class="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-medium bg-emerald-100 text-emerald-800 dark:bg-emerald-500/10 dark:text-emerald-400">
                                 🟢 UP
                             </span>
                             {{else}}
-                            <span class="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-medium bg-slate-800 text-slate-400"
+                            <span class="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-medium bg-slate-100 text-slate-600 dark:bg-slate-800 dark:text-slate-400"
                                   title="{{if .LastSeen}}Last seen: {{.LastSeen.Format "2006-01-02 15:04"}}{{end}}">
                                 ⚪ Down
                             </span>
@@ -152,19 +152,19 @@
                         <td class="py-3 px-3 text-center">
                             <input type="checkbox" {{if .IsStaticIP}}checked{{end}}
                                    hx-post="/api/hosts/{{.IP}}/toggle_static" hx-swap="none"
-                                   class="rounded bg-slate-800 border-slate-700 text-blue-600 focus:ring-0 cursor-pointer">
+                                   class="rounded bg-white dark:bg-slate-800 border-slate-300 dark:border-slate-700 text-blue-600 focus:ring-0 cursor-pointer">
                         </td>
 
                         <!-- Kuma Monitoring Status Badge -->
                         <td class="py-3 px-3 text-center">
                             {{if not .IsMonitored}}
-                            <span class="text-slate-500 text-[11px]">⚪ 未監視</span>
+                            <span class="text-slate-400 dark:text-slate-500 text-[11px]">⚪ 未監視</span>
                             {{else if .IsPaused}}
-                            <span class="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-medium bg-amber-500/10 text-amber-400 border border-amber-500/20">
+                            <span class="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-medium bg-amber-100 text-amber-800 dark:bg-amber-500/10 dark:text-amber-400 border border-amber-200 dark:border-amber-500/20">
                                 ⏸️ 停止中
                             </span>
                             {{else}}
-                            <span class="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-medium bg-emerald-500/10 text-emerald-400 border border-emerald-500/20">
+                            <span class="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-medium bg-emerald-100 text-emerald-800 dark:bg-emerald-500/10 dark:text-emerald-400 border border-emerald-200 dark:border-emerald-500/20">
                                 🟢 監視中
                             </span>
                             {{end}}
@@ -173,7 +173,7 @@
                         <!-- Action Menu Button -->
                         <td class="py-3 px-3 text-right relative">
                             <button hx-get="/partials/action_menu?ip={{.IP}}" hx-target="#action-menu-{{.IP}}" hx-swap="innerHTML"
-                                    class="p-1 rounded text-slate-400 hover:text-white hover:bg-slate-800 transition font-bold text-sm tracking-widest px-2">
+                                    class="p-1 rounded text-slate-500 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white hover:bg-slate-100 dark:hover:bg-slate-800 transition font-bold text-sm tracking-widest px-2">
                                 ...
                             </button>
                             <!-- Dropdown container -->
