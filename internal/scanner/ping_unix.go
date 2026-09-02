@@ -3,9 +3,10 @@
 package scanner
 
 import (
+	"crypto/rand"
+	"encoding/binary"
 	"fmt"
 	"net"
-	"os"
 	"runtime"
 	"time"
 
@@ -17,7 +18,11 @@ import (
 func Ping(targetIP net.IP, timeout time.Duration) PingResult {
 	result := PingResult{IP: targetIP, Alive: false}
 
-	// Unprivileged datagram ICMP socket (Non-root, section 2.5)
+	targetIPv4 := targetIP.To4()
+	if targetIPv4 == nil {
+		return result
+	}
+
 	c, err := icmp.ListenPacket("udp4", "0.0.0.0")
 	if err != nil {
 		if runtime.GOOS == "linux" {
@@ -34,12 +39,17 @@ func Ping(targetIP net.IP, timeout time.Duration) PingResult {
 		_ = p.SetControlMessage(ipv4.FlagTTL, true)
 	}
 
+	var randomID uint16
+	_ = binary.Read(rand.Reader, binary.BigEndian, &randomID)
+	reqID := int(randomID)
+	reqSeq := 1
+
 	wm := icmp.Message{
 		Type: ipv4.ICMPTypeEcho,
 		Code: 0,
 		Body: &icmp.Echo{
-			ID:   os.Getpid() & 0xffff,
-			Seq:  1,
+			ID:   reqID,
+			Seq:  reqSeq,
 			Data: []byte("LANMAP_PING"),
 		},
 	}
@@ -48,7 +58,7 @@ func Ping(targetIP net.IP, timeout time.Duration) PingResult {
 		return result
 	}
 
-	dst := &net.UDPAddr{IP: targetIP}
+	dst := &net.UDPAddr{IP: targetIPv4}
 	start := time.Now()
 	if err := c.SetDeadline(start.Add(timeout)); err != nil {
 		return result
@@ -62,20 +72,26 @@ func Ping(targetIP net.IP, timeout time.Duration) PingResult {
 	for {
 		var n int
 		var cm *ipv4.ControlMessage
+		var from net.Addr
 		if p != nil {
-			var err error
-			n, cm, _, err = p.ReadFrom(rb)
+			n, cm, from, err = p.ReadFrom(rb)
 			if err != nil {
 				return result
 			}
 		} else {
-			var err error
-			n, _, err = c.ReadFrom(rb)
+			n, from, err = c.ReadFrom(rb)
 			if err != nil {
 				return result
 			}
 		}
 		rtt := time.Since(start)
+
+		// Verify source IP
+		if udpAddr, ok := from.(*net.UDPAddr); ok {
+			if !udpAddr.IP.Equal(targetIPv4) {
+				continue
+			}
+		}
 
 		rm, err := icmp.ParseMessage(ipv4.ICMPTypeEchoReply.Protocol(), rb[:n])
 		if err != nil {
@@ -83,6 +99,13 @@ func Ping(targetIP net.IP, timeout time.Duration) PingResult {
 		}
 
 		if rm.Type == ipv4.ICMPTypeEchoReply {
+			if echo, ok := rm.Body.(*icmp.Echo); ok {
+				// Verify Echo ID
+				if echo.ID != reqID && runtime.GOOS != "darwin" && runtime.GOOS != "linux" {
+					continue
+				}
+			}
+
 			result.Alive = true
 			result.RTT = rtt
 			if cm != nil && cm.TTL > 0 {
