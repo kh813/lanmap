@@ -295,3 +295,21 @@ func TestHostOpenPortsParsing(t *testing.T) {
 		t.Errorf("unexpected port 1: %+v", list[1])
 	}
 }
+
+func TestHostExtendedFields(t *testing.T) {
+	exp := time.Now().Add(10 * 24 * time.Hour)
+	h := &Host{
+		TLSSubject: "synology.lan",
+		TLSExpiry:  &exp,
+	}
+
+	if !h.HasTLS() {
+		t.Error("expected HasTLS to be true")
+	}
+	if !h.TLSExpiresSoon() {
+		t.Error("expected TLSExpiresSoon to be true for 10 days remaining")
+	}
+	if days := h.DaysUntilTLSExpiry(); days < 9 || days > 11 {
+		t.Errorf("unexpected days until expiry: %d", days)
+	}
+}

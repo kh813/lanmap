@@ -14,7 +14,7 @@
                 {{end}}
             </div>
             <p class="text-xs text-slate-500 dark:text-slate-400 mt-0.5">
-                合計 {{len .Hosts}} 台の端末が登録されています (30秒ごとに自動更新 / IPホバーでポート・詳細表示)
+                合計 {{len .Hosts}} 台の端末が登録されています (30秒ごとに自動更新 / IPホバーでWeb名・型番・SSL・ポート詳細表示)
             </p>
         </div>
 
@@ -96,20 +96,73 @@
                                 </div>
                             </div>
 
-                            <!-- Hover Popover Card -->
-                            <div class="hidden group-hover/card:block absolute left-8 top-full z-50 mt-1 w-80 p-3.5 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl shadow-2xl text-xs space-y-2.5 pointer-events-none transition-opacity duration-200">
+                            <!-- Rich Hover Popover Card -->
+                            <div class="hidden group-hover/card:block absolute left-8 top-full z-50 mt-1 w-96 p-4 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl shadow-2xl text-xs space-y-3 pointer-events-none transition-opacity duration-200">
                                 <!-- Header -->
                                 <div class="flex items-center justify-between border-b border-slate-100 dark:border-slate-800 pb-2">
                                     <div class="flex items-center space-x-2">
                                         <span class="text-base">🔍</span>
                                         <div>
-                                            <div class="font-bold text-slate-900 dark:text-white font-mono text-xs">{{.IP}}</div>
-                                            <div class="text-[10px] text-slate-500 truncate max-w-[170px]">{{if .Hostname}}{{.Hostname}}{{else}}ホスト名なし{{end}}</div>
+                                            <div class="font-bold text-slate-900 dark:text-white font-mono text-xs flex items-center space-x-2">
+                                                <span>{{.IP}}</span>
+                                                {{if .IsStaticIP}}
+                                                <span class="px-1 py-0.2 rounded text-[9px] bg-slate-100 text-slate-600 dark:bg-slate-800 dark:text-slate-400">固定IP</span>
+                                                {{end}}
+                                            </div>
+                                            <div class="text-[10px] text-slate-500 truncate max-w-[200px]">{{if .Hostname}}{{.Hostname}}{{else}}ホスト名なし{{end}}</div>
                                         </div>
                                     </div>
-                                    <span class="px-1.5 py-0.5 rounded text-[10px] font-medium {{if eq .Status "up"}}bg-emerald-100 text-emerald-800 dark:bg-emerald-500/10 dark:text-emerald-400{{else}}bg-slate-100 text-slate-600{{end}}">
-                                        {{.Status}}
-                                    </span>
+                                    <div class="text-right">
+                                        <span class="px-1.5 py-0.5 rounded text-[10px] font-medium {{if eq .Status "up"}}bg-emerald-100 text-emerald-800 dark:bg-emerald-500/10 dark:text-emerald-400{{else}}bg-slate-100 text-slate-600{{end}}">
+                                            {{.Status}} (稼働率: {{printf "%.1f" .UptimePct}}%)
+                                        </span>
+                                    </div>
+                                </div>
+
+                                <!-- Extended Metadata (Web Title, UPnP, mDNS, TLS) -->
+                                <div class="space-y-1.5 text-[11px] bg-slate-50 dark:bg-slate-950/50 p-2.5 rounded-lg border border-slate-100 dark:border-slate-800/80">
+                                    {{if .HTTPTitle}}
+                                    <div class="flex items-start space-x-1.5">
+                                        <span class="text-slate-400 shrink-0">🌐 Web:</span>
+                                        <span class="font-medium text-slate-900 dark:text-slate-100 truncate" title="{{.HTTPTitle}}">"{{.HTTPTitle}}"</span>
+                                    </div>
+                                    {{end}}
+
+                                    {{if or .UPnPName .UPnPModel}}
+                                    <div class="flex items-start space-x-1.5">
+                                        <span class="text-slate-400 shrink-0">📺 UPnP:</span>
+                                        <span class="font-medium text-slate-800 dark:text-slate-200 truncate">
+                                            {{if .UPnPName}}{{.UPnPName}} {{end}}{{if .UPnPModel}}[{{.UPnPModel}}]{{end}}{{if .UPnPSerial}} (S/N: {{.UPnPSerial}}){{end}}
+                                        </span>
+                                    </div>
+                                    {{end}}
+
+                                    {{if .MDNSModel}}
+                                    <div class="flex items-start space-x-1.5">
+                                        <span class="text-slate-400 shrink-0">🍏 モデル:</span>
+                                        <span class="font-medium text-blue-700 dark:text-blue-400">{{.MDNSModel}}</span>
+                                    </div>
+                                    {{end}}
+
+                                    {{if .HasTLS}}
+                                    <div class="flex items-start space-x-1.5">
+                                        <span class="text-slate-400 shrink-0">🔒 SSL:</span>
+                                        <div class="text-[10px] truncate">
+                                            <span class="font-medium text-slate-800 dark:text-slate-200">{{.TLSSubject}}</span>
+                                            {{if .TLSExpiry}}
+                                            <span class="ml-1 {{if .TLSExpiresSoon}}text-red-500 font-bold{{else}}text-slate-500{{end}}">
+                                                (残{{.DaysUntilTLSExpiry}}日{{if .TLSExpiresSoon}} ⚠️失効間近{{end}})
+                                            </span>
+                                            {{end}}
+                                        </div>
+                                    </div>
+                                    {{end}}
+
+                                    {{if and (not .HTTPTitle) (not .UPnPName) (not .UPnPModel) (not .MDNSModel) (not .HasTLS)}}
+                                    <div class="text-[10px] text-slate-400 dark:text-slate-500 italic">
+                                        メーカー: {{if .VendorModel}}{{.VendorModel}}{{else}}不明{{end}} / 推定OS: {{if .OSVendor}}{{.OSVendor}}{{else}}-{{end}}
+                                    </div>
+                                    {{end}}
                                 </div>
 
                                 <!-- Open Ports & Services -->
@@ -136,19 +189,13 @@
                                     {{end}}
                                 </div>
 
-                                <!-- Network & Device Info -->
+                                <!-- Network Quality (RTT & Jitter & Broadcast) -->
                                 <div class="grid grid-cols-2 gap-2 pt-1 border-t border-slate-100 dark:border-slate-800 text-[10px] text-slate-600 dark:text-slate-400">
                                     <div>
-                                        <span class="text-slate-400">メーカー:</span>
-                                        <div class="font-medium text-slate-800 dark:text-slate-200 truncate">{{if .VendorModel}}{{.VendorModel}}{{else}}不明{{end}}</div>
-                                    </div>
-                                    <div>
-                                        <span class="text-slate-400">推定OS:</span>
-                                        <div class="font-medium text-slate-800 dark:text-slate-200 truncate">{{if .OSVendor}}{{.OSVendor}}{{else}}-{{end}}</div>
-                                    </div>
-                                    <div>
                                         <span class="text-slate-400">Ping応答:</span>
-                                        <div class="font-medium font-mono text-slate-800 dark:text-slate-200">{{if .HasPingRTT}}{{.PingRTTFormatted}}{{else}}-{{end}}</div>
+                                        <div class="font-medium font-mono text-slate-800 dark:text-slate-200">
+                                            {{if .HasPingRTT}}{{.PingRTTFormatted}} ({{.JitterFormatted}}){{else}}-{{end}}
+                                        </div>
                                     </div>
                                     <div>
                                         <span class="text-slate-400">ブロードキャスト:</span>

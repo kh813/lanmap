@@ -218,18 +218,58 @@ func (s *Scanner) scanSegmentInternal(ctx context.Context, seg *db.Segment) ([]*
 
 		openPorts := ScanOpenPorts(ipStr, 50*time.Millisecond)
 
+		// 1. Web Title
+		httpTitle := ExtractWebTitle(ipStr, openPorts)
+
+		// 2. UPnP / SSDP info
+		var upnpName, upnpModel, upnpSerial string
+		if upnp := FetchUPnPInfo(ipStr); upnp != nil {
+			upnpName = upnp.FriendlyName
+			upnpModel = upnp.ModelName
+			upnpSerial = upnp.SerialNumber
+			if vendor == "" && upnp.Manufacturer != "" {
+				vendor = upnp.Manufacturer
+			}
+		}
+
+		// 3. TLS Certificate
+		var tlsSubj string
+		var tlsExp *time.Time
+		if tlsInfo := InspectTLSCert(ipStr); tlsInfo != nil {
+			tlsSubj = tlsInfo.Subject
+			tlsExp = &tlsInfo.Expiry
+		}
+
+		// 4. mDNS Model
+		mdnsModel := ResolveMDNSModel("", hostname)
+
+		// 5. Jitter
+		var jitterPtr *float64
+		if rttPtr != nil {
+			jVal := RecordRTTAndCalculateJitter(ipStr, *rttPtr)
+			jitterPtr = &jVal
+		}
+
 		hostObj := &db.Host{
-			IP:          ipStr,
-			SegmentID:   &seg.ID,
-			MACAddress:  mac,
-			Hostname:    hostname,
-			DisplayName: displayName,
-			VendorModel: vendor,
-			OSVendor:    osVendor,
-			Status:      "up",
-			PingRTTMs:   rttPtr,
-			OpenPorts:   openPorts,
-			IsApproved:  isApproved,
+			IP:           ipStr,
+			SegmentID:    &seg.ID,
+			MACAddress:   mac,
+			Hostname:     hostname,
+			DisplayName:  displayName,
+			VendorModel:  vendor,
+			OSVendor:     osVendor,
+			Status:       "up",
+			PingRTTMs:    rttPtr,
+			PingJitterMs: jitterPtr,
+			OpenPorts:    openPorts,
+			HTTPTitle:    httpTitle,
+			UPnPName:     upnpName,
+			UPnPModel:    upnpModel,
+			UPnPSerial:   upnpSerial,
+			TLSSubject:   tlsSubj,
+			TLSExpiry:    tlsExp,
+			MDNSModel:    mdnsModel,
+			IsApproved:   isApproved,
 		}
 
 		isNew, isReplaced, err := s.db.UpsertHostOnScan(hostObj)

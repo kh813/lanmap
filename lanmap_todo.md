@@ -186,3 +186,22 @@
 - [x] **9.4 検証 & コミット**
   - [x] 単体テスト作成 & 実行 (`go test -v ./...`)
   - [x] サーバー起動確認 & Git コミット
+
+---
+
+### 🔹 Phase 10: 拡張ホストプロファイリング & 品質メトリクス (5大機能)
+- [x] **10.1 DB層 (`internal/db`)**
+  - [x] `hosts` テーブルに `http_title`, `upnp_name`, `upnp_model`, `upnp_serial`, `tls_subject`, `tls_expiry`, `mdns_model`, `ping_jitter_ms`, `uptime_pct` カラム追加 (`db.go`, `host.go`)
+  - [x] `TLSExpiresSoon() bool`, `TLSFormatted() string`, `JitterFormatted() string` 等のヘルパーメソッド実装
+- [x] **10.2 スキャナー・プローブ層 (`internal/scanner`)**
+  - [x] Feature 1: HTTP/HTTPS `<title>` 抽出 (`web_title.go`)
+  - [x] Feature 2: UPnP / SSDP XML 解析 (`upnp.go`)
+  - [x] Feature 3: TLS サーバー証明書 (X.509) 有効期限 & Subject 解析 (`tls_cert.go`)
+  - [x] Feature 4: mDNS TXT レコード (Apple/IoTモデル) 解析 (`mdns_model.go`)
+  - [x] Feature 5: Ping ジッター & 24h 稼働率計算 (`jitter.go`)
+  - [x] `scanner.go` への全プローブ統合
+- [x] **10.3 Web UI (`web/template/partials/main_table.html`)**
+  - [x] ホスト詳細ホバーカードに Webタイトル, UPnP型番/シリアル, mDNSモデル, TLS証明書有効期限/警告, ジッター/稼働率を表示
+- [x] **10.4 検証 & コミット**
+  - [x] 単体テスト作成 & 実行 (`go test -v ./...`)
+  - [x] サーバー起動確認 & Git コミット

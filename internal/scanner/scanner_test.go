@@ -126,3 +126,27 @@ func TestScanOpenPorts(t *testing.T) {
 	ports := ScanOpenPorts("127.0.0.1", 30*time.Millisecond)
 	t.Logf("Local open ports: %s", ports)
 }
+
+func TestExtendedProbes(t *testing.T) {
+	// 1. mDNS Model resolution
+	model := ResolveMDNSModel("MacBookPro18,1", "mbpm1m.local")
+	if model != "MacBook Pro (16-inch, 2021 M1 Pro)" {
+		t.Errorf("unexpected model: %s", model)
+	}
+
+	model2 := ResolveMDNSModel("", "ipad-me1tb-m4.local")
+	if model2 != "Apple iPad Pro (M4)" {
+		t.Errorf("unexpected model2: %s", model2)
+	}
+
+	// 2. Jitter calculation
+	j1 := RecordRTTAndCalculateJitter("10.0.0.1", 10.0)
+	j2 := RecordRTTAndCalculateJitter("10.0.0.1", 12.0)
+	j3 := RecordRTTAndCalculateJitter("10.0.0.1", 10.5)
+	t.Logf("Jitter calculated: %v, %v, %v", j1, j2, j3)
+
+	// 3. Web title and UPnP extraction safety
+	_ = ExtractWebTitle("127.0.0.1", "80:HTTP")
+	_ = FetchUPnPInfo("127.0.0.1")
+	_ = InspectTLSCert("127.0.0.1")
+}

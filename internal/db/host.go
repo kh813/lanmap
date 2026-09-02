@@ -25,7 +25,16 @@ type Host struct {
 	OSVendor          string     `json:"os_vendor"`
 	Status            string     `json:"status"`
 	PingRTTMs         *float64   `json:"ping_rtt_ms"`
+	PingJitterMs      *float64   `json:"ping_jitter_ms"`
+	UptimePct         float64    `json:"uptime_pct"`
 	OpenPorts         string     `json:"open_ports"`
+	HTTPTitle         string     `json:"http_title"`
+	UPnPName          string     `json:"upnp_name"`
+	UPnPModel         string     `json:"upnp_model"`
+	UPnPSerial        string     `json:"upnp_serial"`
+	TLSSubject        string     `json:"tls_subject"`
+	TLSExpiry         *time.Time `json:"tls_expiry"`
+	MDNSModel         string     `json:"mdns_model"`
 	BroadcastCount1m  int        `json:"broadcast_count_1m"`
 	IsStorming        bool       `json:"is_storming"`
 	IsApproved        bool       `json:"is_approved"`
@@ -59,6 +68,14 @@ func (h *Host) PingRTTFormatted() string {
 		return "-"
 	}
 	return fmt.Sprintf("%.1f ms", *h.PingRTTMs)
+}
+
+// JitterFormatted returns formatted Jitter string (e.g. "±0.5 ms")
+func (h *Host) JitterFormatted() string {
+	if h.PingJitterMs == nil || *h.PingJitterMs < 0 {
+		return "安定"
+	}
+	return fmt.Sprintf("±%.1f ms", *h.PingJitterMs)
 }
 
 // PingRTTLevel returns quality level for CSS badge styling
@@ -102,6 +119,31 @@ func (h *Host) HasOpenPorts() bool {
 	return len(h.OpenPortsList()) > 0
 }
 
+// HasTLS returns true if TLS info is available
+func (h *Host) HasTLS() bool {
+	return h.TLSSubject != "" || h.TLSExpiry != nil
+}
+
+// TLSExpiresSoon returns true if certificate expires within 30 days
+func (h *Host) TLSExpiresSoon() bool {
+	if h.TLSExpiry == nil {
+		return false
+	}
+	return time.Until(*h.TLSExpiry) < 30*24*time.Hour
+}
+
+// DaysUntilTLSExpiry returns days remaining until certificate expiry
+func (h *Host) DaysUntilTLSExpiry() int {
+	if h.TLSExpiry == nil {
+		return 0
+	}
+	days := int(time.Until(*h.TLSExpiry).Hours() / 24)
+	if days < 0 {
+		return 0
+	}
+	return days
+}
+
 // UpsertHostOnScan inserts a newly scanned host or updates an existing host
 func (db *DB) UpsertHostOnScan(h *Host) (isNew bool, isReplaced bool, err error) {
 	existing, err := db.GetHost(h.IP)
@@ -116,15 +158,28 @@ func (db *DB) UpsertHostOnScan(h *Host) (isNew bool, isReplaced bool, err error)
 		query := `
 		INSERT INTO hosts (
 			ip, segment_id, mac_address, hostname, vendor_model, display_name,
-			os_vendor, status, ping_rtt_ms, open_ports, broadcast_count_1m, is_storming,
+			os_vendor, status, ping_rtt_ms, ping_jitter_ms, uptime_pct,
+			open_ports, http_title, upnp_name, upnp_model, upnp_serial,
+			tls_subject, tls_expiry, mdns_model, broadcast_count_1m, is_storming,
 			is_approved, is_protected, is_static_ip,
 			is_monitored, is_paused, has_conflict, kuma_name, uptime_kuma_id,
 			first_seen, last_seen
-		) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 0, 0, ?, 0, 0, 0, 0, 0, '', NULL, ?, ?)
+		) VALUES (
+			?, ?, ?, ?, ?, ?,
+			?, ?, ?, ?, 100.0,
+			?, ?, ?, ?, ?,
+			?, ?, ?, 0, 0,
+			?, 0, 0,
+			0, 0, 0, '', NULL,
+			?, ?
+		)
 		`
 		_, err := db.Exec(query,
 			h.IP, h.SegmentID, normMAC, h.Hostname, h.VendorModel, h.DisplayName,
-			h.OSVendor, h.Status, h.PingRTTMs, h.OpenPorts, h.IsApproved, now, now,
+			h.OSVendor, h.Status, h.PingRTTMs, h.PingJitterMs,
+			h.OpenPorts, h.HTTPTitle, h.UPnPName, h.UPnPModel, h.UPnPSerial,
+			h.TLSSubject, h.TLSExpiry, h.MDNSModel,
+			h.IsApproved, now, now,
 		)
 		return true, false, err
 	}
@@ -170,9 +225,42 @@ func (db *DB) UpsertHostOnScan(h *Host) (isNew bool, isReplaced bool, err error)
 		pingRTT = existing.PingRTTMs
 	}
 
+	jitter := h.PingJitterMs
+	if jitter == nil {
+		jitter = existing.PingJitterMs
+	}
+
 	openPorts := h.OpenPorts
 	if openPorts == "" {
 		openPorts = existing.OpenPorts
+	}
+	httpTitle := h.HTTPTitle
+	if httpTitle == "" {
+		httpTitle = existing.HTTPTitle
+	}
+	upnpName := h.UPnPName
+	if upnpName == "" {
+		upnpName = existing.UPnPName
+	}
+	upnpModel := h.UPnPModel
+	if upnpModel == "" {
+		upnpModel = existing.UPnPModel
+	}
+	upnpSerial := h.UPnPSerial
+	if upnpSerial == "" {
+		upnpSerial = existing.UPnPSerial
+	}
+	tlsSubj := h.TLSSubject
+	if tlsSubj == "" {
+		tlsSubj = existing.TLSSubject
+	}
+	tlsExp := h.TLSExpiry
+	if tlsExp == nil {
+		tlsExp = existing.TLSExpiry
+	}
+	mdnsModel := h.MDNSModel
+	if mdnsModel == "" {
+		mdnsModel = existing.MDNSModel
 	}
 
 	query := `
@@ -185,7 +273,15 @@ func (db *DB) UpsertHostOnScan(h *Host) (isNew bool, isReplaced bool, err error)
 		os_vendor = ?,
 		status = ?,
 		ping_rtt_ms = ?,
+		ping_jitter_ms = ?,
 		open_ports = ?,
+		http_title = ?,
+		upnp_name = ?,
+		upnp_model = ?,
+		upnp_serial = ?,
+		tls_subject = ?,
+		tls_expiry = ?,
+		mdns_model = ?,
 		is_approved = ?,
 		first_seen = ?,
 		last_seen = ?
@@ -193,7 +289,10 @@ func (db *DB) UpsertHostOnScan(h *Host) (isNew bool, isReplaced bool, err error)
 	`
 	_, err = db.Exec(query,
 		h.SegmentID, mac, hostname, vendorModel, displayName,
-		osVendor, h.Status, pingRTT, openPorts, isApproved, firstSeen, now, h.IP,
+		osVendor, h.Status, pingRTT, jitter, openPorts,
+		httpTitle, upnpName, upnpModel, upnpSerial,
+		tlsSubj, tlsExp, mdnsModel,
+		isApproved, firstSeen, now, h.IP,
 	)
 	return false, isReplaced, err
 }
@@ -203,7 +302,9 @@ func (db *DB) GetHost(ip string) (*Host, error) {
 	query := `
 	SELECT
 		ip, segment_id, mac_address, hostname, vendor_model, display_name,
-		os_vendor, status, ping_rtt_ms, open_ports, broadcast_count_1m, is_storming,
+		os_vendor, status, ping_rtt_ms, ping_jitter_ms, uptime_pct,
+		open_ports, http_title, upnp_name, upnp_model, upnp_serial,
+		tls_subject, tls_expiry, mdns_model, broadcast_count_1m, is_storming,
 		is_approved, is_protected, is_static_ip,
 		is_monitored, is_paused, has_conflict, kuma_name, uptime_kuma_id,
 		first_seen, last_seen
@@ -222,7 +323,9 @@ func (db *DB) ListHosts(segmentID *int64, onlineOnly bool) ([]*Host, error) {
 	query.WriteString(`
 	SELECT
 		ip, segment_id, mac_address, hostname, vendor_model, display_name,
-		os_vendor, status, ping_rtt_ms, open_ports, broadcast_count_1m, is_storming,
+		os_vendor, status, ping_rtt_ms, ping_jitter_ms, uptime_pct,
+		open_ports, http_title, upnp_name, upnp_model, upnp_serial,
+		tls_subject, tls_expiry, mdns_model, broadcast_count_1m, is_storming,
 		is_approved, is_protected, is_static_ip,
 		is_monitored, is_paused, has_conflict, kuma_name, uptime_kuma_id,
 		first_seen, last_seen
@@ -269,7 +372,7 @@ func (db *DB) UpdateHostStatus(ip string, status string) error {
 		query = "UPDATE hosts SET status = ?, last_seen = ? WHERE ip = ?"
 		args = []interface{}{status, now, ip}
 	} else {
-		query = "UPDATE hosts SET status = ?, ping_rtt_ms = NULL WHERE ip = ?"
+		query = "UPDATE hosts SET status = ?, ping_rtt_ms = NULL, ping_jitter_ms = NULL WHERE ip = ?"
 		args = []interface{}{status, ip}
 	}
 
@@ -345,15 +448,27 @@ func (db *DB) CreateManualHost(h *Host) error {
 	query := `
 	INSERT INTO hosts (
 		ip, segment_id, mac_address, hostname, vendor_model, display_name,
-		os_vendor, status, ping_rtt_ms, open_ports, broadcast_count_1m, is_storming,
+		os_vendor, status, ping_rtt_ms, ping_jitter_ms, uptime_pct,
+		open_ports, http_title, upnp_name, upnp_model, upnp_serial,
+		tls_subject, tls_expiry, mdns_model, broadcast_count_1m, is_storming,
 		is_approved, is_protected, is_static_ip,
 		is_monitored, is_paused, has_conflict, kuma_name, uptime_kuma_id,
 		first_seen, last_seen
-	) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+	) VALUES (
+		?, ?, ?, ?, ?, ?,
+		?, ?, ?, ?, 100.0,
+		?, ?, ?, ?, ?,
+		?, ?, ?, ?, ?,
+		?, ?, ?,
+		?, ?, ?, ?, ?,
+		?, ?
+	)
 	`
 	_, err := db.Exec(query,
 		h.IP, h.SegmentID, normMAC, h.Hostname, h.VendorModel, h.DisplayName,
-		h.OSVendor, h.Status, h.PingRTTMs, h.OpenPorts, h.BroadcastCount1m, h.IsStorming,
+		h.OSVendor, h.Status, h.PingRTTMs, h.PingJitterMs,
+		h.OpenPorts, h.HTTPTitle, h.UPnPName, h.UPnPModel, h.UPnPSerial,
+		h.TLSSubject, h.TLSExpiry, h.MDNSModel, h.BroadcastCount1m, h.IsStorming,
 		h.IsApproved, h.IsProtected, h.IsStaticIP,
 		h.IsMonitored, h.IsPaused, h.HasConflict, h.KumaName, h.UptimeKumaID,
 		now, now,
@@ -375,9 +490,10 @@ func scanHost(s scannable) (*Host, error) {
 	var h Host
 	var segID sql.NullInt64
 	var mac, host, vendor, disp, osVend, kumaName, openPorts sql.NullString
+	var httpTitle, upnpName, upnpModel, upnpSerial, tlsSubj, mdnsModel sql.NullString
 	var kumaID sql.NullInt64
-	var lastSeen sql.NullTime
-	var rtt sql.NullFloat64
+	var lastSeen, tlsExp sql.NullTime
+	var rtt, jitter, uptime sql.NullFloat64
 
 	err := s.Scan(
 		&h.IP,
@@ -389,7 +505,16 @@ func scanHost(s scannable) (*Host, error) {
 		&osVend,
 		&h.Status,
 		&rtt,
+		&jitter,
+		&uptime,
 		&openPorts,
+		&httpTitle,
+		&upnpName,
+		&upnpModel,
+		&upnpSerial,
+		&tlsSubj,
+		&tlsExp,
+		&mdnsModel,
 		&h.BroadcastCount1m,
 		&h.IsStorming,
 		&h.IsApproved,
@@ -420,12 +545,30 @@ func scanHost(s scannable) (*Host, error) {
 	h.OSVendor = osVend.String
 	h.KumaName = kumaName.String
 	h.OpenPorts = openPorts.String
+	h.HTTPTitle = httpTitle.String
+	h.UPnPName = upnpName.String
+	h.UPnPModel = upnpModel.String
+	h.UPnPSerial = upnpSerial.String
+	h.TLSSubject = tlsSubj.String
+	h.MDNSModel = mdnsModel.String
 
 	if rtt.Valid {
 		val := rtt.Float64
 		h.PingRTTMs = &val
 	}
+	if jitter.Valid {
+		val := jitter.Float64
+		h.PingJitterMs = &val
+	}
+	if uptime.Valid {
+		h.UptimePct = uptime.Float64
+	} else {
+		h.UptimePct = 100.0
+	}
 
+	if tlsExp.Valid {
+		h.TLSExpiry = &tlsExp.Time
+	}
 	if kumaID.Valid {
 		h.UptimeKumaID = &kumaID.Int64
 	}

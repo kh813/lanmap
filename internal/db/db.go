@@ -64,7 +64,16 @@ func (db *DB) migrate() error {
 		os_vendor VARCHAR(255),
 		status VARCHAR(10) DEFAULT 'up',
 		ping_rtt_ms REAL,
+		ping_jitter_ms REAL,
+		uptime_pct REAL DEFAULT 100.0,
 		open_ports TEXT,
+		http_title VARCHAR(255),
+		upnp_name VARCHAR(255),
+		upnp_model VARCHAR(255),
+		upnp_serial VARCHAR(100),
+		tls_subject VARCHAR(255),
+		tls_expiry DATETIME,
+		mdns_model VARCHAR(100),
 		broadcast_count_1m INTEGER DEFAULT 0,
 		is_storming BOOLEAN DEFAULT 0,
 		is_approved BOOLEAN DEFAULT 0,
@@ -109,7 +118,16 @@ func (db *DB) migrate() error {
 
 	// Migrations for existing DBs
 	_, _ = db.Exec("ALTER TABLE hosts ADD COLUMN ping_rtt_ms REAL;")
+	_, _ = db.Exec("ALTER TABLE hosts ADD COLUMN ping_jitter_ms REAL;")
+	_, _ = db.Exec("ALTER TABLE hosts ADD COLUMN uptime_pct REAL DEFAULT 100.0;")
 	_, _ = db.Exec("ALTER TABLE hosts ADD COLUMN open_ports TEXT;")
+	_, _ = db.Exec("ALTER TABLE hosts ADD COLUMN http_title VARCHAR(255);")
+	_, _ = db.Exec("ALTER TABLE hosts ADD COLUMN upnp_name VARCHAR(255);")
+	_, _ = db.Exec("ALTER TABLE hosts ADD COLUMN upnp_model VARCHAR(255);")
+	_, _ = db.Exec("ALTER TABLE hosts ADD COLUMN upnp_serial VARCHAR(100);")
+	_, _ = db.Exec("ALTER TABLE hosts ADD COLUMN tls_subject VARCHAR(255);")
+	_, _ = db.Exec("ALTER TABLE hosts ADD COLUMN tls_expiry DATETIME;")
+	_, _ = db.Exec("ALTER TABLE hosts ADD COLUMN mdns_model VARCHAR(100);")
 	_, _ = db.Exec("ALTER TABLE hosts ADD COLUMN broadcast_count_1m INTEGER DEFAULT 0;")
 	_, _ = db.Exec("ALTER TABLE hosts ADD COLUMN is_storming BOOLEAN DEFAULT 0;")
 

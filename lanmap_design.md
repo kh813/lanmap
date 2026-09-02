@@ -148,7 +148,16 @@ CREATE TABLE IF NOT EXISTS hosts (
     os_vendor VARCHAR(255),               -- 推定OS
     status VARCHAR(10),                   -- 'up' | 'down'
     ping_rtt_ms REAL,                     -- 直近のPing応答時間 (ミリ秒、簡易監視・品質可視化用)
+    ping_jitter_ms REAL,                  -- Ping遅延の揺らぎ (ジッター: ミリ秒)
+    uptime_pct REAL DEFAULT 100.0,        -- 過去24時間の稼働率 (%)
     open_ports TEXT,                      -- 検出されたオープンポート一覧 (例: "22:SSH,80:HTTP,445:SMB")
+    http_title VARCHAR(255),              -- Web管理画面のHTML <title> (例: "OpenWrt - LuCI")
+    upnp_name VARCHAR(255),               -- UPnP/SSDP デバイス名 (例: "リビングのGoogle Home")
+    upnp_model VARCHAR(255),              -- UPnP/SSDP 詳細型番 (例: "GA00216-JP")
+    upnp_serial VARCHAR(100),             -- UPnP/SSDP シリアル番号
+    tls_subject VARCHAR(255),             -- TLS証明書 Subject/SAN (例: "synology.lan")
+    tls_expiry DATETIME,                  -- TLS証明書の有効期限
+    mdns_model VARCHAR(100),              -- mDNSハードウェアモデルID (例: "MacBookPro18,1", "iPad14,3")
     broadcast_count_1m INTEGER DEFAULT 0, -- 直近1分間のブロードキャスト送信パケット数
     is_storming BOOLEAN DEFAULT 0,        -- ブロードキャスト過多/ストーム異常フラグ (1: 異常)
     is_approved BOOLEAN DEFAULT 0,        -- 社内承認済み端末フラグ (0: 未承認/警告, 1: 承認済み)
@@ -271,22 +280,28 @@ DHCP環境等での動的IP割り当てや撤去済み機器によるデータ�
 * **ポーリング間隔**: デフォルト **30秒〜60秒**（`hx-trigger="load, every 30s, refreshMainTable from:body"`）。
 * **部分DOM更新 (SSR)**: ページ全体の再読み込み（F5リロード）を行わず、HTMXによってテーブル部分およびサイドバーの件数バッジのみをシームレスに部分置換（Swap）するため、画面のチラつきや操作中の中断（モーダル操作やドロップダウン操作）を起こさずに最新状態を維持する。
 
-### 6.4 ホスト詳細ホバーカード（オープンポート & サービス詳細ポップオーバー）仕様
+### 6.4 ホスト詳細ホバーカード（オープンポート & 拡張プロファイル詳細ポップオーバー）仕様
 
 一覧テーブルの視認性を損なわずに、各端末の役割（Webサーバー、SSH、SMBファイル共有、RTSPカメラ等）を即座に把握できるよう、ホスト行（IP/ホスト名等）にマウスカーソルを合わせた際にリッチな**詳細情報ポップオーバー（ホバーカード）**を表示する。
 
 ```text
-+-----------------------------------------------------------+
-| 🔍 192.168.3.1 (openwrt.parkside.tokyo)                    |
-| ───────────────────────────────────────────────────────── |
-| 🌐 提供サービス / オープンポート:                         |
-|   🟢 80 (HTTP Web管理画面)   🟢 443 (HTTPS)               |
-|   🟢 22 (SSH Remote Shell)   🟢 53 (DNS Service)          |
-| ───────────────────────────────────────────────────────── |
-| ⚡ Ping RTT: 8.4 ms (良好)    📡 ブロードキャスト: 4 pkt/分|
-| 🏢 MAC: 38:97:a4:4f:84:60 (TP-Link)                       |
-| 🕒 初回検出: 2026-09-02 17:45  / 最終: 2026-09-03 07:15   |
-+-----------------------------------------------------------+
++─────────────────────────────────────────────────────────────+
+| 🔍 192.168.3.1 (openwrt.parkside.tokyo)          🟢 UP (100%)|
+| ─────────────────────────────────────────────────────────── |
+| 🌐 Web管理画面: "OpenWrt - LuCI"                             |
+| 📦 UPnP型番: "OpenWrt One" (S/N: 202410098)                 |
+| 🍏 mDNSモデル: "MacBookPro18,1" (Apple M1 Pro)              |
+| 🔒 TLS証明書: "openwrt.lan" (有効期限: 2027-01-15 残り498日)  |
+| ─────────────────────────────────────────────────────────── |
+| 🌐 提供サービス / オープンポート:                           |
+|   🟢 80/tcp (HTTP)   🟢 443/tcp (HTTPS)                     |
+|   🟢 22/tcp (SSH)    🟢 53/tcp (DNS)                        |
+| ─────────────────────────────────────────────────────────── |
+| ⚡ Ping RTT: 8.4 ms (ジッター: ±0.3ms 安定)                  |
+| 📡 ブロードキャスト: 4 pkt/分                                |
+| 🏢 MAC: 38:97:a4:4f:84:60 (TP-Link)                         |
+| 🕒 初回検出: 2026-09-02 17:45  / 最終: 2026-09-03 07:15     |
++─────────────────────────────────────────────────────────────+
 ```
 
 1. **軽量ポートスキャンエンジン (`internal/scanner/ports.go`)**:
@@ -396,6 +411,25 @@ DHCP環境等での動的IP割り当てや撤去済み機器によるデータ�
    * メインテーブルの該当ホスト行に **🚨 `💥 ブロードキャスト過多 (xxx pkt/分)`** 警告バッジを表示し、行を赤色枠線でハイライト。
 4. **Webhook 即時アラート通知**:
    * 異常検知時、Slack / Discord / Teams / LINE へ「🚨 ブロードキャスト過多を検知」アラートを送信（同一ホストへの通知は状態変化時のみとし氾濫を防止）。
+
+### 8.4 拡張ホストプロファイリング & 品質メトリクス仕様
+
+端末にエージェントを常駐させることなく、LAN内から非侵入型で取得可能な5大メタデータおよび品質指標を自動抽出し、ホスト詳細ホバーカードに集約する。
+
+1. **Web管理画面 HTML `<title>` 抽出 (`http_title`)**:
+   * ポート 80/443/8080/8443 を持つホストに対し、超短時間タイムアウト (300ms) で HTTP GET/HEAD を送信。
+   * `<title>...</title>` タグを抽出（例: `"OpenWrt - LuCI"`, `"Synology DiskStation - DSM"`, `"Pi-hole Admin Console"`）。
+2. **UPnP / SSDP 詳細メタデータ & 型番 (`upnp_name`, `upnp_model`, `upnp_serial`)**:
+   * ポート 1900 (SSDP) の `LOCATION` XML（`device-desc.xml`）を解析。
+   * `<friendlyName>` (デバイス名), `<modelName>` / `<modelNumber>` (詳細型番), `<serialNumber>` (公開シリアル) を取得。
+3. **TLS/HTTPS サーバー証明書解析 (`tls_subject`, `tls_expiry`)**:
+   * ポート 443/8443/5001 の TLS ハンドシェイクからサーバー証明書（X.509）の Subject CN/SAN および有効期限を取得。
+   * 有効期限が **30日以内** の場合はホバーカードで「⚠️ 証明書失効間近 (残りX日)」と警告表示。
+4. **mDNS (Bonjour) TXT レコードによる詳細モデル・OSバージョン (`mdns_model`)**:
+   * `_workstation._tcp`, `_airplay._tcp`, `_googlecast._tcp` の TXT レコードキー `model` (例: `MacBookPro18,1` -> MacBook Pro 16インチ M1 Pro, `iPad14,3` -> iPad Pro) を識別。
+5. **稼働率 (24h Uptime %) & ジッター（Ping Jitter / 遅延揺らぎ: `ping_jitter_ms`, `uptime_pct`)**:
+   * スキャン履歴から過去24時間の死活率（稼働率 %）を算出。
+   * Ping RTT の直近揺らぎ（標準偏差）からジッター（ミリ秒）を計算し、Wi-Fi電波の安定度を可視化。
 
 ---
 
