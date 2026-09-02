@@ -185,8 +185,13 @@ func (s *Scanner) scanSegmentInternal(ctx context.Context, seg *db.Segment) ([]*
 		hostname := ResolveHostname(ipStr, 400*time.Millisecond)
 
 		ttl := 64
-		if pingOk && pingRes.TTL > 0 {
-			ttl = pingRes.TTL
+		var rttPtr *float64
+		if pingOk && pingRes.Alive && pingRes.RTT > 0 {
+			rttVal := float64(pingRes.RTT.Microseconds()) / 1000.0
+			rttPtr = &rttVal
+			if pingRes.TTL > 0 {
+				ttl = pingRes.TTL
+			}
 		}
 		osVendor := DetectOSByTTL(ttl)
 
@@ -220,6 +225,7 @@ func (s *Scanner) scanSegmentInternal(ctx context.Context, seg *db.Segment) ([]*
 			VendorModel: vendor,
 			OSVendor:    osVendor,
 			Status:      "up",
+			PingRTTMs:   rttPtr,
 			IsApproved:  isApproved,
 		}
 

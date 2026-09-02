@@ -63,6 +63,7 @@ func (db *DB) migrate() error {
 		display_name VARCHAR(255),
 		os_vendor VARCHAR(255),
 		status VARCHAR(10) DEFAULT 'up',
+		ping_rtt_ms REAL,
 		is_approved BOOLEAN DEFAULT 0,
 		is_protected BOOLEAN DEFAULT 0,
 		is_static_ip BOOLEAN DEFAULT 0,
@@ -99,8 +100,14 @@ func (db *DB) migrate() error {
 	CREATE INDEX IF NOT EXISTS idx_whitelist_hostname ON whitelist_entries(hostname);
 	CREATE INDEX IF NOT EXISTS idx_whitelist_mac ON whitelist_entries(mac_address);
 	`
-	_, err := db.Exec(schema)
-	return err
+	if _, err := db.Exec(schema); err != nil {
+		return err
+	}
+
+	// Add ping_rtt_ms column if migrating from earlier db
+	_, _ = db.Exec("ALTER TABLE hosts ADD COLUMN ping_rtt_ms REAL;")
+
+	return nil
 }
 
 func (db *DB) seed() error {

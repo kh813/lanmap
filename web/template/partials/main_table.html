@@ -62,6 +62,7 @@
                         <th class="py-3 px-3">推定OS</th>
                         <th class="py-3 px-3 text-center">承認</th>
                         <th class="py-3 px-3 text-center">状態</th>
+                        <th class="py-3 px-3 text-center">応答速度</th>
                         <th class="py-3 px-3 text-center">固定IP</th>
                         <th class="py-3 px-3 text-center">監視状態</th>
                         <th class="py-3 px-3 text-right">操作</th>
@@ -70,7 +71,7 @@
                 <tbody class="divide-y divide-slate-100 dark:divide-slate-800/60">
                     {{if eq (len .Hosts) 0}}
                     <tr>
-                        <td colspan="10" class="py-12 text-center text-slate-400 dark:text-slate-500">
+                        <td colspan="11" class="py-12 text-center text-slate-400 dark:text-slate-500">
                             ホストが見つかりません。「Scan Now」を実行するか、手動でホストを追加してください。
                         </td>
                     </tr>
@@ -148,6 +149,27 @@
                                   title="{{if .LastSeen}}Last seen: {{.LastSeen.Format "2006-01-02 15:04"}}{{end}}">
                                 ⚪ Down
                             </span>
+                            {{end}}
+                        </td>
+
+                        <!-- Ping RTT (Network Quality) -->
+                        <td class="py-3 px-3 text-center">
+                            {{if .PingRTTMs}}
+                                {{if lt .PingRTTMs 15.0}}
+                                <span class="inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-mono font-medium bg-emerald-100 text-emerald-800 dark:bg-emerald-500/10 dark:text-emerald-400" title="応答速度: 良好 (有線 / 強電波)">
+                                    ⚡ {{printf "%.1f ms" .PingRTTMs}}
+                                </span>
+                                {{else if lt .PingRTTMs 60.0}}
+                                <span class="inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-mono font-medium bg-amber-100 text-amber-800 dark:bg-amber-500/10 dark:text-amber-400" title="応答速度: 通常 (Wi-Fi)">
+                                    📶 {{printf "%.1f ms" .PingRTTMs}}
+                                </span>
+                                {{else}}
+                                <span class="inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-mono font-medium bg-orange-100 text-orange-800 dark:bg-orange-500/10 dark:text-orange-400" title="応答速度: やや遅延 / 混雑">
+                                    🐢 {{printf "%.1f ms" .PingRTTMs}}
+                                </span>
+                                {{end}}
+                            {{else}}
+                                <span class="text-slate-400 dark:text-slate-600 text-[11px]">-</span>
                             {{end}}
                         </td>
 
