@@ -1,0 +1,16 @@
+# Binaries
+lmap
+dist/
+*.exe
+
+# Database & runtime files
+*.db
+*.db-wal
+*.db-shm
+*.log
+certs/
+
+# OS / Editor files
+.DS_Store
+.vscode/
+.idea/
