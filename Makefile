@@ -19,16 +19,10 @@ cross-compile: clean
 	@mkdir -p $(BUILD_DIR)/tmp
 	@echo "Cross-compiling and packaging ZIP archives (<appname>-<os>-<arch>.zip)..."
 	
-	@# macOS arm64
+	@# macOS arm64 (Apple Silicon)
 	@echo "  -> Packaging $(APP_NAME)-mac-arm64.zip"
 	@GOOS=darwin GOARCH=arm64 go build -ldflags "-s -w -X main.Version=$(VERSION)" -o $(BUILD_DIR)/tmp/$(APP_NAME) $(CMD_DIR)
 	@(cd $(BUILD_DIR)/tmp && zip -q ../$(APP_NAME)-mac-arm64.zip $(APP_NAME))
-	@rm -f $(BUILD_DIR)/tmp/$(APP_NAME)
-	
-	@# macOS x64
-	@echo "  -> Packaging $(APP_NAME)-mac-x64.zip"
-	@GOOS=darwin GOARCH=amd64 go build -ldflags "-s -w -X main.Version=$(VERSION)" -o $(BUILD_DIR)/tmp/$(APP_NAME) $(CMD_DIR)
-	@(cd $(BUILD_DIR)/tmp && zip -q ../$(APP_NAME)-mac-x64.zip $(APP_NAME))
 	@rm -f $(BUILD_DIR)/tmp/$(APP_NAME)
 	
 	@# Linux x64

@@ -19,10 +19,6 @@ jobs:
             arch: arm64
             pkg_name: lanmap-mac-arm64
             binary_name: lanmap
-          - os: darwin
-            arch: amd64
-            pkg_name: lanmap-mac-x64
-            binary_name: lanmap
           - os: linux
             arch: amd64
             pkg_name: lanmap-linux-x64
