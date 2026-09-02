@@ -44,18 +44,18 @@ func (db *DB) GetAllSettings() (map[string]string, error) {
 	return settings, rows.Err()
 }
 
-// GetRetentionDays returns retention days configured in settings (default: 180, 0 means disabled)
+// GetRetentionDays returns retention days configured in settings (default: 90, 0 means disabled)
 func (db *DB) GetRetentionDays() (int, error) {
 	val, err := db.GetSetting("retention_days")
 	if err != nil {
-		return 180, err
+		return 90, err
 	}
 	if val == "" {
-		return 180, nil
+		return 90, nil
 	}
 	days, err := strconv.Atoi(val)
 	if err != nil {
-		return 180, nil
+		return 90, nil
 	}
 	return days, nil
 }

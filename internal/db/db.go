@@ -152,7 +152,7 @@ func (db *DB) seed() error {
 		return fmt.Errorf("failed to check retention_days setting: %w", err)
 	}
 	if count == 0 {
-		_, err = db.Exec("INSERT INTO settings (key, value) VALUES ('retention_days', '180')")
+		_, err = db.Exec("INSERT INTO settings (key, value) VALUES ('retention_days', '90')")
 		if err != nil {
 			return fmt.Errorf("failed to seed default retention_days: %w", err)
 		}

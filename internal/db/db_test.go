@@ -41,8 +41,8 @@ func TestDBInitAndSeed(t *testing.T) {
 	if err != nil {
 		t.Fatalf("GetRetentionDays failed: %v", err)
 	}
-	if retDays != 180 {
-		t.Errorf("expected retention days 180, got %d", retDays)
+	if retDays != 90 {
+		t.Errorf("expected retention days 90, got %d", retDays)
 	}
 }
 

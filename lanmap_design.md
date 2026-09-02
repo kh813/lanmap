@@ -187,12 +187,12 @@ CREATE TABLE IF NOT EXISTS hosts (
 
 ```sql
 CREATE TABLE IF NOT EXISTS settings (
-    key VARCHAR(50) PRIMARY KEY,
-    value TEXT                           -- 例: retention_days -> "180" (0で無効)
+    key VARCHAR(50) PRIMARY KEY,        -- 'retention_days', 'webhook_slack_url', etc.
+    value TEXT                           -- 例: retention_days -> "90" (0で無効)
 );
 ```
 
-**初期値シード**: DB初期化時、`retention_days` は未設定時のデフォルト値として `"180"` を投入する。Webhook URL系キー（`webhook_slack_url` 等）は未設定 (`NULL`または空文字) で初期化し、未設定の通知チャネルへは送信をスキップする。`tls_cert_path` / `tls_key_path`（10.1節）も未設定で初期化し、未設定時は自己署名証明書を使用する。
+**初期値シード**: DB初期化時、`retention_days` は未設定時のデフォルト値として `"90"` を投入する。Webhook URL系キー（`webhook_slack_url` 等）は未設定 (`NULL`または空文字) で初期化し、未設定の通知チャネルへは送信をスキップする。`tls_cert_path` / `tls_key_path`（10.1節）も未設定で初期化し、未設定時は自己署名証明書を使用する。
 
 ### 4.4 ホワイトリスト台帳テーブル (`whitelist_entries`)
 社内管理下にあるPC・端末台帳（ホスト名、MACアドレス、シリアル番号、所有者名等）を保持し、検出時の自動承認照合に利用します。
@@ -219,7 +219,7 @@ CREATE INDEX IF NOT EXISTS idx_whitelist_mac ON whitelist_entries(mac_address);
 DHCP環境等での動的IP割り当てや撤去済み機器によるデータベースの肥大化・ゴミデータの増加を防ぐため、**自動クリーンアップ機構**を実装します。
 
 ### 5.1 クリーンアップルール
-* **判定基準**: 最終アクセス日時 (`last_seen`) から指定された日数（デフォルト: **180日**）が経過したホストを自動削除。
+* **判定基準**: 最終アクセス日時 (`last_seen`) から指定された日数（デフォルト: **90日**）が経過したホストを自動削除。
 * **設定変更**: Web UIの設定画面より「30日 / 60日 / 90日 / 180日 / 365日 / 自動削除しない(無効)」を選択可能。
 
 ### 5.2 誤削除防止（保護ロジック）

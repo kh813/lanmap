@@ -37,8 +37,8 @@
                 <select name="retention_days" class="w-full bg-white dark:bg-slate-900 border border-slate-300 dark:border-slate-700 rounded px-3 py-2 text-slate-800 dark:text-slate-200 focus:outline-none focus:border-blue-500">
                     <option value="30" {{if eq .Settings.retention_days "30"}}selected{{end}}>30 日間</option>
                     <option value="60" {{if eq .Settings.retention_days "60"}}selected{{end}}>60 日間</option>
-                    <option value="90" {{if eq .Settings.retention_days "90"}}selected{{end}}>90 日間</option>
-                    <option value="180" {{if or (eq .Settings.retention_days "180") (not .Settings.retention_days)}}selected{{end}}>180 日間 (推奨)</option>
+                    <option value="90" {{if or (eq .Settings.retention_days "90") (not .Settings.retention_days)}}selected{{end}}>90 日間 (既定)</option>
+                    <option value="180" {{if eq .Settings.retention_days "180"}}selected{{end}}>180 日間</option>
                     <option value="365" {{if eq .Settings.retention_days "365"}}selected{{end}}>365 日間 (1年)</option>
                     <option value="0" {{if eq .Settings.retention_days "0"}}selected{{end}}>自動削除しない (無効)</option>
                 </select>
