@@ -231,15 +231,9 @@ func (db *DB) UpsertHostOnScan(h *Host) (isNew bool, isReplaced bool, err error)
 	}
 
 	openPorts := h.OpenPorts
-	if openPorts == "" {
-		openPorts = existing.OpenPorts
-	}
 	httpTitle := h.HTTPTitle
-	if httpTitle == "" {
-		httpTitle = existing.HTTPTitle
-	}
 	upnpName := h.UPnPName
-	if upnpName == "" {
+	if upnpName == "" && h.UPnPModel == "" {
 		upnpName = existing.UPnPName
 	}
 	upnpModel := h.UPnPModel
@@ -251,12 +245,13 @@ func (db *DB) UpsertHostOnScan(h *Host) (isNew bool, isReplaced bool, err error)
 		upnpSerial = existing.UPnPSerial
 	}
 	tlsSubj := h.TLSSubject
-	if tlsSubj == "" {
-		tlsSubj = existing.TLSSubject
-	}
 	tlsExp := h.TLSExpiry
-	if tlsExp == nil {
-		tlsExp = existing.TLSExpiry
+	if tlsSubj == "" && tlsExp == nil && existing.TLSSubject != "" {
+		// Check if port 443/8443 is still open
+		if strings.Contains(openPorts, "443") || strings.Contains(openPorts, "8443") {
+			tlsSubj = existing.TLSSubject
+			tlsExp = existing.TLSExpiry
+		}
 	}
 	mdnsModel := h.MDNSModel
 	if mdnsModel == "" {
