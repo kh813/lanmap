@@ -149,11 +149,12 @@ func (db *DB) CreateManualHost(h *Host) error {
 		os_vendor, status, is_approved, is_protected, is_static_ip,
 		is_monitored, is_paused, has_conflict, kuma_name, uptime_kuma_id,
 		first_seen, last_seen
-	) VALUES (?, ?, ?, ?, ?, ?, ?, 'up', ?, ?, ?, 0, 0, 0, '', NULL, ?, ?)
+	) VALUES (?, ?, ?, ?, ?, ?, ?, 'up', ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
 	`
 	_, err := db.Exec(query,
 		h.IP, h.SegmentID, h.MACAddress, h.Hostname, h.VendorModel,
 		h.DisplayName, h.OSVendor, h.IsApproved, h.IsProtected, h.IsStaticIP,
+		h.IsMonitored, h.IsPaused, h.HasConflict, h.KumaName, h.UptimeKumaID,
 		now, now,
 	)
 	return err
