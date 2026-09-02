@@ -89,14 +89,16 @@
     </div>
 
     <!-- Sidebar Footer -->
-    <div class="p-3 border-t border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-950/80">
+    <div class="p-3 border-t border-slate-200 dark:border-slate-800 bg-slate-100/60 dark:bg-slate-950">
         <button hx-get="/modals/settings" hx-target="#modal-container" hx-swap="innerHTML"
-                class="w-full flex items-center justify-between px-3 py-2 rounded-md text-slate-700 dark:text-slate-300 hover:bg-slate-200/60 dark:hover:bg-slate-900 hover:text-slate-900 dark:hover:text-white transition text-xs">
+                class="w-full flex items-center justify-between px-3 py-2 rounded-lg bg-white dark:bg-slate-900 text-slate-800 dark:text-slate-100 hover:border-blue-500 hover:text-blue-600 dark:hover:text-blue-400 border border-slate-300 dark:border-slate-700 shadow-sm transition group">
             <div class="flex items-center space-x-2">
-                <span>⚙️</span>
-                <span class="font-medium">設定画面</span>
+                <span class="p-1 rounded-md bg-blue-50 dark:bg-blue-950/60 text-blue-600 dark:text-blue-400 group-hover:scale-110 transition-transform">⚙️</span>
+                <span class="font-semibold text-xs">設定画面</span>
             </div>
-            <span class="text-[11px] text-slate-500 dark:text-slate-400 font-medium">{{.KumaStatus}}</span>
+            <span class="text-[11px] px-2 py-0.5 rounded-full bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 font-medium border border-slate-200 dark:border-slate-700">
+                {{.KumaStatus}}
+            </span>
         </button>
     </div>
 </aside>
