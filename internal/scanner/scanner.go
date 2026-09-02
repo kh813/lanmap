@@ -216,6 +216,8 @@ func (s *Scanner) scanSegmentInternal(ctx context.Context, seg *db.Segment) ([]*
 			}
 		}
 
+		openPorts := ScanOpenPorts(ipStr, 50*time.Millisecond)
+
 		hostObj := &db.Host{
 			IP:          ipStr,
 			SegmentID:   &seg.ID,
@@ -226,6 +228,7 @@ func (s *Scanner) scanSegmentInternal(ctx context.Context, seg *db.Segment) ([]*
 			OSVendor:    osVendor,
 			Status:      "up",
 			PingRTTMs:   rttPtr,
+			OpenPorts:   openPorts,
 			IsApproved:  isApproved,
 		}
 

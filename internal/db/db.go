@@ -64,6 +64,7 @@ func (db *DB) migrate() error {
 		os_vendor VARCHAR(255),
 		status VARCHAR(10) DEFAULT 'up',
 		ping_rtt_ms REAL,
+		open_ports TEXT,
 		broadcast_count_1m INTEGER DEFAULT 0,
 		is_storming BOOLEAN DEFAULT 0,
 		is_approved BOOLEAN DEFAULT 0,
@@ -108,6 +109,7 @@ func (db *DB) migrate() error {
 
 	// Migrations for existing DBs
 	_, _ = db.Exec("ALTER TABLE hosts ADD COLUMN ping_rtt_ms REAL;")
+	_, _ = db.Exec("ALTER TABLE hosts ADD COLUMN open_ports TEXT;")
 	_, _ = db.Exec("ALTER TABLE hosts ADD COLUMN broadcast_count_1m INTEGER DEFAULT 0;")
 	_, _ = db.Exec("ALTER TABLE hosts ADD COLUMN is_storming BOOLEAN DEFAULT 0;")
 

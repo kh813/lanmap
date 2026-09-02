@@ -120,3 +120,9 @@ func TestScannerWorkflowWithMock(t *testing.T) {
 		t.Logf("Host detected: IP=%s, Status=%s", r.Host.IP, r.Host.Status)
 	}
 }
+
+func TestScanOpenPorts(t *testing.T) {
+	// Test on loopback with short timeout
+	ports := ScanOpenPorts("127.0.0.1", 30*time.Millisecond)
+	t.Logf("Local open ports: %s", ports)
+}

@@ -3,9 +3,16 @@ package db
 import (
 	"database/sql"
 	"fmt"
+	"strconv"
 	"strings"
 	"time"
 )
+
+// PortInfo represents a detected open port and service name
+type PortInfo struct {
+	Port    int    `json:"port"`
+	Service string `json:"service"`
+}
 
 // Host represents a discovered or monitored network host
 type Host struct {
@@ -18,6 +25,7 @@ type Host struct {
 	OSVendor          string     `json:"os_vendor"`
 	Status            string     `json:"status"`
 	PingRTTMs         *float64   `json:"ping_rtt_ms"`
+	OpenPorts         string     `json:"open_ports"`
 	BroadcastCount1m  int        `json:"broadcast_count_1m"`
 	IsStorming        bool       `json:"is_storming"`
 	IsApproved        bool       `json:"is_approved"`
@@ -66,6 +74,34 @@ func (h *Host) PingRTTLevel() string {
 	return "slow"
 }
 
+// OpenPortsList parses comma-separated "port:service" string into slice of PortInfo
+func (h *Host) OpenPortsList() []PortInfo {
+	if strings.TrimSpace(h.OpenPorts) == "" {
+		return nil
+	}
+	var list []PortInfo
+	parts := strings.Split(h.OpenPorts, ",")
+	for _, p := range parts {
+		kv := strings.SplitN(strings.TrimSpace(p), ":", 2)
+		if len(kv) >= 1 {
+			portNum, err := strconv.Atoi(kv[0])
+			if err == nil {
+				svcName := "Unknown"
+				if len(kv) == 2 {
+					svcName = kv[1]
+				}
+				list = append(list, PortInfo{Port: portNum, Service: svcName})
+			}
+		}
+	}
+	return list
+}
+
+// HasOpenPorts returns true if any open ports were detected
+func (h *Host) HasOpenPorts() bool {
+	return len(h.OpenPortsList()) > 0
+}
+
 // UpsertHostOnScan inserts a newly scanned host or updates an existing host
 func (db *DB) UpsertHostOnScan(h *Host) (isNew bool, isReplaced bool, err error) {
 	existing, err := db.GetHost(h.IP)
@@ -80,15 +116,15 @@ func (db *DB) UpsertHostOnScan(h *Host) (isNew bool, isReplaced bool, err error)
 		query := `
 		INSERT INTO hosts (
 			ip, segment_id, mac_address, hostname, vendor_model, display_name,
-			os_vendor, status, ping_rtt_ms, broadcast_count_1m, is_storming,
+			os_vendor, status, ping_rtt_ms, open_ports, broadcast_count_1m, is_storming,
 			is_approved, is_protected, is_static_ip,
 			is_monitored, is_paused, has_conflict, kuma_name, uptime_kuma_id,
 			first_seen, last_seen
-		) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, 0, 0, ?, 0, 0, 0, 0, 0, '', NULL, ?, ?)
+		) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 0, 0, ?, 0, 0, 0, 0, 0, '', NULL, ?, ?)
 		`
 		_, err := db.Exec(query,
 			h.IP, h.SegmentID, normMAC, h.Hostname, h.VendorModel, h.DisplayName,
-			h.OSVendor, h.Status, h.PingRTTMs, h.IsApproved, now, now,
+			h.OSVendor, h.Status, h.PingRTTMs, h.OpenPorts, h.IsApproved, now, now,
 		)
 		return true, false, err
 	}
@@ -134,6 +170,11 @@ func (db *DB) UpsertHostOnScan(h *Host) (isNew bool, isReplaced bool, err error)
 		pingRTT = existing.PingRTTMs
 	}
 
+	openPorts := h.OpenPorts
+	if openPorts == "" {
+		openPorts = existing.OpenPorts
+	}
+
 	query := `
 	UPDATE hosts SET
 		segment_id = COALESCE(?, segment_id),
@@ -144,6 +185,7 @@ func (db *DB) UpsertHostOnScan(h *Host) (isNew bool, isReplaced bool, err error)
 		os_vendor = ?,
 		status = ?,
 		ping_rtt_ms = ?,
+		open_ports = ?,
 		is_approved = ?,
 		first_seen = ?,
 		last_seen = ?
@@ -151,7 +193,7 @@ func (db *DB) UpsertHostOnScan(h *Host) (isNew bool, isReplaced bool, err error)
 	`
 	_, err = db.Exec(query,
 		h.SegmentID, mac, hostname, vendorModel, displayName,
-		osVendor, h.Status, pingRTT, isApproved, firstSeen, now, h.IP,
+		osVendor, h.Status, pingRTT, openPorts, isApproved, firstSeen, now, h.IP,
 	)
 	return false, isReplaced, err
 }
@@ -161,7 +203,7 @@ func (db *DB) GetHost(ip string) (*Host, error) {
 	query := `
 	SELECT
 		ip, segment_id, mac_address, hostname, vendor_model, display_name,
-		os_vendor, status, ping_rtt_ms, broadcast_count_1m, is_storming,
+		os_vendor, status, ping_rtt_ms, open_ports, broadcast_count_1m, is_storming,
 		is_approved, is_protected, is_static_ip,
 		is_monitored, is_paused, has_conflict, kuma_name, uptime_kuma_id,
 		first_seen, last_seen
@@ -180,7 +222,7 @@ func (db *DB) ListHosts(segmentID *int64, onlineOnly bool) ([]*Host, error) {
 	query.WriteString(`
 	SELECT
 		ip, segment_id, mac_address, hostname, vendor_model, display_name,
-		os_vendor, status, ping_rtt_ms, broadcast_count_1m, is_storming,
+		os_vendor, status, ping_rtt_ms, open_ports, broadcast_count_1m, is_storming,
 		is_approved, is_protected, is_static_ip,
 		is_monitored, is_paused, has_conflict, kuma_name, uptime_kuma_id,
 		first_seen, last_seen
@@ -303,15 +345,15 @@ func (db *DB) CreateManualHost(h *Host) error {
 	query := `
 	INSERT INTO hosts (
 		ip, segment_id, mac_address, hostname, vendor_model, display_name,
-		os_vendor, status, ping_rtt_ms, broadcast_count_1m, is_storming,
+		os_vendor, status, ping_rtt_ms, open_ports, broadcast_count_1m, is_storming,
 		is_approved, is_protected, is_static_ip,
 		is_monitored, is_paused, has_conflict, kuma_name, uptime_kuma_id,
 		first_seen, last_seen
-	) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+	) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
 	`
 	_, err := db.Exec(query,
 		h.IP, h.SegmentID, normMAC, h.Hostname, h.VendorModel, h.DisplayName,
-		h.OSVendor, h.Status, h.PingRTTMs, h.BroadcastCount1m, h.IsStorming,
+		h.OSVendor, h.Status, h.PingRTTMs, h.OpenPorts, h.BroadcastCount1m, h.IsStorming,
 		h.IsApproved, h.IsProtected, h.IsStaticIP,
 		h.IsMonitored, h.IsPaused, h.HasConflict, h.KumaName, h.UptimeKumaID,
 		now, now,
@@ -332,7 +374,7 @@ type scannable interface {
 func scanHost(s scannable) (*Host, error) {
 	var h Host
 	var segID sql.NullInt64
-	var mac, host, vendor, disp, osVend, kumaName sql.NullString
+	var mac, host, vendor, disp, osVend, kumaName, openPorts sql.NullString
 	var kumaID sql.NullInt64
 	var lastSeen sql.NullTime
 	var rtt sql.NullFloat64
@@ -347,6 +389,7 @@ func scanHost(s scannable) (*Host, error) {
 		&osVend,
 		&h.Status,
 		&rtt,
+		&openPorts,
 		&h.BroadcastCount1m,
 		&h.IsStorming,
 		&h.IsApproved,
@@ -376,6 +419,7 @@ func scanHost(s scannable) (*Host, error) {
 	h.DisplayName = disp.String
 	h.OSVendor = osVend.String
 	h.KumaName = kumaName.String
+	h.OpenPorts = openPorts.String
 
 	if rtt.Valid {
 		val := rtt.Float64

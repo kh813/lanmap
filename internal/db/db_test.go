@@ -273,3 +273,25 @@ func TestSettingsCRUD(t *testing.T) {
 		t.Errorf("missing webhook_slack_url in all settings")
 	}
 }
+
+func TestHostOpenPortsParsing(t *testing.T) {
+	h := &Host{
+		OpenPorts: "22:SSH,80:HTTP,443:HTTPS",
+	}
+
+	if !h.HasOpenPorts() {
+		t.Error("expected HasOpenPorts to be true")
+	}
+
+	list := h.OpenPortsList()
+	if len(list) != 3 {
+		t.Fatalf("expected 3 ports, got %d", len(list))
+	}
+
+	if list[0].Port != 22 || list[0].Service != "SSH" {
+		t.Errorf("unexpected port 0: %+v", list[0])
+	}
+	if list[1].Port != 80 || list[1].Service != "HTTP" {
+		t.Errorf("unexpected port 1: %+v", list[1])
+	}
+}
