@@ -107,6 +107,9 @@ func probeSSH(ip string, timeout time.Duration) string {
 func probeHTTP(ip string, timeout time.Duration) string {
 	client := &http.Client{
 		Timeout: timeout,
+		Transport: &http.Transport{
+			DisableKeepAlives: true,
+		},
 		CheckRedirect: func(req *http.Request, via []*http.Request) error {
 			return http.ErrUseLastResponse
 		},
@@ -120,6 +123,7 @@ func probeHTTP(ip string, timeout time.Duration) string {
 		if err != nil {
 			continue
 		}
+		req.Close = true
 		resp, err := client.Do(req)
 		if err == nil {
 			resp.Body.Close()

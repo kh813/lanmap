@@ -19,7 +19,8 @@ func ExtractWebTitle(ip string, openPorts string) string {
 	client := &http.Client{
 		Timeout: 400 * time.Millisecond,
 		Transport: &http.Transport{
-			TLSClientConfig: &tls.Config{InsecureSkipVerify: true},
+			TLSClientConfig:   &tls.Config{InsecureSkipVerify: true},
+			DisableKeepAlives: true,
 		},
 	}
 
@@ -35,7 +36,8 @@ func ExtractWebTitle(ip string, openPorts string) string {
 			if err != nil {
 				continue
 			}
-			req.Header.Set("User-Agent", "Mozilla/5.0 (Windows NT 10.0; Win64; x64) lanmap/0.0.2")
+			req.Close = true
+			req.Header.Set("User-Agent", "Mozilla/5.0 (Windows NT 10.0; Win64; x64) lanmap/0.0.5")
 
 			resp, err := client.Do(req)
 			if err != nil {

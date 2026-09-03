@@ -41,10 +41,20 @@ func FetchUPnPInfo(ip string) *UPnPDeviceInfo {
 
 	client := &http.Client{
 		Timeout: 350 * time.Millisecond,
+		Transport: &http.Transport{
+			DisableKeepAlives: true,
+		},
 	}
 
 	for _, url := range endpoints {
-		resp, err := client.Get(url)
+		req, err := http.NewRequest("GET", url, nil)
+		if err != nil {
+			continue
+		}
+		req.Close = true
+		req.Header.Set("User-Agent", "lanmap/0.0.5")
+
+		resp, err := client.Do(req)
 		if err != nil {
 			continue
 		}

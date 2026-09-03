@@ -10,6 +10,7 @@ import (
 	"os"
 	"os/signal"
 	"runtime"
+	"strings"
 	"syscall"
 	"time"
 
@@ -170,6 +171,7 @@ func runServer() {
 		Addr:         addr,
 		Handler:      router,
 		TLSConfig:    tlsConfig,
+		ErrorLog:     log.New(&tlsLogFilter{debug: cfg.LogLevel == "DEBUG"}, "", 0),
 		ReadTimeout:  15 * time.Second,
 		WriteTimeout: 30 * time.Second,
 		IdleTimeout:  60 * time.Second,
@@ -257,4 +259,22 @@ func executeScanCycle(ctx context.Context, database *db.DB, sc *scanner.Scanner,
 
 	_ = km.Connect(ctx)
 	_, _ = km.Sync(ctx)
+}
+
+// tlsLogFilter filters benign TLS handshake warnings from browsers rejecting self-signed certs
+type tlsLogFilter struct {
+	debug bool
+}
+
+func (f *tlsLogFilter) Write(p []byte) (n int, err error) {
+	msg := string(p)
+	if strings.Contains(msg, "tls: unknown certificate") ||
+		strings.Contains(msg, "tls: bad certificate") ||
+		strings.Contains(msg, "remote error: tls:") {
+		if f.debug {
+			log.Printf("[DEBUG] %s", strings.TrimSpace(msg))
+		}
+		return len(p), nil
+	}
+	return os.Stderr.Write(p)
 }
