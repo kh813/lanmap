@@ -3,6 +3,7 @@ package scanner
 import (
 	"context"
 	"path/filepath"
+	"strings"
 	"testing"
 	"time"
 
@@ -149,4 +150,30 @@ func TestExtendedProbes(t *testing.T) {
 	_ = ExtractWebTitle("127.0.0.1", "80:HTTP")
 	_ = FetchUPnPInfo("127.0.0.1")
 	_ = InspectTLSCert("127.0.0.1")
+}
+
+func TestDetectDetailedOS(t *testing.T) {
+	// 1. iPhone 16 Pro -> iOS 18
+	os1 := DetectDetailedOS("192.168.3.150", "iphone16p.parkside.tokyo", "Apple", "iOS", "iPhone 16 Pro", "", "", "", "")
+	if !strings.Contains(os1, "iOS 18") {
+		t.Errorf("expected iOS 18, got %s", os1)
+	}
+
+	// 2. iPad Pro M4 -> iPadOS 18
+	os2 := DetectDetailedOS("192.168.3.160", "ipad-me1tb-m4.parkside.tokyo", "Apple", "iOS", "", "", "", "", "")
+	if !strings.Contains(os2, "iPadOS 18") {
+		t.Errorf("expected iPadOS 18, got %s", os2)
+	}
+
+	// 3. MacBook Pro M1 -> macOS 15
+	os3 := DetectDetailedOS("192.168.3.170", "mbpm1m.parkside.tokyo", "Apple", "macOS", "MacBookPro18,1", "", "", "", "")
+	if !strings.Contains(os3, "macOS 15") {
+		t.Errorf("expected macOS 15, got %s", os3)
+	}
+
+	// 4. OpenWrt Web Title
+	os4 := DetectDetailedOS("192.168.3.1", "openwrt.lan", "", "Linux", "", "OpenWrt - LuCI 23.05", "80:HTTP", "", "")
+	if !strings.Contains(os4, "OpenWrt 23.05") {
+		t.Errorf("expected OpenWrt 23.05, got %s", os4)
+	}
 }

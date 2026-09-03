@@ -249,7 +249,13 @@ func (s *Scanner) scanSegmentInternal(ctx context.Context, seg *db.Segment) ([]*
 		// 4. mDNS Model
 		mdnsModel := ResolveMDNSModel("", hostname)
 
-		// 5. Jitter
+		// 5. Refined OS & Version Detection
+		detailedOS := DetectDetailedOS(ipStr, hostname, vendor, osVendor, mdnsModel, httpTitle, openPorts, upnpName, upnpModel)
+		if detailedOS != "" {
+			osVendor = detailedOS
+		}
+
+		// 6. Jitter
 		var jitterPtr *float64
 		if rttPtr != nil {
 			jVal := RecordRTTAndCalculateJitter(ipStr, *rttPtr)
