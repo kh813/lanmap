@@ -86,8 +86,9 @@ func (db *DB) GetBatchPingHistory7d() (map[string][]PingHistoryItem, error) {
 	return result, rows.Err()
 }
 
-// RenderSparklineSVG generates a clean, responsive SVG sparkline for 7-day RTT latency
-func RenderSparklineSVG(items []PingHistoryItem, width, height int) template.HTML {
+// RenderSparkline24hSVG generates a time-proportional SVG sparkline for the past 24 hours.
+// If data was only collected recently, the left side remains empty/dashed to accurately reflect the no-data period.
+func RenderSparkline24hSVG(items []PingHistoryItem, width, height int) template.HTML {
 	if width <= 0 {
 		width = 280
 	}
@@ -95,19 +96,36 @@ func RenderSparklineSVG(items []PingHistoryItem, width, height int) template.HTM
 		height = 36
 	}
 
-	if len(items) == 0 {
+	now := time.Now().UTC()
+	duration := 24 * time.Hour
+	windowStart := now.Add(-duration)
+
+	// Filter items in the 24-hour window
+	var items24h []PingHistoryItem
+	for _, it := range items {
+		if it.CreatedAt.After(windowStart) || it.CreatedAt.Equal(windowStart) {
+			items24h = append(items24h, it)
+		}
+	}
+
+	padTop := 4.0
+	padBottom := 4.0
+	baselineY := float64(height) - padBottom
+	plotHeight := float64(height) - padTop - padBottom
+
+	if len(items24h) == 0 {
 		// Empty state: flat dashed line
 		svg := fmt.Sprintf(`<svg viewBox="0 0 %d %d" class="w-full h-8 overflow-visible">
-			<line x1="0" y1="%d" x2="%d" y2="%d" stroke="#94A3B8" stroke-dasharray="3,3" stroke-width="1.5" />
-			<text x="%d" y="%d" fill="#94A3B8" font-size="9" text-anchor="middle">データ収集中 (7日間)</text>
-		</svg>`, width, height, height/2, width, height/2, width/2, height/2+3)
+			<line x1="0" y1="%.1f" x2="%d" y2="%.1f" stroke="#94A3B8" stroke-dasharray="3,3" stroke-width="1.2" opacity="0.4" />
+			<text x="%d" y="%.1f" fill="#94A3B8" font-size="9" text-anchor="middle">過去24時間: データ収集中</text>
+		</svg>`, width, height, baselineY, width, baselineY, width/2, float64(height)/2.0+3.0)
 		return template.HTML(svg)
 	}
 
 	// Find max RTT to scale Y
-	maxRTT := 5.0
+	maxRTT := 4.0
 	minRTT := 999999.0
-	for _, item := range items {
+	for _, item := range items24h {
 		if item.RTTMs != nil && *item.RTTMs > 0 {
 			if *item.RTTMs > maxRTT {
 				maxRTT = *item.RTTMs
@@ -120,55 +138,62 @@ func RenderSparklineSVG(items []PingHistoryItem, width, height int) template.HTM
 	if minRTT > maxRTT {
 		minRTT = 0.0
 	}
-	// Add 10% headroom
-	maxRTT *= 1.15
+	maxRTT *= 1.2
 	if maxRTT < 2.0 {
 		maxRTT = 2.0
 	}
 
-	padTop := 4.0
-	padBottom := 4.0
-	plotHeight := float64(height) - padTop - padBottom
-
 	var points []string
 	var areaPoints []string
-	stepX := float64(width) / float64(len(items)-1)
-	if len(items) == 1 {
-		stepX = float64(width)
+
+	firstItem := items24h[0]
+	firstRatio := firstItem.CreatedAt.Sub(windowStart).Seconds() / duration.Seconds()
+	if firstRatio < 0 {
+		firstRatio = 0
 	}
+	firstX := firstRatio * float64(width)
 
-	lastX := float64(width)
+	lastX := firstX
+	areaPoints = append(areaPoints, fmt.Sprintf("%.1f,%.1f", firstX, baselineY))
 
-	for i, item := range items {
-		x := float64(i) * stepX
-		if len(items) == 1 {
-			x = float64(width) / 2
+	for _, item := range items24h {
+		ratio := item.CreatedAt.Sub(windowStart).Seconds() / duration.Seconds()
+		if ratio < 0 {
+			ratio = 0
 		}
+		if ratio > 1.0 {
+			ratio = 1.0
+		}
+		x := ratio * float64(width)
 
-		y := float64(height) - padBottom
+		y := baselineY
 		if item.Status == "up" && item.RTTMs != nil && *item.RTTMs >= 0 {
 			val := *item.RTTMs
 			normalized := val / maxRTT
 			if normalized > 1.0 {
 				normalized = 1.0
 			}
-			y = float64(height) - padBottom - (normalized * plotHeight)
+			y = baselineY - (normalized * plotHeight)
 		} else {
-			// Down / packet loss: spike to top in red or zero
+			// Down / loss
 			y = padTop
 		}
 
-		if i == 0 {
-			areaPoints = append(areaPoints, fmt.Sprintf("%.1f,%.1f", x, float64(height)-padBottom))
-		}
 		points = append(points, fmt.Sprintf("%.1f,%.1f", x, y))
 		areaPoints = append(areaPoints, fmt.Sprintf("%.1f,%.1f", x, y))
 		lastX = x
 	}
-	areaPoints = append(areaPoints, fmt.Sprintf("%.1f,%.1f", lastX, float64(height)-padBottom))
+	areaPoints = append(areaPoints, fmt.Sprintf("%.1f,%.1f", lastX, baselineY))
 
 	pointsStr := strings.Join(points, " ")
 	areaStr := strings.Join(areaPoints, " ")
+
+	// If data collection started recently, show dashed baseline for the past unrecorded period
+	var noDataLine string
+	if firstX > 3.0 {
+		noDataLine = fmt.Sprintf(`<line x1="0" y1="%.1f" x2="%.1f" y2="%.1f" stroke="#94A3B8" stroke-dasharray="3,3" stroke-width="1.2" opacity="0.35" />`,
+			baselineY, firstX, baselineY)
+	}
 
 	svg := fmt.Sprintf(`<svg viewBox="0 0 %d %d" class="w-full h-8 overflow-visible" preserveAspectRatio="none">
 		<defs>
@@ -177,72 +202,90 @@ func RenderSparklineSVG(items []PingHistoryItem, width, height int) template.HTM
 				<stop offset="100%%" stop-color="#3B82F6" stop-opacity="0.0" />
 			</linearGradient>
 		</defs>
+		%s
 		<polygon points="%s" fill="url(#chartGrad)" />
 		<polyline fill="none" stroke="#3B82F6" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" points="%s" />
-	</svg>`, width, height, areaStr, pointsStr)
+	</svg>`, width, height, noDataLine, areaStr, pointsStr)
 
 	return template.HTML(svg)
 }
 
-// RenderUptimeBlocksSVG generates Uptime Kuma style health blocks for 7-day status
-func RenderUptimeBlocksSVG(items []PingHistoryItem, blockCount int) template.HTML {
+// RenderSparklineSVG is an alias for RenderSparkline24hSVG
+func RenderSparklineSVG(items []PingHistoryItem, width, height int) template.HTML {
+	return RenderSparkline24hSVG(items, width, height)
+}
+
+// RenderUptimeBlocks24hSVG generates time-slotted Uptime Kuma health blocks for the 24-hour period.
+// Empty/unmonitored time slots appear as faded gray placeholders.
+func RenderUptimeBlocks24hSVG(items []PingHistoryItem, blockCount int) template.HTML {
 	if blockCount <= 0 {
-		blockCount = 35
+		blockCount = 36 // 36 blocks = 1 block per 40 minutes for 24 hours
 	}
 
-	if len(items) == 0 {
-		// Empty placeholders
-		var rects strings.Builder
-		for i := 0; i < blockCount; i++ {
-			rects.WriteString(fmt.Sprintf(`<rect x="%d" y="0" width="5" height="14" rx="1.5" fill="#94A3B8" opacity="0.3" />`, i*7))
-		}
-		return template.HTML(fmt.Sprintf(`<svg viewBox="0 0 %d 14" class="w-full h-3.5">%s</svg>`, blockCount*7-2, rects.String()))
-	}
+	now := time.Now().UTC()
+	duration := 24 * time.Hour
+	windowStart := now.Add(-duration)
+	bucketDuration := duration / time.Duration(blockCount)
 
-	// Divide items into blockCount time buckets
-	bucketSize := float64(len(items)) / float64(blockCount)
 	var rects strings.Builder
-
 	for i := 0; i < blockCount; i++ {
-		startIdx := int(float64(i) * bucketSize)
-		endIdx := int(float64(i+1) * bucketSize)
-		if endIdx > len(items) {
-			endIdx = len(items)
-		}
-		if startIdx >= len(items) {
-			startIdx = len(items) - 1
-		}
-		if endIdx <= startIdx {
-			endIdx = startIdx + 1
-		}
+		bStart := windowStart.Add(time.Duration(i) * bucketDuration)
+		bEnd := bStart.Add(bucketDuration)
 
+		hasData := false
 		hasDown := false
 		hasUp := false
-		for k := startIdx; k < endIdx && k < len(items); k++ {
-			if items[k].Status == "up" {
-				hasUp = true
-			} else {
-				hasDown = true
+
+		for _, item := range items {
+			if (item.CreatedAt.After(bStart) || item.CreatedAt.Equal(bStart)) && item.CreatedAt.Before(bEnd) {
+				hasData = true
+				if item.Status == "up" {
+					hasUp = true
+				} else {
+					hasDown = true
+				}
 			}
 		}
 
-		color := "#22C55E" // Green (100% UP)
-		if hasDown && !hasUp {
-			color = "#EF4444" // Red (100% Down)
-		} else if hasDown && hasUp {
-			color = "#F59E0B" // Amber (Degraded / Partial loss)
+		color := "#94A3B8"
+		opacity := "0.25"
+
+		if hasData {
+			opacity = "1.0"
+			if hasDown && !hasUp {
+				color = "#EF4444" // Red (Down)
+			} else if hasDown && hasUp {
+				color = "#F59E0B" // Amber (Degraded / Partial loss)
+			} else {
+				color = "#22C55E" // Green (100% UP)
+			}
 		}
 
-		rects.WriteString(fmt.Sprintf(`<rect x="%d" y="0" width="5" height="14" rx="1.5" fill="%s" />`, i*7, color))
+		rects.WriteString(fmt.Sprintf(`<rect x="%d" y="0" width="5" height="14" rx="1.5" fill="%s" opacity="%s" />`, i*7, color, opacity))
 	}
 
 	return template.HTML(fmt.Sprintf(`<svg viewBox="0 0 %d 14" class="w-full h-3.5">%s</svg>`, blockCount*7-2, rects.String()))
 }
 
-// ComputePingStats7d computes average RTT, min, max, and uptime % over the 7-day period
-func ComputePingStats7d(items []PingHistoryItem) (statsStr string, upPct float64) {
-	if len(items) == 0 {
-		return "7日間: 計測データなし", 100.0
+// RenderUptimeBlocksSVG is an alias for RenderUptimeBlocks24hSVG
+func RenderUptimeBlocksSVG(items []PingHistoryItem, blockCount int) template.HTML {
+	return RenderUptimeBlocks24hSVG(items, blockCount)
+}
+
+// ComputePingStats24h computes average RTT, min, max, and uptime % over the past 24-hour period
+func ComputePingStats24h(items []PingHistoryItem) (statsStr string, upPct float64) {
+	now := time.Now().UTC()
+	windowStart := now.Add(-24 * time.Hour)
+
+	var items24h []PingHistoryItem
+	for _, it := range items {
+		if it.CreatedAt.After(windowStart) || it.CreatedAt.Equal(windowStart) {
+			items24h = append(items24h, it)
+		}
+	}
+
+	if len(items24h) == 0 {
+		return "過去24h: 計測データ収集中", 100.0
 	}
 
 	upCount := 0
@@ -251,7 +294,7 @@ func ComputePingStats7d(items []PingHistoryItem) (statsStr string, upPct float64
 	minRTT := 999999.0
 	maxRTT := 0.0
 
-	for _, item := range items {
+	for _, item := range items24h {
 		if item.Status == "up" {
 			upCount++
 			if item.RTTMs != nil && *item.RTTMs >= 0 {
@@ -268,13 +311,13 @@ func ComputePingStats7d(items []PingHistoryItem) (statsStr string, upPct float64
 		}
 	}
 
-	upPct = (float64(upCount) / float64(len(items))) * 100.0
+	upPct = (float64(upCount) / float64(len(items24h))) * 100.0
 	if upPct > 100.0 {
 		upPct = 100.0
 	}
 
 	if rttCount == 0 {
-		return fmt.Sprintf("7日間 稼働率: %.1f%%", upPct), upPct
+		return fmt.Sprintf("過去24h 稼働率: %.1f%%", upPct), upPct
 	}
 
 	avgRTT := totalRTT / float64(rttCount)
@@ -282,7 +325,12 @@ func ComputePingStats7d(items []PingHistoryItem) (statsStr string, upPct float64
 		minRTT = avgRTT
 	}
 
-	statsStr = fmt.Sprintf("7日平均 %.1fms (Min %.1f / Max %.1fms) · 稼働率 %.1f%%",
+	statsStr = fmt.Sprintf("24h平均 %.1fms (Min %.1f / Max %.1fms) · 稼働率 %.1f%%",
 		avgRTT, minRTT, maxRTT, math.Round(upPct*10)/10)
 	return statsStr, upPct
+}
+
+// ComputePingStats7d computes 7-day stats or delegates to 24h
+func ComputePingStats7d(items []PingHistoryItem) (statsStr string, upPct float64) {
+	return ComputePingStats24h(items)
 }
