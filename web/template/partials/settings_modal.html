@@ -1,5 +1,5 @@
 <div class="fixed inset-0 bg-black/60 dark:bg-black/80 backdrop-blur-sm flex items-center justify-center p-4 z-50 overflow-y-auto animate-fade-in" onclick="if(event.target===this) closeModal()">
-    <div class="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl max-w-2xl w-full p-6 shadow-2xl space-y-6 my-8 text-slate-800 dark:text-slate-100">
+    <div class="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl max-w-2xl w-full p-6 shadow-2xl space-y-5 my-8 text-slate-800 dark:text-slate-100">
         <div class="flex items-center justify-between pb-3 border-b border-slate-200 dark:border-slate-800">
             <div class="flex items-center space-x-2">
                 <span class="text-lg">⚙️</span>
@@ -8,7 +8,10 @@
             <button onclick="closeModal()" class="text-slate-400 hover:text-slate-700 dark:hover:text-white text-lg">&times;</button>
         </div>
 
-        <form hx-post="/api/settings" hx-target="#sidebar-container" hx-swap="outerHTML" onclick="if(event.submitter) closeModal()" class="space-y-6 text-xs">
+        <!-- Global Save Feedback / Toast -->
+        <div id="settings-feedback"></div>
+
+        <form id="settings-form" hx-post="/api/settings" hx-target="#settings-feedback" hx-swap="innerHTML" class="space-y-5 text-xs">
             <!-- Theme setting -->
             <div class="space-y-2 bg-slate-50 dark:bg-slate-950/60 p-4 rounded-lg border border-slate-200 dark:border-slate-800">
                 <label class="block font-bold text-slate-800 dark:text-slate-200">
@@ -45,43 +48,89 @@
             </div>
 
             <!-- 2. Webhook Notifications -->
-            <div class="space-y-3 bg-slate-50 dark:bg-slate-950/60 p-4 rounded-lg border border-slate-200 dark:border-slate-800">
-                <label class="block font-bold text-slate-800 dark:text-slate-200">
-                    🚨 未承認端末検出時の Webhook 通知設定 (即時アラート)
-                </label>
-                <div class="space-y-2">
-                    <div>
-                        <span class="text-slate-500 dark:text-slate-400 text-[11px] font-medium">Google Chat Webhook URL:</span>
-                        <input type="url" name="webhook_gchat_url" value="{{.Settings.webhook_gchat_url}}"
+            <div class="space-y-4 bg-slate-50 dark:bg-slate-950/60 p-4 rounded-lg border border-slate-200 dark:border-slate-800">
+                <div class="flex items-center justify-between">
+                    <label class="block font-bold text-slate-800 dark:text-slate-200">
+                        🚨 未承認端末検出時の Webhook 通知設定 (即時アラート)
+                    </label>
+                    <span class="text-[10px] text-slate-400">※各項目の「テスト送信」で疎通確認が可能</span>
+                </div>
+
+                <div class="space-y-3">
+                    <!-- Google Chat -->
+                    <div class="space-y-1">
+                        <div class="flex items-center justify-between">
+                            <span class="text-slate-600 dark:text-slate-300 text-[11px] font-semibold">1. Google Chat Webhook URL:</span>
+                            <button type="button"
+                                    hx-post="/api/webhooks/test?provider=gchat"
+                                    hx-include="#settings-form"
+                                    hx-target="#test-result-gchat"
+                                    class="px-2.5 py-0.5 rounded text-[10px] font-medium bg-blue-50 text-blue-700 dark:bg-blue-950/60 dark:text-blue-300 border border-blue-200 dark:border-blue-800/60 hover:bg-blue-100 dark:hover:bg-blue-900/60 transition">
+                                🔔 テスト送信
+                            </button>
+                        </div>
+                        <input type="text" name="webhook_gchat_url" value="{{.Settings.webhook_gchat_url}}"
                                placeholder="https://chat.googleapis.com/v1/spaces/.../messages?key=...&token=..."
-                               class="w-full mt-1 bg-white dark:bg-slate-900 border border-slate-300 dark:border-slate-700 rounded px-3 py-1.5 text-slate-800 dark:text-slate-200 focus:outline-none focus:border-blue-500 font-mono text-[11px]">
+                               class="w-full bg-white dark:bg-slate-900 border border-slate-300 dark:border-slate-700 rounded px-3 py-1.5 text-slate-800 dark:text-slate-200 focus:outline-none focus:border-blue-500 font-mono text-[11px]">
+                        <p class="text-[10px] text-slate-400 dark:text-slate-500">
+                            ※ Google Chat スペース設定 ➔「アプリと統合」➔「Webhookを追加」で取得したURLを入力してください（ChatroomのブラウザURLではありません）。
+                        </p>
+                        <div id="test-result-gchat"></div>
                     </div>
-                    <div>
-                        <span class="text-slate-500 dark:text-slate-400 text-[11px] font-medium">Slack Webhook URL:</span>
-                        <input type="url" name="webhook_slack_url" value="{{.Settings.webhook_slack_url}}"
+
+                    <!-- Slack -->
+                    <div class="space-y-1 pt-1 border-t border-slate-200/60 dark:border-slate-800/60">
+                        <div class="flex items-center justify-between">
+                            <span class="text-slate-600 dark:text-slate-300 text-[11px] font-semibold">2. Slack Webhook URL:</span>
+                            <button type="button"
+                                    hx-post="/api/webhooks/test?provider=slack"
+                                    hx-include="#settings-form"
+                                    hx-target="#test-result-slack"
+                                    class="px-2.5 py-0.5 rounded text-[10px] font-medium bg-blue-50 text-blue-700 dark:bg-blue-950/60 dark:text-blue-300 border border-blue-200 dark:border-blue-800/60 hover:bg-blue-100 dark:hover:bg-blue-900/60 transition">
+                                🔔 テスト送信
+                            </button>
+                        </div>
+                        <input type="text" name="webhook_slack_url" value="{{.Settings.webhook_slack_url}}"
                                placeholder="https://hooks.slack.com/services/..."
-                               class="w-full mt-1 bg-white dark:bg-slate-900 border border-slate-300 dark:border-slate-700 rounded px-3 py-1.5 text-slate-800 dark:text-slate-200 focus:outline-none focus:border-blue-500 font-mono text-[11px]">
+                               class="w-full bg-white dark:bg-slate-900 border border-slate-300 dark:border-slate-700 rounded px-3 py-1.5 text-slate-800 dark:text-slate-200 focus:outline-none focus:border-blue-500 font-mono text-[11px]">
+                        <div id="test-result-slack"></div>
                     </div>
-                    <div>
-                        <span class="text-slate-500 dark:text-slate-400 text-[11px] font-medium">Microsoft Teams Webhook URL:</span>
-                        <input type="url" name="webhook_teams_url" value="{{.Settings.webhook_teams_url}}"
+
+                    <!-- Microsoft Teams -->
+                    <div class="space-y-1 pt-1 border-t border-slate-200/60 dark:border-slate-800/60">
+                        <div class="flex items-center justify-between">
+                            <span class="text-slate-600 dark:text-slate-300 text-[11px] font-semibold">3. Microsoft Teams Webhook URL:</span>
+                            <button type="button"
+                                    hx-post="/api/webhooks/test?provider=teams"
+                                    hx-include="#settings-form"
+                                    hx-target="#test-result-teams"
+                                    class="px-2.5 py-0.5 rounded text-[10px] font-medium bg-blue-50 text-blue-700 dark:bg-blue-950/60 dark:text-blue-300 border border-blue-200 dark:border-blue-800/60 hover:bg-blue-100 dark:hover:bg-blue-900/60 transition">
+                                🔔 テスト送信
+                            </button>
+                        </div>
+                        <input type="text" name="webhook_teams_url" value="{{.Settings.webhook_teams_url}}"
                                placeholder="https://outlook.office.com/webhook/..."
-                               class="w-full mt-1 bg-white dark:bg-slate-900 border border-slate-300 dark:border-slate-700 rounded px-3 py-1.5 text-slate-800 dark:text-slate-200 focus:outline-none focus:border-blue-500 font-mono text-[11px]">
+                               class="w-full bg-white dark:bg-slate-900 border border-slate-300 dark:border-slate-700 rounded px-3 py-1.5 text-slate-800 dark:text-slate-200 focus:outline-none focus:border-blue-500 font-mono text-[11px]">
+                        <div id="test-result-teams"></div>
                     </div>
-                    <div>
-                        <span class="text-slate-500 dark:text-slate-400 text-[11px] font-medium">Discord Webhook URL:</span>
-                        <input type="url" name="webhook_discord_url" value="{{.Settings.webhook_discord_url}}"
+
+                    <!-- Discord -->
+                    <div class="space-y-1 pt-1 border-t border-slate-200/60 dark:border-slate-800/60">
+                        <div class="flex items-center justify-between">
+                            <span class="text-slate-600 dark:text-slate-300 text-[11px] font-semibold">4. Discord Webhook URL:</span>
+                            <button type="button"
+                                    hx-post="/api/webhooks/test?provider=discord"
+                                    hx-include="#settings-form"
+                                    hx-target="#test-result-discord"
+                                    class="px-2.5 py-0.5 rounded text-[10px] font-medium bg-blue-50 text-blue-700 dark:bg-blue-950/60 dark:text-blue-300 border border-blue-200 dark:border-blue-800/60 hover:bg-blue-100 dark:hover:bg-blue-900/60 transition">
+                                🔔 テスト送信
+                            </button>
+                        </div>
+                        <input type="text" name="webhook_discord_url" value="{{.Settings.webhook_discord_url}}"
                                placeholder="https://discord.com/api/webhooks/..."
-                               class="w-full mt-1 bg-white dark:bg-slate-900 border border-slate-300 dark:border-slate-700 rounded px-3 py-1.5 text-slate-800 dark:text-slate-200 focus:outline-none focus:border-blue-500 font-mono text-[11px]">
+                               class="w-full bg-white dark:bg-slate-900 border border-slate-300 dark:border-slate-700 rounded px-3 py-1.5 text-slate-800 dark:text-slate-200 focus:outline-none focus:border-blue-500 font-mono text-[11px]">
+                        <div id="test-result-discord"></div>
                     </div>
-                    <!-- LINE Notify (Uncomment to enable)
-                    <div>
-                        <span class="text-slate-500 dark:text-slate-400 text-[11px]">LINE Notify アクセストークン:</span>
-                        <input type="text" name="webhook_line_token" value="{{.Settings.webhook_line_token}}"
-                               placeholder="LINE Notify Personal Access Token"
-                               class="w-full mt-1 bg-white dark:bg-slate-900 border border-slate-300 dark:border-slate-700 rounded px-3 py-1.5 text-slate-800 dark:text-slate-200 focus:outline-none focus:border-blue-500">
-                    </div>
-                    -->
                 </div>
             </div>
 
@@ -145,11 +194,11 @@
             <div class="flex items-center justify-end space-x-2 pt-3 border-t border-slate-200 dark:border-slate-800">
                 <button type="button" onclick="closeModal()"
                         class="px-4 py-2 rounded-lg bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-300 font-medium transition">
-                    キャンセル
+                    閉じる
                 </button>
                 <button type="submit"
                         class="px-5 py-2 rounded-lg bg-blue-600 hover:bg-blue-500 text-white font-medium transition shadow">
-                    設定を保存
+                    💾 設定を保存
                 </button>
             </div>
         </form>

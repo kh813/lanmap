@@ -142,4 +142,16 @@ func TestWebhookDelivery(t *testing.T) {
 	if atomic.LoadInt32(&discordCount) != 1 {
 		t.Errorf("expected 1 Discord call, got %d", discordCount)
 	}
+
+	// Test SendTestWebhook
+	err = n.SendTestWebhook(ctx, "slack", server.URL+"/slack")
+	if err != nil {
+		t.Errorf("SendTestWebhook slack failed: %v", err)
+	}
+
+	// Test invalid URL format error handling
+	err = n.SendTestWebhook(ctx, "gchat", "https://chat.google.com/room/AAAABBBB")
+	if err == nil {
+		t.Error("expected error for invalid Google Chatroom browser URL, got nil")
+	}
 }

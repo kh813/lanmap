@@ -63,6 +63,47 @@ func (n *Notifier) ShouldAlert(h *db.Host, isNew, isReplaced bool, previousStatu
 	return false
 }
 
+// SendTestWebhook sends a test notification to verify webhook configuration
+func (n *Notifier) SendTestWebhook(ctx context.Context, provider, targetURL string) error {
+	targetURL = strings.TrimSpace(targetURL)
+	if targetURL == "" {
+		return fmt.Errorf("Webhook URL が入力されていません")
+	}
+
+	if !strings.HasPrefix(targetURL, "http://") && !strings.HasPrefix(targetURL, "https://") {
+		return fmt.Errorf("URL は http:// または https:// から始まる有効な形式である必要があります")
+	}
+
+	testHost := &db.Host{
+		IP:          "192.168.1.99",
+		Hostname:    "test-device.local",
+		MACAddress:  "00:11:22:33:44:55",
+		VendorModel: "Apple (Test Device)",
+		OSVendor:    "macOS",
+		FirstSeen:   time.Now(),
+		Status:      "up",
+	}
+
+	switch provider {
+	case "gchat", "google_chat", "webhook_gchat_url":
+		if !strings.Contains(targetURL, "chat.googleapis.com") {
+			return fmt.Errorf("Google Chat の Webhook URL は「https://chat.googleapis.com/...」の形式である必要があります。\n※ Chatroom のブラウザURLではなく、スペース設定 ➔「アプリと統合」➔「Webhookを追加」で取得したURLを入力してください。")
+		}
+		return n.sendGoogleChat(ctx, targetURL, []*db.Host{testHost})
+	case "slack", "webhook_slack_url":
+		return n.sendSlack(ctx, targetURL, []*db.Host{testHost})
+	case "teams", "webhook_teams_url":
+		return n.sendTeams(ctx, targetURL, []*db.Host{testHost})
+	case "discord", "webhook_discord_url":
+		if !strings.Contains(targetURL, "discord.com") && !strings.Contains(targetURL, "discordapp.com") {
+			return fmt.Errorf("Discord の Webhook URL は「https://discord.com/api/webhooks/...」の形式である必要があります。")
+		}
+		return n.sendDiscord(ctx, targetURL, []*db.Host{testHost})
+	default:
+		return fmt.Errorf("未知のプロバイダー: %s", provider)
+	}
+}
+
 // NotifyUnapprovedHosts sends batched alerts to all configured webhooks
 func (n *Notifier) NotifyUnapprovedHosts(ctx context.Context, hosts []*db.Host) error {
 	if len(hosts) == 0 {

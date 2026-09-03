@@ -409,9 +409,10 @@ func (h *Handler) HandleSaveSettings(w http.ResponseWriter, r *http.Request) {
 
 	fields := []string{
 		"retention_days",
+		"webhook_gchat_url",
 		"webhook_slack_url",
-		"webhook_discord_url",
 		"webhook_teams_url",
+		"webhook_discord_url",
 		"webhook_line_token",
 		"kuma_url",
 		"kuma_username",
@@ -421,15 +422,85 @@ func (h *Handler) HandleSaveSettings(w http.ResponseWriter, r *http.Request) {
 	}
 
 	for _, f := range fields {
-		if val := r.FormValue(f); val != "" || f == "kuma_password" {
-			_ = h.db.SetSetting(f, strings.TrimSpace(val))
-		}
+		val := strings.TrimSpace(r.FormValue(f))
+		_ = h.db.SetSetting(f, val)
 	}
 
 	// Reconnect Kuma
 	_ = h.kuma.Connect(r.Context())
 
-	h.HandleSidebarPartial(w, r)
+	// Trigger sidebar and main table refresh on body
+	w.Header().Set("HX-Trigger", "refreshSidebar, refreshMainTable")
+
+	// Render success response message
+	w.Header().Set("Content-Type", "text/html; charset=utf-8")
+	_, _ = w.Write([]byte(`
+		<div class="p-3 bg-emerald-50 dark:bg-emerald-950/60 border border-emerald-300 dark:border-emerald-700 rounded-lg text-emerald-800 dark:text-emerald-300 flex items-center justify-between text-xs animate-fade-in">
+			<div class="flex items-center space-x-2">
+				<span class="text-base">✅</span>
+				<span class="font-medium">設定を正常に保存しました。</span>
+			</div>
+			<button type="button" onclick="closeModal()" class="px-2.5 py-1 bg-emerald-600 hover:bg-emerald-700 text-white rounded text-[11px] font-bold">閉じる</button>
+		</div>
+	`))
+}
+
+// HandleTestWebhook sends a test notification to the specified webhook provider
+func (h *Handler) HandleTestWebhook(w http.ResponseWriter, r *http.Request) {
+	_ = r.ParseForm()
+
+	provider := r.URL.Query().Get("provider")
+	if provider == "" {
+		provider = r.FormValue("provider")
+	}
+
+	targetURL := strings.TrimSpace(r.FormValue("webhook_" + provider + "_url"))
+	if targetURL == "" {
+		targetURL = strings.TrimSpace(r.FormValue("url"))
+	}
+	if targetURL == "" {
+		// Fallback to saved setting in DB
+		settings, _ := h.db.GetAllSettings()
+		targetURL = strings.TrimSpace(settings["webhook_"+provider+"_url"])
+	}
+
+	w.Header().Set("Content-Type", "text/html; charset=utf-8")
+
+	if targetURL == "" {
+		w.WriteHeader(http.StatusOK)
+		_, _ = w.Write([]byte(fmt.Sprintf(`
+			<div class="mt-1 p-2 bg-amber-50 dark:bg-amber-950/40 border border-amber-300 dark:border-amber-700 rounded text-amber-800 dark:text-amber-300 text-[11px] flex items-start space-x-1.5 animate-fade-in">
+				<span class="shrink-0 font-bold">⚠️ URL未入力:</span>
+				<span>テスト送信する Webhook URL を入力してください。</span>
+			</div>
+		`)))
+		return
+	}
+
+	ctx, cancel := context.WithTimeout(r.Context(), 10*time.Second)
+	defer cancel()
+
+	err := h.notifier.SendTestWebhook(ctx, provider, targetURL)
+	if err != nil {
+		w.WriteHeader(http.StatusOK)
+		escapedErr := template.HTMLEscapeString(err.Error())
+		escapedErr = strings.ReplaceAll(escapedErr, "\n", "<br>")
+		_, _ = w.Write([]byte(fmt.Sprintf(`
+			<div class="mt-1 p-2.5 bg-red-50 dark:bg-red-950/40 border border-red-300 dark:border-red-700 rounded text-red-800 dark:text-red-300 text-[11px] flex items-start space-x-1.5 animate-fade-in">
+				<span class="shrink-0 font-bold">❌ 送信失敗:</span>
+				<div class="leading-relaxed">%s</div>
+			</div>
+		`, escapedErr)))
+		return
+	}
+
+	w.WriteHeader(http.StatusOK)
+	_, _ = w.Write([]byte(`
+		<div class="mt-1 p-2 bg-emerald-50 dark:bg-emerald-950/40 border border-emerald-300 dark:border-emerald-700 rounded text-emerald-800 dark:text-emerald-300 text-[11px] flex items-center space-x-1.5 animate-fade-in">
+			<span class="shrink-0 font-bold">✅ 送信成功:</span>
+			<span>テスト通知が正常に送信されました (HTTP 200)</span>
+		</div>
+	`))
 }
 
 // HandleKumaSync triggers Uptime Kuma synchronization

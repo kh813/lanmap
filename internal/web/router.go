@@ -75,6 +75,7 @@ func NewRouter(h *Handler) http.Handler {
 
 	// Settings, Kuma Sync & Scan
 	mux.HandleFunc("POST /api/settings", h.HandleSaveSettings)
+	mux.HandleFunc("POST /api/webhooks/test", h.HandleTestWebhook)
 	mux.HandleFunc("POST /api/kuma/sync", h.HandleKumaSync)
 	mux.HandleFunc("POST /api/scan", h.HandleScanNow)
 
