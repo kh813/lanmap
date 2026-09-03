@@ -152,7 +152,7 @@ func FormatSlackPayload(hosts []*db.Host) map[string]interface{} {
 
 		fields = append(fields, map[string]interface{}{
 			"title": fmt.Sprintf("IP: %s (%s)", h.IP, name),
-			"value": fmt.Sprintf("MAC: `%s` | メーカー: %s | OS: %s", mac, vendor, h.OSVendor),
+			"value": fmt.Sprintf("接続: %s (%s) | MAC: `%s` | メーカー: %s", h.ConnectionLabel(), h.ConnectionReason(), mac, vendor),
 			"short": false,
 		})
 	}
@@ -197,7 +197,7 @@ func FormatDiscordPayload(hosts []*db.Host) map[string]interface{} {
 
 		fields = append(fields, map[string]interface{}{
 			"name":   fmt.Sprintf("IP: %s [%s]", h.IP, name),
-			"value":  fmt.Sprintf("MAC: `%s`\nメーカー: %s\nOS: %s", mac, vendor, h.OSVendor),
+			"value":  fmt.Sprintf("接続: %s (%s)\nMAC: `%s`\nメーカー: %s", h.ConnectionLabel(), h.ConnectionReason(), mac, vendor),
 			"inline": false,
 		})
 	}
@@ -238,7 +238,7 @@ func FormatTeamsPayload(hosts []*db.Host) map[string]interface{} {
 
 		facts = append(facts, map[string]string{
 			"name":  h.IP,
-			"value": fmt.Sprintf("ホスト名: %s | MAC: %s | メーカー: %s", h.Hostname, mac, vendor),
+			"value": fmt.Sprintf("ホスト名: %s | 接続: %s | MAC: %s | メーカー: %s", h.Hostname, h.ConnectionLabel(), mac, vendor),
 		})
 	}
 
@@ -357,8 +357,8 @@ func FormatGoogleChatPayload(hosts []*db.Host) map[string]interface{} {
 		if mac == "" {
 			mac = "Unknown MAC"
 		}
-		sb.WriteString(fmt.Sprintf("• *IP*: `%s` (%s)\n  *MAC*: `%s` / *メーカー*: %s\n  *初回検出*: %s\n\n",
-			h.IP, hostName, mac, vendor, h.FirstSeen.Format("2006-01-02 15:04:05")))
+		sb.WriteString(fmt.Sprintf("• *IP*: `%s` (%s)\n  *接続*: %s (%s) / *MAC*: `%s`\n  *メーカー*: %s / *初回検出*: %s\n\n",
+			h.IP, hostName, h.ConnectionLabel(), h.ConnectionReason(), mac, vendor, h.FirstSeen.Format("2006-01-02 15:04:05")))
 	}
 
 	return map[string]interface{}{

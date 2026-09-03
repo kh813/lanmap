@@ -123,6 +123,17 @@
                                     </div>
                                 </div>
 
+                                <!-- Connection Medium Badge (Wired vs Wi-Fi) -->
+                                <div class="flex items-center justify-between text-[11px] bg-slate-50 dark:bg-slate-950/60 px-2.5 py-1.5 rounded-lg border border-slate-200/80 dark:border-slate-800">
+                                    <span class="text-slate-500 dark:text-slate-400 font-medium">🔗 接続形態:</span>
+                                    <div class="flex items-center space-x-1.5">
+                                        <span class="inline-flex items-center px-2 py-0.5 rounded-full font-medium text-[11px] border {{.ConnectionBadgeClass}}">
+                                            {{.ConnectionLabel}}
+                                        </span>
+                                        <span class="text-[10px] text-slate-400 dark:text-slate-500 font-mono">({{.ConnectionReason}})</span>
+                                    </div>
+                                </div>
+
                                 <!-- Extended Metadata (Web Title, UPnP, mDNS, TLS) -->
                                 <div class="space-y-1.5 text-[11px] bg-slate-50 dark:bg-slate-950/50 p-2.5 rounded-lg border border-slate-100 dark:border-slate-800/80">
                                     {{if .HTTPTitle}}
@@ -270,9 +281,15 @@
                             {{if .VendorModel}}{{.VendorModel}}{{else}}<span class="text-slate-400 dark:text-slate-600">Unknown</span>{{end}}
                         </td>
 
-                        <!-- OS -->
+                        <!-- OS & Connection Type -->
                         <td class="py-3 px-3 text-slate-600 dark:text-slate-400">
-                            {{if .OSVendor}}{{.OSVendor}}{{else}}<span class="text-slate-400 dark:text-slate-600">-</span>{{end}}
+                            <div class="flex items-center space-x-1.5">
+                                <span class="text-xs">{{if .OSVendor}}{{.OSVendor}}{{else}}-{{end}}</span>
+                                <span class="inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-medium border {{.ConnectionBadgeClass}}"
+                                      title="接続形態: {{.ConnectionLabel}} (判定理由: {{.ConnectionReason}})">
+                                    {{.ConnectionLabel}}
+                                </span>
+                            </div>
                         </td>
 
                         <!-- Approval Status (Section 6.1) -->

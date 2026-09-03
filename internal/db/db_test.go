@@ -357,3 +357,55 @@ func TestPingHistoryAndSVGRendering(t *testing.T) {
 		t.Fatalf("PurgeOldPingHistory failed: %v", err)
 	}
 }
+
+func TestConnectionTypeDetection(t *testing.T) {
+	// 1. Mobile (iPhone / iPad) -> Wi-Fi
+	h1 := &Host{
+		Hostname:  "iphone.local",
+		MDNSModel: "iPhone 16 Pro",
+	}
+	if h1.ConnectionType() != "wifi" {
+		t.Errorf("expected h1 wifi, got %s", h1.ConnectionType())
+	}
+
+	// 2. Randomized MAC -> Wi-Fi
+	h2 := &Host{
+		MACAddress: "3a:88:12:34:56:78", // 2nd char 'a' -> randomized
+	}
+	if !h2.IsRandomizedMAC() {
+		t.Error("expected h2 randomized MAC")
+	}
+	if h2.ConnectionType() != "wifi" {
+		t.Errorf("expected h2 wifi, got %s", h2.ConnectionType())
+	}
+
+	// 3. Infrastructure (OpenWrt / Synology) -> Ethernet
+	h3 := &Host{
+		Hostname: "openwrt.lan",
+	}
+	if h3.ConnectionType() != "ethernet" {
+		t.Errorf("expected h3 ethernet, got %s", h3.ConnectionType())
+	}
+
+	// 4. Low latency wired PC (<0.8ms) -> Ethernet
+	rttFast := 0.35
+	jitterFast := 0.05
+	h4 := &Host{
+		PingRTTMs:    &rttFast,
+		PingJitterMs: &jitterFast,
+	}
+	if h4.ConnectionType() != "ethernet" {
+		t.Errorf("expected h4 ethernet, got %s", h4.ConnectionType())
+	}
+
+	// 5. Higher latency Wi-Fi (>1.5ms) -> Wi-Fi
+	rttSlow := 4.5
+	jitterSlow := 1.2
+	h5 := &Host{
+		PingRTTMs:    &rttSlow,
+		PingJitterMs: &jitterSlow,
+	}
+	if h5.ConnectionType() != "wifi" {
+		t.Errorf("expected h5 wifi, got %s", h5.ConnectionType())
+	}
+}

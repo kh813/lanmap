@@ -153,6 +153,119 @@ func (h *Host) DaysUntilTLSExpiry() int {
 	return days
 }
 
+// IsRandomizedMAC returns true if the MAC address has the Locally Administered Address (LAA) bit set
+func (h *Host) IsRandomizedMAC() bool {
+	mac := strings.ToLower(strings.TrimSpace(h.MACAddress))
+	if len(mac) < 2 {
+		return false
+	}
+	// Check second hex digit of first byte (2, 6, a, e indicate randomized/LAA MAC)
+	secondChar := mac[1]
+	return secondChar == '2' || secondChar == '6' || secondChar == 'a' || secondChar == 'e'
+}
+
+// ConnectionType returns "wifi", "ethernet", or "unknown"
+func (h *Host) ConnectionType() string {
+	combined := strings.ToLower(h.Hostname + " " + h.MDNSModel + " " + h.VendorModel + " " + h.UPnPName + " " + h.DisplayName)
+
+	// 1. Definite mobile / wireless-only device classes
+	if strings.Contains(combined, "iphone") ||
+		strings.Contains(combined, "ipad") ||
+		strings.Contains(combined, "watch") ||
+		strings.Contains(combined, "galaxy") ||
+		strings.Contains(combined, "pixel") ||
+		strings.Contains(combined, "android") ||
+		strings.Contains(combined, "google home") ||
+		strings.Contains(combined, "nest") ||
+		strings.Contains(combined, "echo") ||
+		strings.Contains(combined, "homepod") ||
+		strings.Contains(combined, "cast") ||
+		strings.Contains(combined, "espressif") ||
+		strings.Contains(combined, "tuya") ||
+		strings.Contains(combined, "shelly") ||
+		strings.Contains(combined, "switch") ||
+		strings.Contains(combined, "airplay") {
+		return "wifi"
+	}
+
+	// 2. Private / Randomized MAC is almost exclusively used on Wi-Fi interfaces
+	if h.IsRandomizedMAC() {
+		return "wifi"
+	}
+
+	// 3. Known wired infrastructure (Routers, Gateways, Managed Switches, NAS, Hypervisors)
+	if strings.Contains(combined, "openwrt") ||
+		strings.Contains(combined, "luci") ||
+		strings.Contains(combined, "synology") ||
+		strings.Contains(combined, "qnap") ||
+		strings.Contains(combined, "truenas") ||
+		strings.Contains(combined, "proxmox") ||
+		strings.Contains(combined, "esxi") ||
+		strings.Contains(combined, "server") {
+		return "ethernet"
+	}
+
+	// 4. Ping latency & jitter statistical signature
+	if h.PingRTTMs != nil && *h.PingRTTMs >= 0 {
+		if *h.PingRTTMs < 0.8 && (h.PingJitterMs == nil || *h.PingJitterMs < 0.2) {
+			return "ethernet"
+		}
+		if *h.PingRTTMs >= 1.5 || (h.PingJitterMs != nil && *h.PingJitterMs >= 0.4) {
+			return "wifi"
+		}
+	}
+
+	return "unknown"
+}
+
+// ConnectionLabel returns user-friendly label (e.g. "📶 Wi-Fi", "🔌 有線LAN")
+func (h *Host) ConnectionLabel() string {
+	switch h.ConnectionType() {
+	case "wifi":
+		return "📶 Wi-Fi"
+	case "ethernet":
+		return "🔌 有線LAN"
+	default:
+		return "❓ 不明"
+	}
+}
+
+// ConnectionBadgeClass returns Tailwind badge styling class
+func (h *Host) ConnectionBadgeClass() string {
+	switch h.ConnectionType() {
+	case "wifi":
+		return "bg-sky-50 text-sky-700 dark:bg-sky-950/60 dark:text-sky-300 border-sky-200 dark:border-sky-800/60"
+	case "ethernet":
+		return "bg-slate-100 text-slate-700 dark:bg-slate-800 dark:text-slate-300 border-slate-200 dark:border-slate-700"
+	default:
+		return "bg-slate-50 text-slate-500 dark:bg-slate-900 dark:text-slate-400 border-slate-200 dark:border-slate-800"
+	}
+}
+
+// ConnectionReason returns human-readable explanation of why this connection type was determined
+func (h *Host) ConnectionReason() string {
+	combined := strings.ToLower(h.Hostname + " " + h.MDNSModel + " " + h.VendorModel + " " + h.UPnPName)
+	if strings.Contains(combined, "iphone") || strings.Contains(combined, "ipad") || strings.Contains(combined, "watch") || strings.Contains(combined, "galaxy") {
+		return "モバイル機器"
+	}
+	if strings.Contains(combined, "google home") || strings.Contains(combined, "cast") || strings.Contains(combined, "espressif") {
+		return "スマート家電/IoT"
+	}
+	if h.IsRandomizedMAC() {
+		return "ランダムMAC"
+	}
+	if strings.Contains(combined, "openwrt") || strings.Contains(combined, "synology") || strings.Contains(combined, "server") {
+		return "固定インフラ"
+	}
+	if h.PingRTTMs != nil && *h.PingRTTMs < 0.8 {
+		return "超低遅延 (<0.8ms)"
+	}
+	if h.PingRTTMs != nil && *h.PingRTTMs >= 1.5 {
+		return "遅延/ジッター特性"
+	}
+	return "推定"
+}
+
 // UpsertHostOnScan inserts a newly scanned host or updates an existing host
 func (db *DB) UpsertHostOnScan(h *Host) (isNew bool, isReplaced bool, err error) {
 	existing, err := db.GetHost(h.IP)
