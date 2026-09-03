@@ -138,11 +138,33 @@ func (h *Handler) HandleMainTablePartial(w http.ResponseWriter, r *http.Request)
 	}
 
 	for _, host := range hosts {
-		if host.SegmentID != nil {
-			if s, ok := segMap[*host.SegmentID]; ok && s.DHCPRange != "" {
-				host.IsDHCP = db.IsInDHCPRange(host.IP, s.DHCPRange)
+		isDHCP := host.IsDHCP
+		if !isDHCP {
+			var targetSeg *db.Segment
+			if host.SegmentID != nil {
+				targetSeg = segMap[*host.SegmentID]
+			}
+			// Fallback: match by CIDR if segment_id is nil or segment has no DHCPRange
+			if targetSeg == nil || targetSeg.DHCPRange == "" {
+				hostIP := net.ParseIP(host.IP)
+				if hostIP != nil {
+					for _, s := range allSegs {
+						if s.CIDR != "" && s.DHCPRange != "" {
+							_, cidrNet, err := net.ParseCIDR(s.CIDR)
+							if err == nil && cidrNet.Contains(hostIP) {
+								targetSeg = s
+								break
+							}
+						}
+					}
+				}
+			}
+
+			if targetSeg != nil && targetSeg.DHCPRange != "" {
+				isDHCP = db.IsInDHCPRange(host.IP, targetSeg.DHCPRange)
 			}
 		}
+		host.IsDHCP = isDHCP
 	}
 
 	var curSegIDStr string
@@ -168,6 +190,12 @@ func (h *Handler) HandleActionMenuPartial(w http.ResponseWriter, r *http.Request
 	if err != nil || host == nil {
 		http.Error(w, "Host not found", http.StatusNotFound)
 		return
+	}
+	if !host.IsDHCP {
+		seg, _ := h.db.FindSegmentForIP(net.ParseIP(host.IP))
+		if seg != nil && seg.DHCPRange != "" {
+			host.IsDHCP = db.IsInDHCPRange(host.IP, seg.DHCPRange)
+		}
 	}
 
 	_ = h.tmpl.ExecuteTemplate(w, "action_menu.html", map[string]interface{}{
@@ -355,6 +383,35 @@ func (h *Handler) HandleToggleProtection(w http.ResponseWriter, r *http.Request,
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
 	}
+	h.HandleMainTablePartial(w, r)
+}
+
+// HandleToggleHostDHCP toggles the is_dhcp status of a host and auto-adjusts segment DHCP range
+func (h *Handler) HandleToggleHostDHCP(w http.ResponseWriter, r *http.Request, ip string) {
+	newDHCPStatus, err := h.db.ToggleHostDHCP(ip)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+
+	// Auto-adjust segment DHCP range if marked as DHCP
+	if newDHCPStatus {
+		host, _ := h.db.GetHost(ip)
+		var segID int64
+		if host != nil && host.SegmentID != nil {
+			segID = *host.SegmentID
+		} else {
+			seg, _ := h.db.FindSegmentForIP(net.ParseIP(ip))
+			if seg != nil {
+				segID = seg.ID
+			}
+		}
+		if segID > 0 {
+			_, _ = h.db.AutoAdjustSegmentDHCPRange(segID)
+		}
+	}
+
+	w.Header().Set("HX-Trigger", "refreshMainTable, refreshSidebar")
 	h.HandleMainTablePartial(w, r)
 }
 

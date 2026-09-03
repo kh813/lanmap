@@ -80,6 +80,7 @@ func (db *DB) migrate() error {
 		is_approved BOOLEAN DEFAULT 0,
 		is_protected BOOLEAN DEFAULT 0,
 		is_static_ip BOOLEAN DEFAULT 0,
+		is_dhcp BOOLEAN DEFAULT 0,
 		is_monitored BOOLEAN DEFAULT 0,
 		is_paused BOOLEAN DEFAULT 0,
 		has_conflict BOOLEAN DEFAULT 0,
@@ -141,6 +142,7 @@ func (db *DB) migrate() error {
 	_, _ = db.Exec("ALTER TABLE hosts ADD COLUMN mdns_model VARCHAR(100);")
 	_, _ = db.Exec("ALTER TABLE hosts ADD COLUMN broadcast_count_1m INTEGER DEFAULT 0;")
 	_, _ = db.Exec("ALTER TABLE hosts ADD COLUMN is_storming BOOLEAN DEFAULT 0;")
+	_, _ = db.Exec("ALTER TABLE hosts ADD COLUMN is_dhcp BOOLEAN DEFAULT 0;")
 	_, _ = db.Exec("ALTER TABLE segments ADD COLUMN dhcp_range VARCHAR(100) DEFAULT '';")
 
 	return nil

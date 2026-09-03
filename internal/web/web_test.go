@@ -208,4 +208,25 @@ func TestWebRoutes(t *testing.T) {
 	if rec.Code != http.StatusOK || !strings.Contains(rec.Body.String(), "DHCP") {
 		t.Errorf("expected 200 and 'DHCP' in main table, got %d", rec.Code)
 	}
+
+	// 14. Test Toggle Host DHCP via API and Action Menu
+	req = httptest.NewRequest("POST", "/api/hosts/192.168.1.150/toggle_dhcp", nil)
+	rec = httptest.NewRecorder()
+	router.ServeHTTP(rec, req)
+	if rec.Code != http.StatusOK {
+		t.Errorf("expected 200 from /api/hosts/192.168.1.150/toggle_dhcp, got %d", rec.Code)
+	}
+
+	h150, _ := database.GetHost("192.168.1.150")
+	if !h150.IsDHCP {
+		t.Errorf("expected h150 IsDHCP to be toggled to true")
+	}
+
+	// Test Action Menu contains DHCP option
+	req = httptest.NewRequest("GET", "/partials/action_menu?ip=192.168.1.150", nil)
+	rec = httptest.NewRecorder()
+	router.ServeHTTP(rec, req)
+	if rec.Code != http.StatusOK || !strings.Contains(rec.Body.String(), "toggle_dhcp") {
+		t.Errorf("expected action menu to contain toggle_dhcp, got %s", rec.Body.String())
+	}
 }

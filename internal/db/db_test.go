@@ -515,4 +515,44 @@ func TestDHCPRangeAndGuess(t *testing.T) {
 	if updated.DHCPRange != "150-250" {
 		t.Errorf("expected updated DHCPRange 150-250, got %s", updated.DHCPRange)
 	}
+
+	// 6. Test ToggleHostDHCP and AutoAdjustSegmentDHCPRange
+	_ = testDB.CreateManualHost(&Host{
+		IP:          "192.168.1.110",
+		SegmentID:   &seg.ID,
+		DisplayName: "Test Host 110",
+		IsDHCP:      false,
+	})
+	_ = testDB.CreateManualHost(&Host{
+		IP:          "192.168.1.160",
+		SegmentID:   &seg.ID,
+		DisplayName: "Test Host 160",
+		IsDHCP:      false,
+	})
+
+	toggled, err := testDB.ToggleHostDHCP("192.168.1.110")
+	if err != nil || !toggled {
+		t.Fatalf("ToggleHostDHCP failed: %v", err)
+	}
+	h110, _ := testDB.GetHost("192.168.1.110")
+	if !h110.IsDHCP {
+		t.Errorf("expected h110 IsDHCP to be true")
+	}
+
+	_, _ = testDB.ToggleHostDHCP("192.168.1.160")
+
+	// Test AutoAdjustSegmentDHCPRange
+	newRange, err := testDB.AutoAdjustSegmentDHCPRange(seg.ID)
+	if err != nil {
+		t.Fatalf("AutoAdjustSegmentDHCPRange failed: %v", err)
+	}
+	if newRange != "100-200" {
+		t.Errorf("expected auto adjusted range 100-200, got %s", newRange)
+	}
+
+	// Test FindSegmentForIP
+	foundSeg, err := testDB.FindSegmentForIP(net.ParseIP("192.168.1.150"))
+	if err != nil || foundSeg == nil || foundSeg.ID != seg.ID {
+		t.Errorf("expected foundSeg to match seg.ID, got %+v, err=%v", foundSeg, err)
+	}
 }

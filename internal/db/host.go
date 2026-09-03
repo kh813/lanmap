@@ -319,7 +319,7 @@ func (db *DB) UpsertHostOnScan(h *Host) (isNew bool, isReplaced bool, err error)
 			os_vendor, status, ping_rtt_ms, ping_jitter_ms, uptime_pct,
 			open_ports, http_title, upnp_name, upnp_model, upnp_serial,
 			tls_subject, tls_expiry, mdns_model, broadcast_count_1m, is_storming,
-			is_approved, is_protected, is_static_ip,
+			is_approved, is_protected, is_static_ip, is_dhcp,
 			is_monitored, is_paused, has_conflict, kuma_name, uptime_kuma_id,
 			first_seen, last_seen
 		) VALUES (
@@ -327,7 +327,7 @@ func (db *DB) UpsertHostOnScan(h *Host) (isNew bool, isReplaced bool, err error)
 			?, ?, ?, ?, 100.0,
 			?, ?, ?, ?, ?,
 			?, ?, ?, 0, 0,
-			?, 0, 0,
+			?, 0, 0, ?,
 			0, 0, 0, '', NULL,
 			?, ?
 		)
@@ -337,7 +337,7 @@ func (db *DB) UpsertHostOnScan(h *Host) (isNew bool, isReplaced bool, err error)
 			h.OSVendor, h.Status, h.PingRTTMs, h.PingJitterMs,
 			h.OpenPorts, h.HTTPTitle, h.UPnPName, h.UPnPModel, h.UPnPSerial,
 			h.TLSSubject, h.TLSExpiry, h.MDNSModel,
-			h.IsApproved, now, now,
+			h.IsApproved, h.IsDHCP, now, now,
 		)
 		return true, false, err
 	}
@@ -458,7 +458,7 @@ func (db *DB) GetHost(ip string) (*Host, error) {
 		os_vendor, status, ping_rtt_ms, ping_jitter_ms, uptime_pct,
 		open_ports, http_title, upnp_name, upnp_model, upnp_serial,
 		tls_subject, tls_expiry, mdns_model, broadcast_count_1m, is_storming,
-		is_approved, is_protected, is_static_ip,
+		is_approved, is_protected, is_static_ip, is_dhcp,
 		is_monitored, is_paused, has_conflict, kuma_name, uptime_kuma_id,
 		first_seen, last_seen
 	FROM hosts
@@ -479,7 +479,7 @@ func (db *DB) ListHosts(segmentID *int64, onlineOnly bool) ([]*Host, error) {
 		os_vendor, status, ping_rtt_ms, ping_jitter_ms, uptime_pct,
 		open_ports, http_title, upnp_name, upnp_model, upnp_serial,
 		tls_subject, tls_expiry, mdns_model, broadcast_count_1m, is_storming,
-		is_approved, is_protected, is_static_ip,
+		is_approved, is_protected, is_static_ip, is_dhcp,
 		is_monitored, is_paused, has_conflict, kuma_name, uptime_kuma_id,
 		first_seen, last_seen
 	FROM hosts
@@ -538,17 +538,13 @@ func (db *DB) enrichHostsWithPingHistory(hosts []*Host) {
 func (db *DB) UpdateHostStatus(ip string, status string) error {
 	now := time.Now()
 	var query string
-	var args []interface{}
-
 	if status == "up" {
 		query = "UPDATE hosts SET status = ?, last_seen = ? WHERE ip = ?"
-		args = []interface{}{status, now, ip}
-	} else {
-		query = "UPDATE hosts SET status = ?, ping_rtt_ms = NULL, ping_jitter_ms = NULL WHERE ip = ?"
-		args = []interface{}{status, ip}
+		_, err := db.Exec(query, status, now, ip)
+		return err
 	}
-
-	_, err := db.Exec(query, args...)
+	query = "UPDATE hosts SET status = ? WHERE ip = ?"
+	_, err := db.Exec(query, status, ip)
 	return err
 }
 
@@ -613,7 +609,7 @@ func (db *DB) UpdateHostManual(ip, displayName, vendorModel string, isStaticIP b
 	return err
 }
 
-// CreateManualHost creates a manually registered host
+// CreateManualHost creates a manually defined host
 func (db *DB) CreateManualHost(h *Host) error {
 	now := time.Now()
 	normMAC := strings.ToLower(strings.TrimSpace(h.MACAddress))
@@ -623,7 +619,7 @@ func (db *DB) CreateManualHost(h *Host) error {
 		os_vendor, status, ping_rtt_ms, ping_jitter_ms, uptime_pct,
 		open_ports, http_title, upnp_name, upnp_model, upnp_serial,
 		tls_subject, tls_expiry, mdns_model, broadcast_count_1m, is_storming,
-		is_approved, is_protected, is_static_ip,
+		is_approved, is_protected, is_static_ip, is_dhcp,
 		is_monitored, is_paused, has_conflict, kuma_name, uptime_kuma_id,
 		first_seen, last_seen
 	) VALUES (
@@ -631,7 +627,7 @@ func (db *DB) CreateManualHost(h *Host) error {
 		?, ?, ?, ?, 100.0,
 		?, ?, ?, ?, ?,
 		?, ?, ?, ?, ?,
-		?, ?, ?,
+		?, ?, ?, ?,
 		?, ?, ?, ?, ?,
 		?, ?
 	)
@@ -641,7 +637,7 @@ func (db *DB) CreateManualHost(h *Host) error {
 		h.OSVendor, h.Status, h.PingRTTMs, h.PingJitterMs,
 		h.OpenPorts, h.HTTPTitle, h.UPnPName, h.UPnPModel, h.UPnPSerial,
 		h.TLSSubject, h.TLSExpiry, h.MDNSModel, h.BroadcastCount1m, h.IsStorming,
-		h.IsApproved, h.IsProtected, h.IsStaticIP,
+		h.IsApproved, h.IsProtected, h.IsStaticIP, h.IsDHCP,
 		h.IsMonitored, h.IsPaused, h.HasConflict, h.KumaName, h.UptimeKumaID,
 		now, now,
 	)
@@ -692,6 +688,7 @@ func scanHost(s scannable) (*Host, error) {
 		&h.IsApproved,
 		&h.IsProtected,
 		&h.IsStaticIP,
+		&h.IsDHCP,
 		&h.IsMonitored,
 		&h.IsPaused,
 		&h.HasConflict,
@@ -896,4 +893,74 @@ func GuessDHCPRange(hosts []*Host, cidr string) string {
 	}
 
 	return fmt.Sprintf("%d-%d", startBound, endBound)
+}
+
+// ToggleHostDHCP toggles the is_dhcp status of a host
+func (db *DB) ToggleHostDHCP(ip string) (bool, error) {
+	host, err := db.GetHost(ip)
+	if err != nil {
+		return false, err
+	}
+	if host == nil {
+		return false, fmt.Errorf("host not found: %s", ip)
+	}
+
+	newStatus := !host.IsDHCP
+	_, err = db.Exec("UPDATE hosts SET is_dhcp = ? WHERE ip = ?", newStatus, ip)
+	return newStatus, err
+}
+
+// AutoAdjustSegmentDHCPRange recalculates and updates the segment's DHCP range
+// based on hosts explicitly marked as is_dhcp=true and Wi-Fi clients
+func (db *DB) AutoAdjustSegmentDHCPRange(segID int64) (string, error) {
+	seg, err := db.GetSegment(segID)
+	if err != nil {
+		return "", err
+	}
+	if seg == nil {
+		return "", fmt.Errorf("segment not found: %d", segID)
+	}
+
+	hosts, err := db.ListHosts(&segID, false)
+	if err != nil {
+		return "", err
+	}
+
+	// Also find any hosts matching by CIDR if segment_id wasn't set
+	if seg.CIDR != "" {
+		allHosts, _ := db.ListHosts(nil, false)
+		_, cidrNet, err := net.ParseCIDR(seg.CIDR)
+		if err == nil {
+			existingIPs := make(map[string]bool)
+			for _, h := range hosts {
+				existingIPs[h.IP] = true
+			}
+			for _, h := range allHosts {
+				if !existingIPs[h.IP] {
+					if pIP := net.ParseIP(h.IP); pIP != nil && cidrNet.Contains(pIP) {
+						hosts = append(hosts, h)
+					}
+				}
+			}
+		}
+	}
+
+	// Find DHCP-marked hosts or Wi-Fi hosts
+	var dhcpHosts []*Host
+	for _, h := range hosts {
+		if h.IsDHCP || h.ConnectionType() == "wifi" {
+			dhcpHosts = append(dhcpHosts, h)
+		}
+	}
+
+	if len(dhcpHosts) == 0 {
+		return seg.DHCPRange, nil
+	}
+
+	newRange := GuessDHCPRange(dhcpHosts, seg.CIDR)
+	if newRange != "" && newRange != seg.DHCPRange {
+		seg.DHCPRange = newRange
+		_ = db.UpdateSegment(seg)
+	}
+	return newRange, nil
 }
