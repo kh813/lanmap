@@ -190,4 +190,22 @@ func TestWebRoutes(t *testing.T) {
 	if rec.Code != http.StatusOK || !strings.Contains(rec.Body.String(), "新規セグメント追加") {
 		t.Errorf("expected 200 and '新規セグメント追加' from /modals/segment, got %d", rec.Code)
 	}
+
+	// 13. Test DHCP Range in Segment & Main Table Rendering
+	seg.DHCPRange = "100-200"
+	_ = database.UpdateSegment(seg)
+	_ = database.CreateManualHost(&db.Host{
+		IP:          "192.168.1.150",
+		SegmentID:   &seg.ID,
+		DisplayName: "DHCP Mobile Phone",
+		Hostname:    "iphone-taro",
+		IsApproved:  false,
+	})
+
+	req = httptest.NewRequest("GET", "/partials/main_table", nil)
+	rec = httptest.NewRecorder()
+	router.ServeHTTP(rec, req)
+	if rec.Code != http.StatusOK || !strings.Contains(rec.Body.String(), "DHCP") {
+		t.Errorf("expected 200 and 'DHCP' in main table, got %d", rec.Code)
+	}
 }

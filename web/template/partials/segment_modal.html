@@ -80,6 +80,45 @@
             </div>
 
             <div>
+                <div class="flex items-center justify-between">
+                    <label class="block font-medium text-slate-700 dark:text-slate-300">DHCP IPレンジ (任意)</label>
+                    <span class="text-[10px] text-slate-400">例: 100-200 または 192.168.1.100-192.168.1.200</span>
+                </div>
+                <input type="text" id="seg_input_dhcp" name="dhcp_range" value="{{.Segment.DHCPRange}}" placeholder="例: 100-200"
+                       class="w-full mt-1 bg-white dark:bg-slate-950 border border-slate-300 dark:border-slate-700 rounded px-3 py-2 text-slate-800 dark:text-slate-200 focus:outline-none focus:border-blue-500 font-mono">
+                <p class="text-slate-500 dark:text-slate-400 text-[11px] mt-1">
+                    動的に払い出されるDHCP端末帯域を指定すると、未承認時の赤色警戒表示を抑え、スマートな青色バッジ (ℹ️) で表示します。
+                </p>
+                <!-- Quick Preset & Estimation Buttons -->
+                <div class="flex flex-wrap items-center gap-1.5 pt-1.5 text-[11px]">
+                    <span class="text-slate-400 shrink-0">プリセット:</span>
+                    {{if .SuggestedDHCP}}
+                    <button type="button" onclick="setDHCPRange('{{.SuggestedDHCP}}')"
+                            class="px-2 py-0.5 rounded bg-blue-50 hover:bg-blue-100 dark:bg-blue-950/60 dark:hover:bg-blue-900/60 text-blue-700 dark:text-blue-300 border border-blue-200 dark:border-blue-800 font-mono text-[10px] font-semibold transition"
+                            title="検出されたWi-Fi/クライアント端末の分布から自動推定">
+                        💡 推定: {{.SuggestedDHCP}}
+                    </button>
+                    {{end}}
+                    <button type="button" onclick="setDHCPRange('100-200')"
+                            class="px-2 py-0.5 rounded bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 text-slate-600 dark:text-slate-300 border border-slate-200 dark:border-slate-700 font-mono text-[10px] transition">
+                        100〜200
+                    </button>
+                    <button type="button" onclick="setDHCPRange('2-100')"
+                            class="px-2 py-0.5 rounded bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 text-slate-600 dark:text-slate-300 border border-slate-200 dark:border-slate-700 font-mono text-[10px] transition">
+                        2〜100
+                    </button>
+                    <button type="button" onclick="setDHCPRange('50-150')"
+                            class="px-2 py-0.5 rounded bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 text-slate-600 dark:text-slate-300 border border-slate-200 dark:border-slate-700 font-mono text-[10px] transition">
+                        50〜150
+                    </button>
+                    <button type="button" onclick="setDHCPRange('')"
+                            class="px-1.5 py-0.5 rounded text-slate-400 hover:text-red-500 text-[10px] transition">
+                        クリア
+                    </button>
+                </div>
+            </div>
+
+            <div>
                 <label class="block font-medium text-slate-700 dark:text-slate-300">バインドNIC / インターフェース (任意)</label>
                 <input type="text" id="seg_input_iface" name="interface_name" value="{{.Segment.InterfaceName}}" placeholder="例: eth0, en0 (未指定でデフォルト)"
                        class="w-full mt-1 bg-white dark:bg-slate-950 border border-slate-300 dark:border-slate-700 rounded px-3 py-2 text-slate-800 dark:text-slate-200 focus:outline-none focus:border-blue-500 font-mono">
@@ -111,6 +150,13 @@
             if (cidrEl) cidrEl.value = cidr;
             if (ifaceEl) ifaceEl.value = iface;
             nameEl.focus();
+        }
+        function setDHCPRange(val) {
+            const el = document.getElementById('seg_input_dhcp');
+            if (el) {
+                el.value = val;
+                el.focus();
+            }
         }
     </script>
 </div>

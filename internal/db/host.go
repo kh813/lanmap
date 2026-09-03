@@ -4,6 +4,8 @@ import (
 	"database/sql"
 	"fmt"
 	"html/template"
+	"net"
+	"sort"
 	"strconv"
 	"strings"
 	"time"
@@ -41,6 +43,7 @@ type Host struct {
 	IsApproved        bool          `json:"is_approved"`
 	IsProtected       bool          `json:"is_protected"`
 	IsStaticIP        bool          `json:"is_static_ip"`
+	IsDHCP            bool          `json:"is_dhcp"`
 	IsMonitored       bool          `json:"is_monitored"`
 	IsPaused          bool          `json:"is_paused"`
 	HasConflict       bool          `json:"has_conflict"`
@@ -746,4 +749,151 @@ func scanHost(s scannable) (*Host, error) {
 	}
 
 	return &h, nil
+}
+
+// IsInDHCPRange checks if the given IP address falls within the specified DHCP range.
+// Supports full IP range ("192.168.1.100-192.168.1.200") and last-octet range ("100-200").
+// Multiple ranges separated by comma are also supported (e.g. "100-150, 180-200").
+func IsInDHCPRange(ipStr string, dhcpRange string) bool {
+	dhcpRange = strings.TrimSpace(dhcpRange)
+	if dhcpRange == "" || ipStr == "" {
+		return false
+	}
+
+	targetIP := net.ParseIP(ipStr).To4()
+	if targetIP == nil {
+		return false
+	}
+	targetVal := ipToUint32(targetIP)
+	lastOctet := int(targetIP[3])
+
+	// Split multiple ranges if comma-separated
+	parts := strings.Split(dhcpRange, ",")
+	for _, p := range parts {
+		p = strings.TrimSpace(p)
+		if p == "" {
+			continue
+		}
+
+		// Support hyphen, tilde, wave dash
+		delimiter := ""
+		if strings.Contains(p, "-") {
+			delimiter = "-"
+		} else if strings.Contains(p, "~") {
+			delimiter = "~"
+		} else if strings.Contains(p, "〜") {
+			delimiter = "〜"
+		} else {
+			continue
+		}
+
+		rangeParts := strings.SplitN(p, delimiter, 2)
+		if len(rangeParts) != 2 {
+			continue
+		}
+		startStr := strings.TrimSpace(rangeParts[0])
+		endStr := strings.TrimSpace(rangeParts[1])
+
+		// Case 1: Full IP format ("192.168.1.100-192.168.1.200")
+		startIP := net.ParseIP(startStr).To4()
+		endIP := net.ParseIP(endStr).To4()
+		if startIP != nil && endIP != nil {
+			startVal := ipToUint32(startIP)
+			endVal := ipToUint32(endIP)
+			if startVal <= targetVal && targetVal <= endVal {
+				return true
+			}
+			continue
+		}
+
+		// Case 2: Octet range format ("100-200")
+		startNum, err1 := strconv.Atoi(startStr)
+		endNum, err2 := strconv.Atoi(endStr)
+		if err1 == nil && err2 == nil && startNum <= endNum {
+			if lastOctet >= startNum && lastOctet <= endNum {
+				return true
+			}
+		}
+	}
+
+	return false
+}
+
+func ipToUint32(ip net.IP) uint32 {
+	return uint32(ip[0])<<24 | uint32(ip[1])<<16 | uint32(ip[2])<<8 | uint32(ip[3])
+}
+
+// GuessDHCPRange estimates a probable DHCP pool range based on detected client/Wi-Fi host IPs
+func GuessDHCPRange(hosts []*Host, cidr string) string {
+	if len(hosts) == 0 {
+		return "100-200"
+	}
+
+	var octets []int
+	for _, h := range hosts {
+		ip := net.ParseIP(h.IP).To4()
+		if ip == nil {
+			continue
+		}
+		oct := int(ip[3])
+		// Exclude router (.1), broadcast (.255), and typical network devices (.254)
+		if oct <= 1 || oct >= 254 {
+			continue
+		}
+
+		// Give priority to Wi-Fi devices, smartphones, and computers
+		if h.ConnectionType() == "wifi" || strings.Contains(strings.ToLower(h.VendorModel), "apple") || strings.Contains(strings.ToLower(h.OSVendor), "android") || strings.Contains(strings.ToLower(h.OSVendor), "windows") {
+			octets = append(octets, oct)
+		}
+	}
+
+	if len(octets) == 0 {
+		// Fallback to non-infrastructure devices
+		for _, h := range hosts {
+			ip := net.ParseIP(h.IP).To4()
+			if ip == nil {
+				continue
+			}
+			oct := int(ip[3])
+			if oct > 10 && oct < 250 {
+				octets = append(octets, oct)
+			}
+		}
+	}
+
+	if len(octets) == 0 {
+		return "100-200"
+	}
+
+	sort.Ints(octets)
+	minOct := octets[0]
+	maxOct := octets[len(octets)-1]
+
+	// Round to intuitive bounds (e.g. min 105 -> 100, max 165 -> 200)
+	var startBound, endBound int
+	if minOct >= 100 {
+		startBound = 100
+	} else if minOct >= 50 {
+		startBound = 50
+	} else if minOct >= 2 {
+		startBound = 2
+	} else {
+		startBound = 100
+	}
+
+	if maxOct <= 100 && startBound < 100 {
+		endBound = 100
+	} else if maxOct <= 150 {
+		endBound = 150
+	} else if maxOct <= 200 {
+		endBound = 200
+	} else {
+		endBound = 250
+	}
+
+	if startBound >= endBound {
+		return "100-200"
+	}
+
+	return fmt.Sprintf("%d-%d", startBound, endBound)
 }

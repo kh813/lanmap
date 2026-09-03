@@ -116,7 +116,7 @@
                         hx-get="/modals/host_detail?ip={{.IP}}"
                         hx-target="#modal-container"
                         hx-swap="innerHTML"
-                        class="host-row hover:bg-blue-50/50 dark:hover:bg-slate-800/80 transition cursor-pointer {{if .IsStorming}}bg-red-100/70 border-2 border-red-500 dark:bg-red-950/40 dark:border-red-600{{else if not .IsApproved}}bg-red-50/50 dark:bg-red-950/10{{end}}"
+                        class="host-row hover:bg-blue-50/50 dark:hover:bg-slate-800/80 transition cursor-pointer {{if .IsStorming}}bg-red-100/70 border-2 border-red-500 dark:bg-red-950/40 dark:border-red-600{{else if and (not .IsApproved) (not .IsDHCP)}}bg-red-50/50 dark:bg-red-950/10{{end}}"
                         data-search="{{.SearchKeywords}}">
                         <!-- IP & MAC with Smart Hover Popover -->
                         <td class="py-3 px-3 cursor-pointer group/ip"
@@ -126,7 +126,11 @@
                                 {{if .IsStorming}}
                                 <span title="🚨 ブロードキャスト過多・ストーム異常検知" class="text-red-600 font-bold text-base animate-bounce">💥</span>
                                 {{else if not .IsApproved}}
-                                <span title="未承認端末 (警戒対象)" class="text-red-500 font-bold">⚠️</span>
+                                    {{if .IsDHCP}}
+                                    <span title="DHCP動的割り当て端末 (日常的接続)" class="text-sky-500 dark:text-sky-400 font-bold text-xs">ℹ️</span>
+                                    {{else}}
+                                    <span title="未承認端末 (警戒対象)" class="text-red-500 font-bold">⚠️</span>
+                                    {{end}}
                                 {{end}}
                                 <div>
                                     <div class="font-mono font-medium text-slate-900 dark:text-slate-100 flex items-center space-x-1 group-hover/ip:text-blue-600 dark:group-hover/ip:text-blue-400 transition-colors">
@@ -332,12 +336,26 @@
                             <span class="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-medium bg-emerald-100 text-emerald-800 dark:bg-emerald-500/10 dark:text-emerald-400 border border-emerald-200 dark:border-emerald-500/20">
                                 🟢 承認済
                             </span>
+                            {{else if .IsDHCP}}
+                                {{if .IsNewHost}}
+                                <span class="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-bold bg-sky-100 text-sky-800 dark:bg-sky-500/20 dark:text-sky-300 border border-sky-300 dark:border-sky-500/40"
+                                      title="DHCP動的レンジ内の新規接続端末 (24時間以内)">
+                                    🔵 DHCP 🆕
+                                </span>
+                                {{else}}
+                                <span class="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-medium bg-slate-100 text-slate-700 dark:bg-slate-800 dark:text-slate-300 border border-slate-300 dark:border-slate-700"
+                                      title="DHCP動的レンジ内の端末">
+                                    ℹ️ DHCP動的
+                                </span>
+                                {{end}}
                             {{else if .IsNewHost}}
-                            <span class="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-bold bg-purple-100 text-purple-800 dark:bg-purple-500/20 dark:text-purple-300 border border-purple-200 dark:border-purple-500/30 animate-pulse">
+                            <span class="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-bold bg-purple-100 text-purple-800 dark:bg-purple-500/20 dark:text-purple-300 border border-purple-200 dark:border-purple-500/30 animate-pulse"
+                                  title="固定IP帯の未承認新規端末 (警戒対象)">
                                 🆕 NEW
                             </span>
                             {{else}}
-                            <span class="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-medium bg-red-100 text-red-800 dark:bg-red-500/10 dark:text-red-400 border border-red-200 dark:border-red-500/20">
+                            <span class="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-medium bg-red-100 text-red-800 dark:bg-red-500/10 dark:text-red-400 border border-red-200 dark:border-red-500/20"
+                                  title="固定IP帯の未承認端末 (警戒対象)">
                                 🔴 未承認
                             </span>
                             {{end}}

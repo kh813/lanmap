@@ -131,6 +131,20 @@ func (h *Handler) HandleMainTablePartial(w http.ResponseWriter, r *http.Request)
 		return
 	}
 
+	allSegs, _ := h.db.ListSegments()
+	segMap := make(map[int64]*db.Segment)
+	for _, s := range allSegs {
+		segMap[s.ID] = s
+	}
+
+	for _, host := range hosts {
+		if host.SegmentID != nil {
+			if s, ok := segMap[*host.SegmentID]; ok && s.DHCPRange != "" {
+				host.IsDHCP = db.IsInDHCPRange(host.IP, s.DHCPRange)
+			}
+		}
+	}
+
 	var curSegIDStr string
 	if segID != nil {
 		curSegIDStr = strconv.FormatInt(*segID, 10)
@@ -276,13 +290,20 @@ func (h *Handler) HandleSegmentModal(w http.ResponseWriter, r *http.Request) {
 		seg = &db.Segment{IsEnabled: true}
 	}
 	var unadded []scanner.DetectedNetwork
+	var suggestedDHCP string
 	if seg.ID == 0 {
 		unadded = h.getUnaddedLocalNetworks()
+		allHosts, _ := h.db.ListHosts(nil, false)
+		suggestedDHCP = db.GuessDHCPRange(allHosts, "")
+	} else {
+		hosts, _ := h.db.ListHosts(&seg.ID, false)
+		suggestedDHCP = db.GuessDHCPRange(hosts, seg.CIDR)
 	}
 
 	_ = h.tmpl.ExecuteTemplate(w, "segment_modal.html", map[string]interface{}{
 		"Segment":         seg,
 		"UnaddedNetworks": unadded,
+		"SuggestedDHCP":   suggestedDHCP,
 	})
 }
 
@@ -410,6 +431,7 @@ func (h *Handler) HandleCreateOrUpdateSegment(w http.ResponseWriter, r *http.Req
 	name := strings.TrimSpace(r.FormValue("name"))
 	cidr := strings.TrimSpace(r.FormValue("cidr"))
 	iface := strings.TrimSpace(r.FormValue("interface_name"))
+	dhcpRange := strings.TrimSpace(r.FormValue("dhcp_range"))
 	isEnabled := r.FormValue("is_enabled") == "true"
 
 	if segID > 0 {
@@ -419,12 +441,14 @@ func (h *Handler) HandleCreateOrUpdateSegment(w http.ResponseWriter, r *http.Req
 			seg.CIDR = cidr
 			seg.InterfaceName = iface
 			seg.IsEnabled = isEnabled
+			seg.DHCPRange = dhcpRange
 			_ = h.db.UpdateSegment(seg)
 		}
 	} else {
-		_, _ = h.db.CreateSegment(name, cidr, iface, isEnabled)
+		_, _ = h.db.CreateSegmentWithDHCP(name, cidr, iface, isEnabled, dhcpRange)
 	}
 
+	w.Header().Set("HX-Trigger", "refreshSidebar, refreshMainTable")
 	h.HandleSidebarPartial(w, r)
 }
 

@@ -264,3 +264,27 @@
 - [x] **13.4 ドキュメント更新**
   - [x] `README.md`、`lanmap_design.md`、`lanmap_todo.md` 更新
 
+---
+
+### 🔹 Phase 14: 各セグメントの DHCP IPレンジ設定 & 動的IP端末の視覚的区別
+- [x] **14.1 データベース層 (`internal/db`)**
+  - [x] `segments` テーブルに `dhcp_range VARCHAR(100)` カラム追加およびマイグレーション
+  - [x] `Segment` 構造体に `DHCPRange` 追加、`CreateSegmentWithDHCP` / `GetSegment` / `ListSegments` / `UpdateSegment` 実装
+  - [x] `IsInDHCPRange(ip, range)`（オクテット指定・フルIP指定・カンマ区切り対応）実装
+  - [x] `GuessDHCPRange(hosts, cidr)` によるWi-Fi/クライアント端末のIP分布からのDHCP帯域自動推定
+  - [x] `Host` 構造体に `IsDHCP bool` フィールド追加
+  - [x] DB単体テスト作成 & 実行 (`TestDHCPRangeAndGuess` in `internal/db/db_test.go`)
+- [x] **14.2 Web API & ハンドラー (`internal/web`)**
+  - [x] `HandleSegmentModal` で端末分布から推定された `SuggestedDHCP` をテンプレートに供給
+  - [x] `HandleCreateOrUpdateSegment` で `dhcp_range` の保存処理実装
+  - [x] `HandleMainTablePartial` で所属セグメントの `DHCPRange` を用いた `host.IsDHCP` 判定・付与
+  - [x] Web 単体テスト追加 & 実行 (`internal/web/web_test.go`)
+- [x] **14.3 Web UI テンプレート (`web/template`)**
+  - [x] `segment_modal.html` に DHCP IPレンジ入力欄、自動推定サジェストボタン、クイックプリセットボタン設置
+  - [x] `main_table.html` 改修：
+    - [x] 行背景: DHCP動的端末は赤色ハイライトから除外（日常利用端末のアラート疲れ防止）
+    - [x] IP横アイコン: 固定IP帯未承認端末は `⚠️`（警戒）、DHCP端末は `ℹ️`（情報）
+    - [x] 承認列バッジ: `🔵 DHCP 🆕`（新規・水色）、`ℹ️ DHCP動的`（既存・ブルーグレー）
+- [x] **14.4 ドキュメント更新**
+  - [x] `README.md`、`lanmap_design.md`、`lanmap_todo.md` 更新
+

@@ -441,3 +441,78 @@ func TestConnectionTypeDetection(t *testing.T) {
 		t.Errorf("expected network device reason, got %s", h6.ConnectionReason())
 	}
 }
+
+func TestDHCPRangeAndGuess(t *testing.T) {
+	// 1. Test IsInDHCPRange with octet range
+	if !IsInDHCPRange("192.168.1.100", "100-200") {
+		t.Errorf("expected 192.168.1.100 to be in 100-200")
+	}
+	if !IsInDHCPRange("192.168.1.150", "100-200") {
+		t.Errorf("expected 192.168.1.150 to be in 100-200")
+	}
+	if !IsInDHCPRange("192.168.1.200", "100-200") {
+		t.Errorf("expected 192.168.1.200 to be in 100-200")
+	}
+	if IsInDHCPRange("192.168.1.99", "100-200") {
+		t.Errorf("expected 192.168.1.99 NOT to be in 100-200")
+	}
+	if IsInDHCPRange("192.168.1.201", "100-200") {
+		t.Errorf("expected 192.168.1.201 NOT to be in 100-200")
+	}
+
+	// 2. Test IsInDHCPRange with full IP range
+	if !IsInDHCPRange("10.0.0.50", "10.0.0.20-10.0.0.80") {
+		t.Errorf("expected 10.0.0.50 to be in 10.0.0.20-10.0.0.80")
+	}
+	if IsInDHCPRange("10.0.0.10", "10.0.0.20-10.0.0.80") {
+		t.Errorf("expected 10.0.0.10 NOT to be in 10.0.0.20-10.0.0.80")
+	}
+
+	// 3. Test IsInDHCPRange with comma-separated ranges
+	if !IsInDHCPRange("192.168.1.10", "10-20, 100-200") {
+		t.Errorf("expected 192.168.1.10 to match first range")
+	}
+	if !IsInDHCPRange("192.168.1.150", "10-20, 100-200") {
+		t.Errorf("expected 192.168.1.150 to match second range")
+	}
+	if IsInDHCPRange("192.168.1.50", "10-20, 100-200") {
+		t.Errorf("expected 192.168.1.50 NOT to be in 10-20, 100-200")
+	}
+
+	// 4. Test GuessDHCPRange
+	hosts := []*Host{
+		{IP: "192.168.1.1", VendorModel: "Yamaha RTX1210"}, // Router
+		{IP: "192.168.1.2", VendorModel: "Canon Printer"},
+		{IP: "192.168.1.105", OSVendor: "iOS", VendorModel: "Apple iPhone 15"},
+		{IP: "192.168.1.140", OSVendor: "Android", VendorModel: "Google Pixel 8"},
+		{IP: "192.168.1.180", OSVendor: "macOS", VendorModel: "Apple MacBook Pro"},
+	}
+	guess := GuessDHCPRange(hosts, "192.168.1.0/24")
+	if guess != "100-200" {
+		t.Errorf("expected guess 100-200, got %s", guess)
+	}
+
+	// 5. Test Segment CRUD with DHCPRange
+	tempDir := t.TempDir()
+	testDB, err := Open(filepath.Join(tempDir, "test_dhcp.db"))
+	if err != nil {
+		t.Fatalf("Open failed: %v", err)
+	}
+	defer testDB.Close()
+
+	seg, err := testDB.CreateSegmentWithDHCP("Office LAN", "192.168.1.0/24", "eth0", true, "100-200")
+	if err != nil {
+		t.Fatalf("CreateSegmentWithDHCP failed: %v", err)
+	}
+	if seg.DHCPRange != "100-200" {
+		t.Errorf("expected DHCPRange 100-200, got %s", seg.DHCPRange)
+	}
+
+	seg.DHCPRange = "150-250"
+	_ = testDB.UpdateSegment(seg)
+
+	updated, _ := testDB.GetSegment(seg.ID)
+	if updated.DHCPRange != "150-250" {
+		t.Errorf("expected updated DHCPRange 150-250, got %s", updated.DHCPRange)
+	}
+}

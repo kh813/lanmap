@@ -51,6 +51,7 @@ func (db *DB) migrate() error {
 		interface_name VARCHAR(50),
 		is_enabled BOOLEAN DEFAULT 1,
 		is_default BOOLEAN DEFAULT 0,
+		dhcp_range VARCHAR(100) DEFAULT '',
 		created_at DATETIME DEFAULT CURRENT_TIMESTAMP
 	);
 
@@ -140,6 +141,7 @@ func (db *DB) migrate() error {
 	_, _ = db.Exec("ALTER TABLE hosts ADD COLUMN mdns_model VARCHAR(100);")
 	_, _ = db.Exec("ALTER TABLE hosts ADD COLUMN broadcast_count_1m INTEGER DEFAULT 0;")
 	_, _ = db.Exec("ALTER TABLE hosts ADD COLUMN is_storming BOOLEAN DEFAULT 0;")
+	_, _ = db.Exec("ALTER TABLE segments ADD COLUMN dhcp_range VARCHAR(100) DEFAULT '';")
 
 	return nil
 }
