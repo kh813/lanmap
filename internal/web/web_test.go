@@ -132,4 +132,20 @@ func TestWebRoutes(t *testing.T) {
 	if rec.Code != http.StatusOK {
 		t.Errorf("expected 200 from update check, got %d", rec.Code)
 	}
+
+	// 8. Test Host Detail Modal endpoint
+	req = httptest.NewRequest("GET", "/modals/host_detail?ip=192.168.1.50", nil)
+	rec = httptest.NewRecorder()
+	router.ServeHTTP(rec, req)
+	if rec.Code != http.StatusOK || !strings.Contains(rec.Body.String(), "過去7日間の Ping レスポンス推移") {
+		t.Errorf("expected 200 with 7-day ping metrics from host detail modal, got %d", rec.Code)
+	}
+
+	// 9. Test On-demand Ping Test endpoint
+	req = httptest.NewRequest("POST", "/api/hosts/192.168.1.50/ping_test", nil)
+	rec = httptest.NewRecorder()
+	router.ServeHTTP(rec, req)
+	if rec.Code != http.StatusOK {
+		t.Errorf("expected 200 from ping test endpoint, got %d", rec.Code)
+	}
 }

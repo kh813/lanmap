@@ -1,0 +1,271 @@
+<div class="fixed inset-0 bg-black/60 dark:bg-black/80 backdrop-blur-sm flex items-center justify-center p-3 md:p-6 z-50 animate-fade-in" onclick="if(event.target===this) closeModal()">
+    <div class="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-2xl max-w-2xl w-full p-5 md:p-6 shadow-2xl space-y-5 text-slate-800 dark:text-slate-100 max-h-[92vh] overflow-y-auto">
+        
+        <!-- Header -->
+        <div class="flex items-start justify-between pb-3 border-b border-slate-200 dark:border-slate-800">
+            <div class="space-y-1">
+                <div class="flex items-center space-x-2.5">
+                    <span class="text-xl">
+                        {{if eq .Host.ConnectionType "wifi"}}📶{{else if eq .Host.ConnectionType "ethernet"}}🔌{{else}}💻{{end}}
+                    </span>
+                    <h2 class="text-lg font-bold text-slate-900 dark:text-white font-mono flex items-center space-x-2">
+                        <span>{{.Host.IP}}</span>
+                        {{if .Host.IsStaticIP}}
+                        <span class="text-[10px] font-sans font-semibold px-2 py-0.5 rounded bg-blue-100 dark:bg-blue-900/60 text-blue-700 dark:text-blue-300">固定IP</span>
+                        {{end}}
+                    </h2>
+                    <!-- Status Badges -->
+                    {{if eq .Host.Status "up"}}
+                    <span class="px-2 py-0.5 rounded-full text-[10px] font-bold bg-emerald-100 text-emerald-800 dark:bg-emerald-500/20 dark:text-emerald-300 border border-emerald-300 dark:border-emerald-500/30">
+                        🟢 UP
+                    </span>
+                    {{else}}
+                    <span class="px-2 py-0.5 rounded-full text-[10px] font-bold bg-slate-100 text-slate-700 dark:bg-slate-800 dark:text-slate-300 border border-slate-300 dark:border-slate-700">
+                        ⚪ DOWN
+                    </span>
+                    {{end}}
+
+                    {{if .Host.IsApproved}}
+                    <span class="px-2 py-0.5 rounded-full text-[10px] font-medium bg-emerald-50 text-emerald-700 dark:bg-emerald-950/50 dark:text-emerald-300 border border-emerald-200 dark:border-emerald-800">
+                        承認済
+                    </span>
+                    {{else}}
+                    <span class="px-2 py-0.5 rounded-full text-[10px] font-bold bg-red-100 text-red-800 dark:bg-red-500/20 dark:text-red-300 border border-red-300 dark:border-red-500/30">
+                        ⚠️ 未承認
+                    </span>
+                    {{end}}
+                </div>
+
+                <div class="text-xs text-slate-500 dark:text-slate-400 flex items-center space-x-2">
+                    <span class="font-medium text-slate-700 dark:text-slate-200">{{if .Host.DisplayName}}{{.Host.DisplayName}}{{else if .Host.Hostname}}{{.Host.Hostname}}{{else}}名称未設定{{end}}</span>
+                    {{if and .Host.DisplayName .Host.Hostname}}
+                    <span class="text-[11px] font-mono text-slate-400">({{.Host.Hostname}})</span>
+                    {{end}}
+                </div>
+            </div>
+
+            <button onclick="closeModal()" class="text-slate-400 hover:text-slate-700 dark:hover:text-white text-2xl leading-none p-1 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-800 transition">&times;</button>
+        </div>
+
+        <!-- Section 1: 7-day Ping History & Uptime Analytics -->
+        <div class="space-y-3 bg-slate-50 dark:bg-slate-950/60 p-4 rounded-xl border border-slate-200 dark:border-slate-800">
+            <div class="flex items-center justify-between">
+                <div class="flex items-center space-x-2">
+                    <span class="text-base">📈</span>
+                    <h3 class="font-bold text-xs text-slate-800 dark:text-slate-200 uppercase tracking-wider">
+                        過去7日間の Ping レスポンス推移 & 死活モニタリング
+                    </h3>
+                </div>
+                <!-- On-Demand Ping Test Button -->
+                <div class="flex items-center space-x-2">
+                    <button type="button"
+                            hx-post="/api/hosts/{{.Host.IP}}/ping_test"
+                            hx-target="#modal-ping-test-result"
+                            hx-indicator="#modal-ping-spinner"
+                            class="px-2.5 py-1 rounded-lg bg-white dark:bg-slate-900 border border-slate-300 dark:border-slate-700 hover:border-blue-500 text-slate-800 dark:text-slate-200 font-medium transition text-[11px] flex items-center space-x-1 shadow-sm cursor-pointer">
+                        <span>⚡</span>
+                        <span>今すぐ Ping 診断</span>
+                    </button>
+                </div>
+            </div>
+
+            <!-- Ping Test Result Container -->
+            <div class="flex items-center space-x-2">
+                <div id="modal-ping-spinner" class="htmx-indicator text-blue-600 dark:text-blue-400 text-xs font-semibold animate-pulse">
+                    ⏳ Ping プローブを送信中...
+                </div>
+                <div id="modal-ping-test-result"></div>
+            </div>
+
+            <!-- 4 Summary Stat Cards -->
+            <div class="grid grid-cols-2 sm:grid-cols-4 gap-2 pt-1">
+                <div class="bg-white dark:bg-slate-900/80 p-2.5 rounded-lg border border-slate-200/80 dark:border-slate-800">
+                    <div class="text-[10px] text-slate-400 dark:text-slate-500 font-medium">稼働率 (7日間)</div>
+                    <div class="text-sm font-bold mt-0.5 {{if ge .Stats7d.UptimePct 99.0}}text-emerald-600 dark:text-emerald-400{{else if ge .Stats7d.UptimePct 95.0}}text-amber-600 dark:text-amber-400{{else}}text-red-600 dark:text-red-400{{end}}">
+                        {{.Stats7d.UptimePct}}%
+                    </div>
+                </div>
+
+                <div class="bg-white dark:bg-slate-900/80 p-2.5 rounded-lg border border-slate-200/80 dark:border-slate-800">
+                    <div class="text-[10px] text-slate-400 dark:text-slate-500 font-medium">平均応答時間 (RTT)</div>
+                    <div class="text-sm font-bold font-mono text-slate-800 dark:text-slate-100 mt-0.5">
+                        {{if gt .Stats7d.AvgRTT 0.0}}{{.Stats7d.AvgRTT}} ms{{else}}-{{end}}
+                    </div>
+                </div>
+
+                <div class="bg-white dark:bg-slate-900/80 p-2.5 rounded-lg border border-slate-200/80 dark:border-slate-800">
+                    <div class="text-[10px] text-slate-400 dark:text-slate-500 font-medium">最小 / 最大遅延</div>
+                    <div class="text-xs font-bold font-mono text-slate-700 dark:text-slate-300 mt-0.5">
+                        {{if gt .Stats7d.MinRTT 0.0}}{{.Stats7d.MinRTT}} / {{.Stats7d.MaxRTT}} ms{{else}}-{{end}}
+                    </div>
+                </div>
+
+                <div class="bg-white dark:bg-slate-900/80 p-2.5 rounded-lg border border-slate-200/80 dark:border-slate-800">
+                    <div class="text-[10px] text-slate-400 dark:text-slate-500 font-medium">ジッター (遅延の揺らぎ)</div>
+                    <div class="text-sm font-bold font-mono text-slate-800 dark:text-slate-100 mt-0.5">
+                        {{if gt .Stats7d.Jitter 0.0}}±{{.Stats7d.Jitter}} ms{{else}}-{{end}}
+                    </div>
+                </div>
+            </div>
+
+            <!-- 7-Day SVG Sparkline Chart -->
+            <div class="bg-white dark:bg-slate-900 p-3 rounded-lg border border-slate-200/80 dark:border-slate-800 space-y-1">
+                <div class="flex items-center justify-between text-[11px] text-slate-500 dark:text-slate-400 font-medium">
+                    <span>Ping 応答時間推移 (ms)</span>
+                    <span class="text-[10px] font-mono text-slate-400">青線: RTT推移 / 破線: 未計測区間</span>
+                </div>
+                <div class="w-full overflow-hidden">
+                    {{.Chart7dSVG}}
+                </div>
+            </div>
+
+            <!-- 7-Day Uptime Heatmap Blocks -->
+            <div class="bg-white dark:bg-slate-900 p-3 rounded-lg border border-slate-200/80 dark:border-slate-800 space-y-1.5">
+                <div class="flex items-center justify-between text-[11px] text-slate-500 dark:text-slate-400 font-medium">
+                    <span>7日間 稼働ブロック (4時間毎のスロット)</span>
+                    <div class="flex items-center space-x-2 text-[10px]">
+                        <span class="flex items-center space-x-1"><span class="w-2 h-2 rounded bg-emerald-500 inline-block"></span><span>UP</span></span>
+                        <span class="flex items-center space-x-1"><span class="w-2 h-2 rounded bg-amber-500 inline-block"></span><span>一部ロス</span></span>
+                        <span class="flex items-center space-x-1"><span class="w-2 h-2 rounded bg-red-500 inline-block"></span><span>Down</span></span>
+                        <span class="flex items-center space-x-1"><span class="w-2 h-2 rounded bg-slate-400/40 inline-block"></span><span>未計測</span></span>
+                    </div>
+                </div>
+                <div class="w-full overflow-hidden pt-0.5">
+                    {{.UptimeBlocks7dSVG}}
+                </div>
+                <div class="text-[10px] text-slate-400 dark:text-slate-500 flex justify-between font-mono pt-1">
+                    <span>7日前</span>
+                    <span>3日前</span>
+                    <span>現在</span>
+                </div>
+            </div>
+        </div>
+
+        <!-- Section 2: Terminal & Security Profiling -->
+        <div class="space-y-3 bg-slate-50 dark:bg-slate-950/60 p-4 rounded-xl border border-slate-200 dark:border-slate-800">
+            <div class="flex items-center space-x-2">
+                <span class="text-base">🛡️</span>
+                <h3 class="font-bold text-xs text-slate-800 dark:text-slate-200 uppercase tracking-wider">
+                    ネットワーク & デバイスプロファイル
+                </h3>
+            </div>
+
+            <div class="grid grid-cols-1 sm:grid-cols-2 gap-3 text-xs">
+                <!-- MAC & OUI -->
+                <div class="space-y-1">
+                    <span class="text-slate-400 dark:text-slate-500 text-[11px] block">MACアドレス / ベンダー (OUI):</span>
+                    <div class="font-mono text-slate-800 dark:text-slate-200 font-medium">
+                        {{if .Host.MACAddress}}{{.Host.MACAddress}}{{else}}-{{end}}
+                    </div>
+                    <div class="text-slate-600 dark:text-slate-400 text-[11px]">
+                        {{if .Host.VendorModel}}{{.Host.VendorModel}}{{else}}不明 (Unknown){{end}}
+                    </div>
+                </div>
+
+                <!-- Connection Medium -->
+                <div class="space-y-1">
+                    <span class="text-slate-400 dark:text-slate-500 text-[11px] block">接続形態:</span>
+                    <div>
+                        <span class="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium border {{.Host.ConnectionBadgeClass}}">
+                            {{.Host.ConnectionLabel}}
+                        </span>
+                    </div>
+                    <div class="text-slate-500 dark:text-slate-400 text-[11px]">
+                        判定根拠: {{.Host.ConnectionReason}}
+                    </div>
+                </div>
+
+                <!-- OS & Model -->
+                <div class="space-y-1">
+                    <span class="text-slate-400 dark:text-slate-500 text-[11px] block">推定OS / モデル:</span>
+                    <div class="text-slate-800 dark:text-slate-200 font-medium">
+                        {{if .Host.OSVendor}}{{.Host.OSVendor}}{{else}}未検出{{end}}
+                    </div>
+                    {{if .Host.MDNSModel}}
+                    <div class="text-slate-600 dark:text-slate-400 text-[11px] font-mono">
+                        mDNSモデル: {{.Host.MDNSModel}}
+                    </div>
+                    {{end}}
+                </div>
+
+                <!-- Open Ports -->
+                <div class="space-y-1">
+                    <span class="text-slate-400 dark:text-slate-500 text-[11px] block">検出されたオープンポート:</span>
+                    <div class="flex flex-wrap gap-1.5 pt-0.5">
+                        {{if .Host.OpenPortsList}}
+                            {{range .Host.OpenPortsList}}
+                            <span class="px-2 py-0.5 rounded bg-blue-50 dark:bg-blue-950/60 border border-blue-200 dark:border-blue-800 text-blue-700 dark:text-blue-300 font-mono text-[10px] font-semibold">
+                                {{.Port}}/{{.Service}}
+                            </span>
+                            {{end}}
+                        {{else}}
+                            <span class="text-slate-400 text-[11px]">主要ポートの応答なし (ステルス)</span>
+                        {{end}}
+                    </div>
+                </div>
+
+                <!-- Optional Extended Attributes (Web title, UPnP, TLS) -->
+                {{if or .Host.HTTPTitle .Host.UPnPModel .Host.TLSExpiry}}
+                <div class="sm:col-span-2 space-y-1.5 pt-2 border-t border-slate-200/80 dark:border-slate-800">
+                    {{if .Host.HTTPTitle}}
+                    <div class="flex items-center space-x-2 text-[11px]">
+                        <span class="text-slate-400 shrink-0">🌐 Web管理画面:</span>
+                        <span class="font-medium text-slate-800 dark:text-slate-200 truncate">「{{.Host.HTTPTitle}}」</span>
+                    </div>
+                    {{end}}
+
+                    {{if .Host.UPnPModel}}
+                    <div class="flex items-center space-x-2 text-[11px]">
+                        <span class="text-slate-400 shrink-0">📻 UPnP機器情報:</span>
+                        <span class="font-mono text-slate-700 dark:text-slate-300">{{.Host.UPnPName}} {{.Host.UPnPModel}} {{if .Host.UPnPSerial}}(S/N: {{.Host.UPnPSerial}}){{end}}</span>
+                    </div>
+                    {{end}}
+
+                    {{if .Host.TLSExpiry}}
+                    <div class="flex items-center space-x-2 text-[11px]">
+                        <span class="text-slate-400 shrink-0">🔒 TLS証明書:</span>
+                        <span class="font-mono {{if .Host.TLSExpiresSoon}}text-red-600 dark:text-red-400 font-bold{{else}}text-slate-700 dark:text-slate-300{{end}}">
+                            {{.Host.TLSFormatted}} ({{.Host.TLSSubject}})
+                        </span>
+                    </div>
+                    {{end}}
+                </div>
+                {{end}}
+
+                <!-- Detection History Dates -->
+                <div class="sm:col-span-2 grid grid-cols-2 sm:grid-cols-3 gap-2 pt-2 border-t border-slate-200/80 dark:border-slate-800 text-[11px] text-slate-500 dark:text-slate-400">
+                    <div>
+                        <span class="block text-slate-400 dark:text-slate-500 text-[10px]">初回検出 (First Seen):</span>
+                        <span class="font-mono">{{if .Host.FirstSeen}}{{.Host.FirstSeen.Local.Format "2006-01-02 15:04"}}{{else}}-{{end}}</span>
+                    </div>
+                    <div>
+                        <span class="block text-slate-400 dark:text-slate-500 text-[10px]">最終確認 (Last Seen):</span>
+                        <span class="font-mono">{{if .Host.LastSeen}}{{.Host.LastSeen.Local.Format "2006-01-02 15:04"}}{{else}}-{{end}}</span>
+                    </div>
+                    <div>
+                        <span class="block text-slate-400 dark:text-slate-500 text-[10px]">通信トラフィック:</span>
+                        <span class="font-mono {{if .Host.IsStorming}}text-red-600 font-bold animate-pulse{{end}}">
+                            {{.Host.BroadcastCount1m}} pkt/分 {{if .Host.IsStorming}}(異常過多){{end}}
+                        </span>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Footer Action Buttons -->
+        <div class="flex items-center justify-between pt-2 border-t border-slate-200 dark:border-slate-800">
+            <button type="button"
+                    hx-get="/modals/edit_host?ip={{.Host.IP}}"
+                    hx-target="#modal-container"
+                    hx-swap="innerHTML"
+                    class="px-4 py-2 rounded-lg bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-200 font-medium transition text-xs flex items-center space-x-1.5 cursor-pointer">
+                <span>✏️</span>
+                <span>ホスト情報を編集</span>
+            </button>
+
+            <button type="button" onclick="closeModal()" class="px-5 py-2 rounded-lg bg-blue-600 hover:bg-blue-500 text-white font-medium transition text-xs shadow cursor-pointer">
+                閉じる
+            </button>
+        </div>
+    </div>
+</div>

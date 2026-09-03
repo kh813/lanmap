@@ -69,7 +69,16 @@
     </header>
 
     <!-- Table Container -->
-    <div class="flex-1 overflow-auto p-4">
+    <div class="flex-1 overflow-auto p-4 space-y-2">
+        <!-- Table Guide Banner -->
+        <div class="px-3.5 py-2 bg-blue-50/70 dark:bg-blue-950/40 border border-blue-200/80 dark:border-blue-800/60 rounded-lg text-[11px] text-blue-700 dark:text-blue-300 flex items-center justify-between">
+            <div class="flex items-center space-x-2">
+                <span>💡</span>
+                <span>任意の行をクリックすると、<strong>過去7日間のPingレスポンスグラフ・死活分析</strong>を含む詳細モーダルが開きます。</span>
+            </div>
+            <span class="text-[10px] text-blue-600/80 dark:text-blue-400/80 font-mono hidden sm:inline">クリック: 詳細モーダル / ホバー: クイック概要</span>
+        </div>
+
         <div class="border border-slate-200 dark:border-slate-800 rounded-lg overflow-visible bg-white dark:bg-slate-950/60 shadow-sm">
             <table class="w-full text-left border-collapse text-xs">
                 <thead>
@@ -105,7 +114,10 @@
 
                     {{range .Hosts}}
                     <tr id="host-row-{{.IP}}"
-                        class="host-row hover:bg-slate-50 dark:hover:bg-slate-900/60 transition {{if .IsStorming}}bg-red-100/70 border-2 border-red-500 dark:bg-red-950/40 dark:border-red-600{{else if not .IsApproved}}bg-red-50/50 dark:bg-red-950/10{{end}}"
+                        hx-get="/modals/host_detail?ip={{.IP}}"
+                        hx-target="#modal-container"
+                        hx-swap="innerHTML"
+                        class="host-row hover:bg-blue-50/50 dark:hover:bg-slate-800/80 transition cursor-pointer {{if .IsStorming}}bg-red-100/70 border-2 border-red-500 dark:bg-red-950/40 dark:border-red-600{{else if not .IsApproved}}bg-red-50/50 dark:bg-red-950/10{{end}}"
                         data-search="{{.SearchKeywords}}">
                         <!-- IP & MAC with Smart Hover Popover -->
                         <td class="py-3 px-3 cursor-pointer group/ip"
@@ -296,6 +308,7 @@
                                 <span class="text-slate-800 dark:text-slate-200 hover:text-blue-600 dark:hover:text-blue-400 transition-colors">{{if .DisplayName}}{{.DisplayName}}{{else}}-{{end}}</span>
                                 {{if .HasConflict}}
                                 <button hx-get="/modals/conflict?ip={{.IP}}" hx-target="#modal-container" hx-swap="innerHTML"
+                                        onclick="event.stopPropagation()"
                                         class="px-1.5 py-0.5 rounded text-[10px] font-bold bg-amber-100 text-amber-800 dark:bg-amber-500/20 dark:text-amber-400 border border-amber-300 dark:border-amber-500/30 hover:opacity-80"
                                         title="Uptime Kuma監視名との競合が発生しています。クリックして解消">
                                     ⚠️ 競合
@@ -380,9 +393,10 @@
                         </td>
 
                         <!-- Static IP -->
-                        <td class="py-3 px-3 text-center">
+                        <td class="py-3 px-3 text-center" onclick="event.stopPropagation()">
                             <input type="checkbox" {{if .IsStaticIP}}checked{{end}}
                                    hx-post="/api/hosts/{{.IP}}/toggle_static" hx-swap="none"
+                                   onclick="event.stopPropagation()"
                                    class="rounded bg-white dark:bg-slate-800 border-slate-300 dark:border-slate-700 text-blue-600 focus:ring-0 cursor-pointer">
                         </td>
 
@@ -402,14 +416,14 @@
                         </td>
 
                         <!-- Action Menu Button -->
-                        <td class="py-3 px-3 text-right relative">
+                        <td class="py-3 px-3 text-right relative" onclick="event.stopPropagation()">
                             <button hx-get="/partials/action_menu?ip={{.IP}}" hx-target="#action-menu-{{.IPID}}" hx-swap="innerHTML"
-                                    onclick="const m = document.getElementById('action-menu-{{.IPID}}'); if (m && m.children.length > 0) { m.innerHTML = ''; event.stopImmediatePropagation(); }"
+                                    onclick="event.stopPropagation(); const m = document.getElementById('action-menu-{{.IPID}}'); if (m && m.children.length > 0) { m.innerHTML = ''; event.stopImmediatePropagation(); }"
                                     class="p-1 rounded text-slate-500 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white hover:bg-slate-100 dark:hover:bg-slate-800 transition font-bold text-sm tracking-widest px-2 focus:outline-none">
                                 ...
                             </button>
                             <!-- Dropdown container -->
-                            <div id="action-menu-{{.IPID}}" class="relative"></div>
+                            <div id="action-menu-{{.IPID}}" class="relative" onclick="event.stopPropagation()"></div>
                         </td>
                     </tr>
                     {{end}}

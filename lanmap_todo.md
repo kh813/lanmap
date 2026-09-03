@@ -205,3 +205,46 @@
 - [x] **10.4 検証 & コミット**
   - [x] 単体テスト作成 & 実行 (`go test -v ./...`)
   - [x] サーバー起動確認 & Git コミット
+
+---
+
+### 🔹 Phase 11: GitHub Releases 自動セルフアップデート機能
+- [x] **11.1 アップデータ層 (`internal/updater`)**
+  - [x] GitHub Releases API 照会 & バージョン比較判定 (`updater.go`)
+  - [x] OS/アーキテクチャ別 ZIP アセットのストリーミングダウンロード & 解凍
+  - [x] 実行中バイナリの安全なインプレースアトミック置換（Unix: rename / Windows: `.old` 退避）
+  - [x] バックグラウンド自己再起動処理 (`RestartSelf`)
+  - [x] 単体テスト作成 & 実行 (`internal/updater/updater_test.go`)
+- [x] **11.2 CLI サブコマンド (`cmd/lanmap/main.go`)**
+  - [x] `lanmap update` / `lanmap upgrade` コマンド実装
+- [x] **11.3 Web UI & API (`internal/web`)**
+  - [x] `GET /api/system/update/check` エンドポイント & htmx 連携
+  - [x] `POST /api/system/update/apply` エンドポイント & 5秒後自動リロード
+  - [x] 設定モーダル (`settings_modal.html`) にセルフアップデートセクション追加
+  - [x] サイドバー (`sidebar.html`) のバージョンバッジクリック導線改善
+- [x] **11.4 検証 & コミット**
+  - [x] 単体テスト実行 (`go test -v ./internal/updater/... ./internal/web/...`)
+  - [x] Git コミット
+
+---
+
+### 🔹 Phase 12: ホスト行クリック詳細モーダル & 7日間 Ping 推移・オンデマンド Ping 診断
+- [x] **12.1 DB & SVG チャート層 (`internal/db/ping_history.go`)**
+  - [x] 7日間専用 SVG スパークライン描画 (`RenderSparkline7dSVG`: X軸日付目盛り、Min/Maxガイド線、未計測破線)
+  - [x] 7日間 Uptime ブロック描画 (`RenderUptimeBlocks7dSVG`: 4時間毎の42スロットヒートマップ)
+  - [x] 7日間詳細統計計算 (`ComputePingStats7dDetails`: 稼働率、平均/最小/最大RTT、ジッター、総プローブ数)
+  - [x] 単体テスト作成 & 実行 (`internal/db/db_test.go`)
+- [x] **12.2 Web ハンドラー & ルーティング (`internal/web`)**
+  - [x] `GET /modals/host_detail` エンドポイント実装 (`handler.go`, `router.go`)
+  - [x] `POST /api/hosts/{ip}/ping_test` オンデマンド即時 Ping 診断エンドポイント実装
+  - [x] Web 単体テスト追加 & 実行 (`internal/web/web_test.go`)
+- [x] **12.3 Web UI テンプレート (`web/template`)**
+  - [x] `web/template/partials/host_detail_modal.html` 作成（7日間グラフ、ヒートマップ、統計カード、端末プロファイル、即時Pingボタン）
+  - [x] `web/template/partials/main_table.html` 各行に `hx-get="/modals/host_detail?ip={{.IP}}"` を付与
+  - [x] 行内要素（チェックボックス、競合ボタン、アクションメニュー）に `stopPropagation` を適用して誤発火ガード
+  - [x] テーブル上部にヒントガイドバナー設置
+- [x] **12.4 ドキュメント包括的更新**
+  - [x] `README.md` 更新（セルフアップデート、詳細モーダル、CLIコマンド）
+  - [x] `lanmap_design.md` 更新（セルフアップデート仕様、ロードマップ完了反映）
+  - [x] `lanmap_todo.md` 更新（全フェーズ反映）
+

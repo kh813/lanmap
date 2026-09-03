@@ -330,7 +330,333 @@ func ComputePingStats24h(items []PingHistoryItem) (statsStr string, upPct float6
 	return statsStr, upPct
 }
 
-// ComputePingStats7d computes 7-day stats or delegates to 24h
-func ComputePingStats7d(items []PingHistoryItem) (statsStr string, upPct float64) {
-	return ComputePingStats24h(items)
+// PingStats7d contains comprehensive metrics over a 7-day period
+type PingStats7d struct {
+	StatsStr    string
+	UptimePct   float64
+	AvgRTT      float64
+	MinRTT      float64
+	MaxRTT      float64
+	Jitter      float64
+	TotalProbes int
+	UpCount     int
+	DownCount   int
 }
+
+// ComputePingStats7dDetails computes thorough 7-day ping metrics
+func ComputePingStats7dDetails(items []PingHistoryItem) PingStats7d {
+	now := time.Now().UTC()
+	windowStart := now.Add(-7 * 24 * time.Hour)
+
+	var items7d []PingHistoryItem
+	for _, it := range items {
+		if it.CreatedAt.After(windowStart) || it.CreatedAt.Equal(windowStart) {
+			items7d = append(items7d, it)
+		}
+	}
+
+	if len(items7d) == 0 {
+		return PingStats7d{
+			StatsStr:  "過去7日間: 計測データ収集中",
+			UptimePct: 100.0,
+		}
+	}
+
+	upCount := 0
+	downCount := 0
+	totalRTT := 0.0
+	rttCount := 0
+	minRTT := 999999.0
+	maxRTT := 0.0
+	var rttValues []float64
+
+	for _, item := range items7d {
+		if item.Status == "up" {
+			upCount++
+			if item.RTTMs != nil && *item.RTTMs >= 0 {
+				val := *item.RTTMs
+				totalRTT += val
+				rttCount++
+				rttValues = append(rttValues, val)
+				if val < minRTT {
+					minRTT = val
+				}
+				if val > maxRTT {
+					maxRTT = val
+				}
+			}
+		} else {
+			downCount++
+		}
+	}
+
+	upPct := (float64(upCount) / float64(len(items7d))) * 100.0
+	if upPct > 100.0 {
+		upPct = 100.0
+	}
+
+	avgRTT := 0.0
+	if rttCount > 0 {
+		avgRTT = totalRTT / float64(rttCount)
+	}
+	if minRTT > maxRTT {
+		minRTT = avgRTT
+	}
+
+	// Calculate jitter (mean absolute consecutive difference)
+	jitter := 0.0
+	if len(rttValues) > 1 {
+		var diffSum float64
+		for i := 1; i < len(rttValues); i++ {
+			diffSum += math.Abs(rttValues[i] - rttValues[i-1])
+		}
+		jitter = diffSum / float64(len(rttValues)-1)
+	}
+
+	statsStr := fmt.Sprintf("7日間平均 %.1fms (Min %.1f / Max %.1fms) · 稼働率 %.1f%%",
+		avgRTT, minRTT, maxRTT, math.Round(upPct*10)/10)
+
+	return PingStats7d{
+		StatsStr:    statsStr,
+		UptimePct:   math.Round(upPct*10) / 10,
+		AvgRTT:      math.Round(avgRTT*10) / 10,
+		MinRTT:      math.Round(minRTT*10) / 10,
+		MaxRTT:      math.Round(maxRTT*10) / 10,
+		Jitter:      math.Round(jitter*10) / 10,
+		TotalProbes: len(items7d),
+		UpCount:     upCount,
+		DownCount:   downCount,
+	}
+}
+
+// ComputePingStats7d computes 7-day stats summary string and uptime %
+func ComputePingStats7d(items []PingHistoryItem) (statsStr string, upPct float64) {
+	d := ComputePingStats7dDetails(items)
+	return d.StatsStr, d.UptimePct
+}
+
+// RenderSparkline7dSVG generates a detailed 7-day time-proportional SVG chart with date axis grid
+func RenderSparkline7dSVG(items []PingHistoryItem, width, height int) template.HTML {
+	if width <= 0 {
+		width = 620
+	}
+	if height <= 0 {
+		height = 130
+	}
+
+	now := time.Now().UTC()
+	duration := 7 * 24 * time.Hour
+	windowStart := now.Add(-duration)
+
+	var items7d []PingHistoryItem
+	for _, it := range items {
+		if it.CreatedAt.After(windowStart) || it.CreatedAt.Equal(windowStart) {
+			items7d = append(items7d, it)
+		}
+	}
+
+	padTop := 16.0
+	padBottom := 22.0
+	padLeft := 10.0
+	padRight := 10.0
+	plotWidth := float64(width) - padLeft - padRight
+	plotHeight := float64(height) - padTop - padBottom
+	baselineY := float64(height) - padBottom
+
+	if len(items7d) == 0 {
+		svg := fmt.Sprintf(`<svg viewBox="0 0 %d %d" class="w-full h-32 overflow-visible">
+			<line x1="%.1f" y1="%.1f" x2="%.1f" y2="%.1f" stroke="#94A3B8" stroke-dasharray="4,4" stroke-width="1.5" opacity="0.3" />
+			<text x="%d" y="%.1f" fill="#94A3B8" font-size="11" text-anchor="middle">過去7日間: 計測データ収集中 (自動スキャン継続中)</text>
+		</svg>`, width, height, padLeft, baselineY, float64(width)-padRight, baselineY, width/2, float64(height)/2.0)
+		return template.HTML(svg)
+	}
+
+	// Find max and min RTT
+	maxRTT := 4.0
+	minRTT := 999999.0
+	for _, item := range items7d {
+		if item.RTTMs != nil && *item.RTTMs > 0 {
+			if *item.RTTMs > maxRTT {
+				maxRTT = *item.RTTMs
+			}
+			if *item.RTTMs < minRTT {
+				minRTT = *item.RTTMs
+			}
+		}
+	}
+	if minRTT > maxRTT {
+		minRTT = 0.0
+	}
+	maxRTT *= 1.25
+	if maxRTT < 3.0 {
+		maxRTT = 3.0
+	}
+
+	// 1. Date grid lines and labels (every 24 hours = 7 days)
+	var gridLines strings.Builder
+	for d := 0; d <= 7; d++ {
+		ratio := float64(d) / 7.0
+		x := padLeft + (ratio * plotWidth)
+		dayTime := windowStart.Add(time.Duration(d*24) * time.Hour).Local()
+		label := dayTime.Format("01/02")
+		if d == 7 {
+			label = "現在"
+		}
+
+		// Vertical grid line
+		gridLines.WriteString(fmt.Sprintf(`<line x1="%.1f" y1="%.1f" x2="%.1f" y2="%.1f" stroke="#94A3B8" stroke-dasharray="2,3" stroke-width="0.8" opacity="0.25" />`,
+			x, padTop, x, baselineY))
+		// Date label
+		gridLines.WriteString(fmt.Sprintf(`<text x="%.1f" y="%.1f" fill="#94A3B8" font-size="9.5" text-anchor="middle" font-family="monospace">%s</text>`,
+			x, baselineY+15.0, label))
+	}
+
+	// Horizontal grid lines (Max RTT and Mid RTT)
+	midRTT := maxRTT / 2.0
+	midY := baselineY - (0.5 * plotHeight)
+	topY := baselineY - plotHeight
+
+	gridLines.WriteString(fmt.Sprintf(`<line x1="%.1f" y1="%.1f" x2="%.1f" y2="%.1f" stroke="#94A3B8" stroke-dasharray="2,3" stroke-width="0.8" opacity="0.2" />`,
+		padLeft, midY, padLeft+plotWidth, midY))
+	gridLines.WriteString(fmt.Sprintf(`<text x="%.1f" y="%.1f" fill="#94A3B8" font-size="9" text-anchor="start" font-family="monospace" opacity="0.7">%.1fms</text>`,
+		padLeft+4, midY-3, midRTT))
+
+	gridLines.WriteString(fmt.Sprintf(`<line x1="%.1f" y1="%.1f" x2="%.1f" y2="%.1f" stroke="#94A3B8" stroke-dasharray="2,3" stroke-width="0.8" opacity="0.2" />`,
+		padLeft, topY, padLeft+plotWidth, topY))
+	gridLines.WriteString(fmt.Sprintf(`<text x="%.1f" y="%.1f" fill="#94A3B8" font-size="9" text-anchor="start" font-family="monospace" opacity="0.7">%.1fms</text>`,
+		padLeft+4, topY+10, maxRTT))
+
+	// Baseline
+	gridLines.WriteString(fmt.Sprintf(`<line x1="%.1f" y1="%.1f" x2="%.1f" y2="%.1f" stroke="#94A3B8" stroke-width="1.0" opacity="0.4" />`,
+		padLeft, baselineY, padLeft+plotWidth, baselineY))
+
+	// 2. Data points
+	var points []string
+	var areaPoints []string
+
+	firstItem := items7d[0]
+	firstRatio := firstItem.CreatedAt.Sub(windowStart).Seconds() / duration.Seconds()
+	if firstRatio < 0 {
+		firstRatio = 0
+	}
+	firstX := padLeft + (firstRatio * plotWidth)
+
+	lastX := firstX
+	areaPoints = append(areaPoints, fmt.Sprintf("%.1f,%.1f", firstX, baselineY))
+
+	for _, item := range items7d {
+		ratio := item.CreatedAt.Sub(windowStart).Seconds() / duration.Seconds()
+		if ratio < 0 {
+			ratio = 0
+		}
+		if ratio > 1.0 {
+			ratio = 1.0
+		}
+		x := padLeft + (ratio * plotWidth)
+
+		y := baselineY
+		if item.Status == "up" && item.RTTMs != nil && *item.RTTMs >= 0 {
+			val := *item.RTTMs
+			normalized := val / maxRTT
+			if normalized > 1.0 {
+				normalized = 1.0
+			}
+			y = baselineY - (normalized * plotHeight)
+		} else {
+			// Down / packet loss
+			y = padTop
+		}
+
+		points = append(points, fmt.Sprintf("%.1f,%.1f", x, y))
+		areaPoints = append(areaPoints, fmt.Sprintf("%.1f,%.1f", x, y))
+		lastX = x
+	}
+	areaPoints = append(areaPoints, fmt.Sprintf("%.1f,%.1f", lastX, baselineY))
+
+	pointsStr := strings.Join(points, " ")
+	areaStr := strings.Join(areaPoints, " ")
+
+	// If data collection started recently, dashed baseline for uncollected past
+	var noDataLine string
+	if firstX > padLeft+6.0 {
+		noDataLine = fmt.Sprintf(`<line x1="%.1f" y1="%.1f" x2="%.1f" y2="%.1f" stroke="#94A3B8" stroke-dasharray="3,3" stroke-width="1.2" opacity="0.3" />`,
+			padLeft, baselineY, firstX, baselineY)
+	}
+
+	svg := fmt.Sprintf(`<svg viewBox="0 0 %d %d" class="w-full h-36 overflow-visible" preserveAspectRatio="none">
+		<defs>
+			<linearGradient id="chartGrad7d" x1="0" y1="0" x2="0" y2="1">
+				<stop offset="0%%" stop-color="#3B82F6" stop-opacity="0.3" />
+				<stop offset="100%%" stop-color="#3B82F6" stop-opacity="0.0" />
+			</linearGradient>
+		</defs>
+		%s
+		%s
+		<polygon points="%s" fill="url(#chartGrad7d)" />
+		<polyline fill="none" stroke="#3B82F6" stroke-width="2.0" stroke-linecap="round" stroke-linejoin="round" points="%s" />
+	</svg>`, width, height, gridLines.String(), noDataLine, areaStr, pointsStr)
+
+	return template.HTML(svg)
+}
+
+// RenderUptimeBlocks7dSVG generates 42 time-slotted Uptime blocks for 7 days (6 slots per day = 4 hours per slot)
+func RenderUptimeBlocks7dSVG(items []PingHistoryItem, blockCount int) template.HTML {
+	if blockCount <= 0 {
+		blockCount = 42 // 42 blocks = 7 days * 6 slots (4h each)
+	}
+
+	now := time.Now().UTC()
+	duration := 7 * 24 * time.Hour
+	windowStart := now.Add(-duration)
+	bucketDuration := duration / time.Duration(blockCount)
+
+	var rects strings.Builder
+	for i := 0; i < blockCount; i++ {
+		bStart := windowStart.Add(time.Duration(i) * bucketDuration)
+		bEnd := bStart.Add(bucketDuration)
+
+		hasData := false
+		hasDown := false
+		hasUp := false
+
+		for _, item := range items {
+			if (item.CreatedAt.After(bStart) || item.CreatedAt.Equal(bStart)) && item.CreatedAt.Before(bEnd) {
+				hasData = true
+				if item.Status == "up" {
+					hasUp = true
+				} else {
+					hasDown = true
+				}
+			}
+		}
+
+		color := "#94A3B8"
+		opacity := "0.2"
+		title := fmt.Sprintf("%s〜%s: 未計測", bStart.Local().Format("01/02 15:04"), bEnd.Local().Format("15:04"))
+
+		if hasData {
+			opacity = "1.0"
+			if hasDown && !hasUp {
+				color = "#EF4444" // Red
+				title = fmt.Sprintf("%s〜%s: 障害 / ダウン検知", bStart.Local().Format("01/02 15:04"), bEnd.Local().Format("15:04"))
+			} else if hasDown && hasUp {
+				color = "#F59E0B" // Amber
+				title = fmt.Sprintf("%s〜%s: 不安定 / 一部パケットロス", bStart.Local().Format("01/02 15:04"), bEnd.Local().Format("15:04"))
+			} else {
+				color = "#22C55E" // Green
+				title = fmt.Sprintf("%s〜%s: 正常稼働 (100%% UP)", bStart.Local().Format("01/02 15:04"), bEnd.Local().Format("15:04"))
+			}
+		}
+
+		// Gap between day boundaries (every 6 blocks)
+		dayGap := (i / 6) * 4
+		x := i*8 + dayGap
+
+		rects.WriteString(fmt.Sprintf(`<rect x="%d" y="0" width="6" height="18" rx="2" fill="%s" opacity="%s"><title>%s</title></rect>`,
+			x, color, opacity, title))
+	}
+
+	totalWidth := (blockCount * 8) + (7 * 4)
+	return template.HTML(fmt.Sprintf(`<svg viewBox="0 0 %d 18" class="w-full h-4.5">%s</svg>`, totalWidth, rects.String()))
+}
+

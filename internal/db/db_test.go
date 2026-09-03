@@ -351,6 +351,28 @@ func TestPingHistoryAndSVGRendering(t *testing.T) {
 		t.Error("expected non-empty stats string")
 	}
 
+	// Test 7-day SVG and detailed metrics
+	svg7d := RenderSparkline7dSVG(history, 600, 120)
+	if len(svg7d) == 0 {
+		t.Error("expected non-empty 7-day SVG sparkline")
+	}
+
+	blocks7d := RenderUptimeBlocks7dSVG(history, 42)
+	if len(blocks7d) == 0 {
+		t.Error("expected non-empty 7-day uptime blocks")
+	}
+
+	stats7d := ComputePingStats7dDetails(history)
+	if stats7d.TotalProbes != 4 {
+		t.Errorf("expected 4 probes in 7d stats, got %d", stats7d.TotalProbes)
+	}
+	if stats7d.UpCount != 3 || stats7d.DownCount != 1 {
+		t.Errorf("expected 3 up, 1 down, got up=%d, down=%d", stats7d.UpCount, stats7d.DownCount)
+	}
+	if stats7d.UptimePct != 75.0 {
+		t.Errorf("expected 75%% uptime percentage, got %f", stats7d.UptimePct)
+	}
+
 	// Test purge
 	err = db.PurgeOldPingHistory(7)
 	if err != nil {

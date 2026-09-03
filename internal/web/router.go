@@ -25,6 +25,7 @@ func NewRouter(h *Handler) http.Handler {
 	mux.HandleFunc("GET /modals/segment", h.HandleSegmentModal)
 	mux.HandleFunc("GET /modals/add_host", h.HandleAddHostModal)
 	mux.HandleFunc("GET /modals/edit_host", h.HandleEditHostModal)
+	mux.HandleFunc("GET /modals/host_detail", h.HandleHostDetailModal)
 	mux.HandleFunc("GET /modals/conflict", h.HandleConflictModal)
 	mux.HandleFunc("GET /modals/whitelist", h.HandleWhitelistModal)
 
@@ -38,6 +39,9 @@ func NewRouter(h *Handler) http.Handler {
 
 	// Host API
 	mux.HandleFunc("POST /api/hosts", h.HandleCreateHost)
+	mux.HandleFunc("POST /api/hosts/{ip}/ping_test", func(w http.ResponseWriter, r *http.Request) {
+		h.HandleHostPingTest(w, r, r.PathValue("ip"))
+	})
 	mux.HandleFunc("POST /api/hosts/{ip}/toggle_approval", func(w http.ResponseWriter, r *http.Request) {
 		h.HandleToggleApproval(w, r, r.PathValue("ip"))
 	})
