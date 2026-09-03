@@ -13,12 +13,31 @@
                 </span>
                 {{end}}
             </div>
-            <p class="text-xs text-slate-500 dark:text-slate-400 mt-0.5">
+            <p id="host-count-badge" class="text-xs text-slate-500 dark:text-slate-400 mt-0.5">
                 合計 {{len .Hosts}} 台の端末が登録されています (30秒ごとに自動更新 / IPホバーでWeb名・型番・SSL・ポート詳細表示)
             </p>
         </div>
 
-        <div class="flex items-center space-x-2">
+        <div class="flex items-center space-x-2 flex-wrap gap-2">
+            <!-- Keyword Search Input -->
+            <div class="relative w-48 sm:w-60 md:w-72">
+                <span class="absolute inset-y-0 left-0 flex items-center pl-2.5 pointer-events-none text-slate-400 text-xs">
+                    🔍
+                </span>
+                <input type="text"
+                       id="host-search-input"
+                       placeholder="検索 (IP, ホスト名, モデル, ポート等)..."
+                       oninput="filterTableRows(this.value)"
+                       class="w-full pl-8 pr-7 py-1.5 bg-slate-100 dark:bg-slate-900 border border-slate-300 dark:border-slate-700 rounded-lg text-xs text-slate-900 dark:text-slate-100 placeholder-slate-400 focus:outline-none focus:border-blue-500 font-sans transition">
+                <button type="button"
+                        id="host-search-clear"
+                        onclick="clearTableFilter()"
+                        style="display: none;"
+                        class="absolute inset-y-0 right-0 flex items-center pr-2 text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 text-xs">
+                    ✕
+                </button>
+            </div>
+
             <!-- Filter Switch -->
             <div class="bg-slate-200/80 dark:bg-slate-800/80 p-0.5 rounded-lg flex text-xs border border-slate-300 dark:border-slate-700">
                 <button hx-get="/partials/main_table?segment_id={{.CurrentSegmentID}}&online_only=true"
@@ -68,7 +87,7 @@
                         <th class="py-3 px-3 text-right">操作</th>
                     </tr>
                 </thead>
-                <tbody class="divide-y divide-slate-100 dark:divide-slate-800/60">
+                <tbody id="host-table-body" class="divide-y divide-slate-100 dark:divide-slate-800/60">
                     {{if eq (len .Hosts) 0}}
                     <tr>
                         <td colspan="11" class="py-12 text-center text-slate-400 dark:text-slate-500">
@@ -77,8 +96,16 @@
                     </tr>
                     {{end}}
 
+                    <tr id="no-match-row" class="hidden">
+                        <td colspan="11" class="py-12 text-center text-slate-400 dark:text-slate-500">
+                            🔍 検索条件に一致する端末が見つかりませんでした。
+                        </td>
+                    </tr>
+
                     {{range .Hosts}}
-                    <tr id="host-row-{{.IP}}" class="hover:bg-slate-50 dark:hover:bg-slate-900/60 transition {{if .IsStorming}}bg-red-100/70 border-2 border-red-500 dark:bg-red-950/40 dark:border-red-600{{else if not .IsApproved}}bg-red-50/50 dark:bg-red-950/10{{end}}">
+                    <tr id="host-row-{{.IP}}"
+                        class="host-row hover:bg-slate-50 dark:hover:bg-slate-900/60 transition {{if .IsStorming}}bg-red-100/70 border-2 border-red-500 dark:bg-red-950/40 dark:border-red-600{{else if not .IsApproved}}bg-red-50/50 dark:bg-red-950/10{{end}}"
+                        data-search="{{.SearchKeywords}}">
                         <!-- IP & MAC with Smart Hover Popover -->
                         <td class="py-3 px-3 cursor-pointer group/ip"
                             onmouseenter="showHostPopover(this, 'popover-{{.IPID}}')"
@@ -387,4 +414,64 @@
             </table>
         </div>
     </div>
+
+    <!-- Client-Side Realtime Search / Filter Script -->
+    <script>
+        function filterTableRows(query) {
+            const q = (query || '').toLowerCase().trim();
+            const clearBtn = document.getElementById('host-search-clear');
+            if (clearBtn) {
+                clearBtn.style.display = q ? 'flex' : 'none';
+            }
+            window.currentHostFilter = q;
+
+            const rows = document.querySelectorAll('#host-table-body tr.host-row');
+            let visibleCount = 0;
+
+            rows.forEach(row => {
+                const text = (row.getAttribute('data-search') || row.innerText || '').toLowerCase();
+                const matches = !q || text.includes(q);
+                row.style.display = matches ? '' : 'none';
+                if (matches) visibleCount++;
+            });
+
+            const noMatchRow = document.getElementById('no-match-row');
+            if (noMatchRow) {
+                if (visibleCount === 0 && rows.length > 0 && q) {
+                    noMatchRow.classList.remove('hidden');
+                } else {
+                    noMatchRow.classList.add('hidden');
+                }
+            }
+
+            const countBadge = document.getElementById('host-count-badge');
+            if (countBadge) {
+                if (q) {
+                    countBadge.innerHTML = `<span class="text-blue-600 dark:text-blue-400 font-bold">🔍 絞り込み中:</span> ${visibleCount} / 全 ${rows.length} 台を表示`;
+                } else {
+                    countBadge.innerText = `合計 ${rows.length} 台の端末が登録されています (30秒ごとに自動更新 / IPホバーでWeb名・型番・SSL・ポート詳細表示)`;
+                }
+            }
+        }
+
+        function clearTableFilter() {
+            const input = document.getElementById('host-search-input');
+            if (input) {
+                input.value = '';
+                filterTableRows('');
+                input.focus();
+            }
+        }
+
+        // Auto-restore active search keyword when HTMX re-renders table
+        (function() {
+            if (window.currentHostFilter) {
+                const input = document.getElementById('host-search-input');
+                if (input && !input.value) {
+                    input.value = window.currentHostFilter;
+                }
+                filterTableRows(window.currentHostFilter);
+            }
+        })();
+    </script>
 </div>

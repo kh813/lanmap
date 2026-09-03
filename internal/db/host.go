@@ -266,6 +266,27 @@ func (h *Host) ConnectionReason() string {
 	return "推定"
 }
 
+// SearchKeywords returns a consolidated lowercase string of all searchable attributes of the host
+func (h *Host) SearchKeywords() string {
+	var parts []string
+	parts = append(parts, h.IP, h.Hostname, h.DisplayName, h.MACAddress, h.VendorModel, h.OSVendor, h.MDNSModel, h.HTTPTitle, h.UPnPName, h.UPnPModel, h.OpenPorts, h.Status, h.ConnectionLabel(), h.ConnectionReason())
+	if h.IsApproved {
+		parts = append(parts, "承認", "承認済", "approved")
+	} else {
+		parts = append(parts, "未承認", "unapproved", "警告")
+	}
+	if h.IsStaticIP {
+		parts = append(parts, "固定ip", "static")
+	}
+	if h.IsStorming {
+		parts = append(parts, "ストーム", "異常通信", "storm")
+	}
+	if h.IsMonitored {
+		parts = append(parts, "監視中", "kuma")
+	}
+	return strings.ToLower(strings.Join(parts, " "))
+}
+
 // UpsertHostOnScan inserts a newly scanned host or updates an existing host
 func (db *DB) UpsertHostOnScan(h *Host) (isNew bool, isReplaced bool, err error) {
 	existing, err := db.GetHost(h.IP)
