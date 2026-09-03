@@ -73,8 +73,11 @@ func ResolveMDNSModel(rawModel string, hostname string) string {
 	if strings.Contains(lowerHost, "watch") {
 		return "Apple Watch"
 	}
-	if strings.Contains(lowerHost, "mbpm1m") || strings.Contains(lowerHost, "mbp-m1") {
-		return "Apple MacBook Pro (16-inch, M1 Pro)"
+	if strings.Contains(lowerHost, "mbpm1m") || strings.Contains(lowerHost, "mbp-m1-max") || strings.Contains(lowerHost, "mbp-m1m") {
+		return "Apple MacBook Pro (14-inch, M1 Max)"
+	}
+	if strings.Contains(lowerHost, "mbpm1p") || strings.Contains(lowerHost, "mbp-m1-pro") || strings.Contains(lowerHost, "mbp-m1") {
+		return "Apple MacBook Pro (14-inch, M1 Pro)"
 	}
 	if strings.Contains(lowerHost, "mac.parkside") {
 		return "Apple Mac"

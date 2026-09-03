@@ -31,7 +31,10 @@ func DetectDetailedOS(ip string, hostname, vendor, initialOS, mdnsModel, httpTit
 	if strings.Contains(combined, "ipad14") || strings.Contains(combined, "ipad") {
 		return "iPadOS 17 / 18 (Apple iPad)"
 	}
-	if strings.Contains(combined, "macbookpro18") || strings.Contains(combined, "mbpm1m") || strings.Contains(combined, "m1 pro") {
+	if strings.Contains(combined, "m1 max") || strings.Contains(combined, "mbpm1m") || strings.Contains(combined, "macbookpro18,4") || strings.Contains(combined, "macbookpro18,2") {
+		return "macOS 15 (Apple M1 Max)"
+	}
+	if strings.Contains(combined, "macbookpro18") || strings.Contains(combined, "m1 pro") || strings.Contains(combined, "mbpm1p") {
 		return "macOS 15 (Apple M1 Pro)"
 	}
 	if strings.Contains(combined, "mac16") || strings.Contains(combined, "m4 pro") {

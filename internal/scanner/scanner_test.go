@@ -165,10 +165,10 @@ func TestDetectDetailedOS(t *testing.T) {
 		t.Errorf("expected iPadOS 18, got %s", os2)
 	}
 
-	// 3. MacBook Pro M1 -> macOS 15
-	os3 := DetectDetailedOS("192.168.3.170", "mbpm1m.parkside.tokyo", "Apple", "macOS", "MacBookPro18,1", "", "", "", "")
-	if !strings.Contains(os3, "macOS 15") {
-		t.Errorf("expected macOS 15, got %s", os3)
+	// 3. MacBook Pro M1 Max -> macOS 15 (Apple M1 Max)
+	os3 := DetectDetailedOS("192.168.3.170", "mbpm1m.parkside.tokyo", "Apple", "macOS", "", "", "", "", "")
+	if !strings.Contains(os3, "M1 Max") {
+		t.Errorf("expected M1 Max, got %s", os3)
 	}
 
 	// 4. OpenWrt Web Title
