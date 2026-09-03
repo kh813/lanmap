@@ -490,6 +490,7 @@ func (h *Handler) HandleCreateOrUpdateSegment(w http.ResponseWriter, r *http.Req
 	iface := strings.TrimSpace(r.FormValue("interface_name"))
 	dhcpRange := strings.TrimSpace(r.FormValue("dhcp_range"))
 	isEnabled := r.FormValue("is_enabled") == "true"
+	isDHCPManual := r.FormValue("is_dhcp_manual") == "true"
 
 	if segID > 0 {
 		seg, _ := h.db.GetSegment(segID)
@@ -499,10 +500,11 @@ func (h *Handler) HandleCreateOrUpdateSegment(w http.ResponseWriter, r *http.Req
 			seg.InterfaceName = iface
 			seg.IsEnabled = isEnabled
 			seg.DHCPRange = dhcpRange
+			seg.IsDHCPManual = isDHCPManual
 			_ = h.db.UpdateSegment(seg)
 		}
 	} else {
-		_, _ = h.db.CreateSegmentWithDHCP(name, cidr, iface, isEnabled, dhcpRange)
+		_, _ = h.db.CreateSegmentWithDHCP(name, cidr, iface, isEnabled, dhcpRange, isDHCPManual)
 	}
 
 	w.Header().Set("HX-Trigger", "refreshSidebar, refreshMainTable")

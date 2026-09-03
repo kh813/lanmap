@@ -16,16 +16,17 @@ type Segment struct {
 	IsEnabled     bool      `json:"is_enabled"`
 	IsDefault     bool      `json:"is_default"`
 	DHCPRange     string    `json:"dhcp_range"`
+	IsDHCPManual  bool      `json:"is_dhcp_manual"`
 	CreatedAt     time.Time `json:"created_at"`
 }
 
 // CreateSegment creates a new network segment
 func (db *DB) CreateSegment(name, cidr, iface string, isEnabled bool) (*Segment, error) {
-	return db.CreateSegmentWithDHCP(name, cidr, iface, isEnabled, "")
+	return db.CreateSegmentWithDHCP(name, cidr, iface, isEnabled, "", false)
 }
 
 // CreateSegmentWithDHCP creates a new network segment with optional DHCP IP range
-func (db *DB) CreateSegmentWithDHCP(name, cidr, iface string, isEnabled bool, dhcpRange string) (*Segment, error) {
+func (db *DB) CreateSegmentWithDHCP(name, cidr, iface string, isEnabled bool, dhcpRange string, isDHCPManual bool) (*Segment, error) {
 	if cidr != "" {
 		_, _, err := net.ParseCIDR(cidr)
 		if err != nil {
@@ -34,8 +35,8 @@ func (db *DB) CreateSegmentWithDHCP(name, cidr, iface string, isEnabled bool, dh
 	}
 
 	res, err := db.Exec(
-		"INSERT INTO segments (name, cidr, interface_name, is_enabled, is_default, dhcp_range) VALUES (?, ?, ?, ?, 0, ?)",
-		name, cidr, iface, isEnabled, dhcpRange,
+		"INSERT INTO segments (name, cidr, interface_name, is_enabled, is_default, dhcp_range, is_dhcp_manual) VALUES (?, ?, ?, ?, 0, ?, ?)",
+		name, cidr, iface, isEnabled, dhcpRange, isDHCPManual,
 	)
 	if err != nil {
 		return nil, fmt.Errorf("failed to insert segment: %w", err)
@@ -51,10 +52,10 @@ func (db *DB) CreateSegmentWithDHCP(name, cidr, iface string, isEnabled bool, dh
 
 // GetSegment retrieves a segment by ID
 func (db *DB) GetSegment(id int64) (*Segment, error) {
-	row := db.QueryRow("SELECT id, name, cidr, interface_name, is_enabled, is_default, dhcp_range, created_at FROM segments WHERE id = ?", id)
+	row := db.QueryRow("SELECT id, name, cidr, interface_name, is_enabled, is_default, dhcp_range, is_dhcp_manual, created_at FROM segments WHERE id = ?", id)
 	var s Segment
 	var iface, dhcpRange sql.NullString
-	err := row.Scan(&s.ID, &s.Name, &s.CIDR, &iface, &s.IsEnabled, &s.IsDefault, &dhcpRange, &s.CreatedAt)
+	err := row.Scan(&s.ID, &s.Name, &s.CIDR, &iface, &s.IsEnabled, &s.IsDefault, &dhcpRange, &s.IsDHCPManual, &s.CreatedAt)
 	if err != nil {
 		if err == sql.ErrNoRows {
 			return nil, nil
@@ -68,10 +69,10 @@ func (db *DB) GetSegment(id int64) (*Segment, error) {
 
 // GetDefaultSegment retrieves the default (Uncategorized) segment
 func (db *DB) GetDefaultSegment() (*Segment, error) {
-	row := db.QueryRow("SELECT id, name, cidr, interface_name, is_enabled, is_default, dhcp_range, created_at FROM segments WHERE is_default = 1 LIMIT 1")
+	row := db.QueryRow("SELECT id, name, cidr, interface_name, is_enabled, is_default, dhcp_range, is_dhcp_manual, created_at FROM segments WHERE is_default = 1 LIMIT 1")
 	var s Segment
 	var iface, dhcpRange sql.NullString
-	err := row.Scan(&s.ID, &s.Name, &s.CIDR, &iface, &s.IsEnabled, &s.IsDefault, &dhcpRange, &s.CreatedAt)
+	err := row.Scan(&s.ID, &s.Name, &s.CIDR, &iface, &s.IsEnabled, &s.IsDefault, &dhcpRange, &s.IsDHCPManual, &s.CreatedAt)
 	if err != nil {
 		if err == sql.ErrNoRows {
 			return nil, nil
@@ -85,7 +86,7 @@ func (db *DB) GetDefaultSegment() (*Segment, error) {
 
 // ListSegments returns all segments
 func (db *DB) ListSegments() ([]*Segment, error) {
-	rows, err := db.Query("SELECT id, name, cidr, interface_name, is_enabled, is_default, dhcp_range, created_at FROM segments ORDER BY is_default DESC, id ASC")
+	rows, err := db.Query("SELECT id, name, cidr, interface_name, is_enabled, is_default, dhcp_range, is_dhcp_manual, created_at FROM segments ORDER BY is_default DESC, id ASC")
 	if err != nil {
 		return nil, err
 	}
@@ -95,7 +96,7 @@ func (db *DB) ListSegments() ([]*Segment, error) {
 	for rows.Next() {
 		var s Segment
 		var iface, dhcpRange sql.NullString
-		if err := rows.Scan(&s.ID, &s.Name, &s.CIDR, &iface, &s.IsEnabled, &s.IsDefault, &dhcpRange, &s.CreatedAt); err != nil {
+		if err := rows.Scan(&s.ID, &s.Name, &s.CIDR, &iface, &s.IsEnabled, &s.IsDefault, &dhcpRange, &s.IsDHCPManual, &s.CreatedAt); err != nil {
 			return nil, err
 		}
 		s.InterfaceName = iface.String
@@ -115,8 +116,8 @@ func (db *DB) UpdateSegment(s *Segment) error {
 	}
 
 	_, err := db.Exec(
-		"UPDATE segments SET name = ?, cidr = ?, interface_name = ?, is_enabled = ?, dhcp_range = ? WHERE id = ?",
-		s.Name, s.CIDR, s.InterfaceName, s.IsEnabled, s.DHCPRange, s.ID,
+		"UPDATE segments SET name = ?, cidr = ?, interface_name = ?, is_enabled = ?, dhcp_range = ?, is_dhcp_manual = ? WHERE id = ?",
+		s.Name, s.CIDR, s.InterfaceName, s.IsEnabled, s.DHCPRange, s.IsDHCPManual, s.ID,
 	)
 	return err
 }

@@ -764,8 +764,10 @@ func IsInDHCPRange(ipStr string, dhcpRange string) bool {
 	targetVal := ipToUint32(targetIP)
 	lastOctet := int(targetIP[3])
 
-	// Split multiple ranges if comma-separated
-	parts := strings.Split(dhcpRange, ",")
+	// Split multiple ranges (comma, newline, semicolon)
+	parts := strings.FieldsFunc(dhcpRange, func(r rune) bool {
+		return r == ',' || r == '\n' || r == '\r' || r == ';'
+	})
 	for _, p := range parts {
 		p = strings.TrimSpace(p)
 		if p == "" {
@@ -919,6 +921,11 @@ func (db *DB) AutoAdjustSegmentDHCPRange(segID int64) (string, error) {
 	}
 	if seg == nil {
 		return "", fmt.Errorf("segment not found: %d", segID)
+	}
+
+	// Skip auto-adjustment if the user has manually fixed the DHCP range
+	if seg.IsDHCPManual {
+		return seg.DHCPRange, nil
 	}
 
 	hosts, err := db.ListHosts(&segID, false)

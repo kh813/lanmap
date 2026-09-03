@@ -500,7 +500,7 @@ func TestDHCPRangeAndGuess(t *testing.T) {
 	}
 	defer testDB.Close()
 
-	seg, err := testDB.CreateSegmentWithDHCP("Office LAN", "192.168.1.0/24", "eth0", true, "100-200")
+	seg, err := testDB.CreateSegmentWithDHCP("Office LAN", "192.168.1.0/24", "eth0", true, "100-200", false)
 	if err != nil {
 		t.Fatalf("CreateSegmentWithDHCP failed: %v", err)
 	}
@@ -541,13 +541,28 @@ func TestDHCPRangeAndGuess(t *testing.T) {
 
 	_, _ = testDB.ToggleHostDHCP("192.168.1.160")
 
-	// Test AutoAdjustSegmentDHCPRange
+	// Test AutoAdjustSegmentDHCPRange (when not manual)
 	newRange, err := testDB.AutoAdjustSegmentDHCPRange(seg.ID)
 	if err != nil {
 		t.Fatalf("AutoAdjustSegmentDHCPRange failed: %v", err)
 	}
 	if newRange != "100-200" {
 		t.Errorf("expected auto adjusted range 100-200, got %s", newRange)
+	}
+
+	// Test AutoAdjustSegmentDHCPRange skipped when IsDHCPManual is true
+	seg.IsDHCPManual = true
+	seg.DHCPRange = "120-130"
+	_ = testDB.UpdateSegment(seg)
+
+	skippedRange, err := testDB.AutoAdjustSegmentDHCPRange(seg.ID)
+	if err != nil || skippedRange != "120-130" {
+		t.Errorf("expected auto adjust to be skipped for manual segment, got %s", skippedRange)
+	}
+
+	// Test multiple ranges with newline and semicolon
+	if !IsInDHCPRange("192.168.1.125", "10-20\n120-130;200-210") {
+		t.Errorf("expected 192.168.1.125 to match newline/semicolon delimited range")
 	}
 
 	// Test FindSegmentForIP

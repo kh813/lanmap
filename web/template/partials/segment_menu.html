@@ -24,7 +24,6 @@
     <!-- Edit Details -->
     <div class="py-1">
         <button hx-get="/modals/segment?id={{.Segment.ID}}" hx-target="#modal-container" hx-swap="innerHTML"
-                onclick="event.stopPropagation(); this.closest('#segment-menu-{{.Segment.ID}}').innerHTML = '';"
                 class="w-full text-left px-3 py-1.5 hover:bg-slate-100 dark:hover:bg-slate-800 flex items-center space-x-2 text-slate-700 dark:text-slate-300">
             <span>✏️</span>
             <span>セグメント情報を編集</span>

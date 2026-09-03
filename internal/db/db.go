@@ -52,6 +52,7 @@ func (db *DB) migrate() error {
 		is_enabled BOOLEAN DEFAULT 1,
 		is_default BOOLEAN DEFAULT 0,
 		dhcp_range VARCHAR(100) DEFAULT '',
+		is_dhcp_manual BOOLEAN DEFAULT 0,
 		created_at DATETIME DEFAULT CURRENT_TIMESTAMP
 	);
 
@@ -144,6 +145,7 @@ func (db *DB) migrate() error {
 	_, _ = db.Exec("ALTER TABLE hosts ADD COLUMN is_storming BOOLEAN DEFAULT 0;")
 	_, _ = db.Exec("ALTER TABLE hosts ADD COLUMN is_dhcp BOOLEAN DEFAULT 0;")
 	_, _ = db.Exec("ALTER TABLE segments ADD COLUMN dhcp_range VARCHAR(100) DEFAULT '';")
+	_, _ = db.Exec("ALTER TABLE segments ADD COLUMN is_dhcp_manual BOOLEAN DEFAULT 0;")
 
 	return nil
 }
