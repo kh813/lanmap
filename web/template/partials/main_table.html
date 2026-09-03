@@ -79,6 +79,7 @@
                         <th class="py-3 px-3">表示名</th>
                         <th class="py-3 px-3">メーカー / モデル</th>
                         <th class="py-3 px-3">推定OS</th>
+                        <th class="py-3 px-3 text-center">接続形態</th>
                         <th class="py-3 px-3 text-center">承認</th>
                         <th class="py-3 px-3 text-center">状態</th>
                         <th class="py-3 px-3 text-center">応答速度</th>
@@ -90,14 +91,14 @@
                 <tbody id="host-table-body" class="divide-y divide-slate-100 dark:divide-slate-800/60">
                     {{if eq (len .Hosts) 0}}
                     <tr>
-                        <td colspan="11" class="py-12 text-center text-slate-400 dark:text-slate-500">
+                        <td colspan="12" class="py-12 text-center text-slate-400 dark:text-slate-500">
                             ホストが見つかりません。「Scan Now」を実行するか、手動でホストを追加してください。
                         </td>
                     </tr>
                     {{end}}
 
                     <tr id="no-match-row" class="hidden">
-                        <td colspan="11" class="py-12 text-center text-slate-400 dark:text-slate-500">
+                        <td colspan="12" class="py-12 text-center text-slate-400 dark:text-slate-500">
                             🔍 検索条件に一致する端末が見つかりませんでした。
                         </td>
                     </tr>
@@ -308,15 +309,17 @@
                             {{if .VendorModel}}{{.VendorModel}}{{else}}<span class="text-slate-400 dark:text-slate-600">Unknown</span>{{end}}
                         </td>
 
-                        <!-- OS & Connection Type -->
+                        <!-- OS -->
                         <td class="py-3 px-3 text-slate-600 dark:text-slate-400">
-                            <div class="flex items-center space-x-1.5">
-                                <span class="text-xs">{{if .OSVendor}}{{.OSVendor}}{{else}}-{{end}}</span>
-                                <span class="inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-medium border {{.ConnectionBadgeClass}}"
-                                      title="接続形態: {{.ConnectionLabel}} (判定理由: {{.ConnectionReason}})">
-                                    {{.ConnectionLabel}}
-                                </span>
-                            </div>
+                            {{if .OSVendor}}{{.OSVendor}}{{else}}<span class="text-slate-400 dark:text-slate-600">-</span>{{end}}
+                        </td>
+
+                        <!-- Connection Type (Dedicated Column) -->
+                        <td class="py-3 px-3 text-center">
+                            <span class="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-medium border {{.ConnectionBadgeClass}}"
+                                  title="接続形態: {{.ConnectionLabel}} (判定理由: {{.ConnectionReason}})">
+                                {{.ConnectionLabel}}
+                            </span>
                         </td>
 
                         <!-- Approval Status (Section 6.1) -->
