@@ -373,12 +373,13 @@
 
                         <!-- Action Menu Button -->
                         <td class="py-3 px-3 text-right relative">
-                            <button hx-get="/partials/action_menu?ip={{.IP}}" hx-target="#action-menu-{{.IP}}" hx-swap="innerHTML"
-                                    class="p-1 rounded text-slate-500 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white hover:bg-slate-100 dark:hover:bg-slate-800 transition font-bold text-sm tracking-widest px-2">
+                            <button hx-get="/partials/action_menu?ip={{.IP}}" hx-target="#action-menu-{{.IPID}}" hx-swap="innerHTML"
+                                    onclick="const m = document.getElementById('action-menu-{{.IPID}}'); if (m && m.children.length > 0) { m.innerHTML = ''; event.stopImmediatePropagation(); }"
+                                    class="p-1 rounded text-slate-500 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white hover:bg-slate-100 dark:hover:bg-slate-800 transition font-bold text-sm tracking-widest px-2 focus:outline-none">
                                 ...
                             </button>
                             <!-- Dropdown container -->
-                            <div id="action-menu-{{.IP}}" class="relative"></div>
+                            <div id="action-menu-{{.IPID}}" class="relative"></div>
                         </td>
                     </tr>
                     {{end}}

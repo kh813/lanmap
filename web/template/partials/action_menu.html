@@ -1,4 +1,7 @@
-<div class="absolute right-0 top-full mt-1 w-56 bg-white dark:bg-slate-950 border border-slate-200 dark:border-slate-700 rounded-lg shadow-xl py-1.5 z-50 text-left text-xs divide-y divide-slate-100 dark:divide-slate-800">
+<!-- Invisible Backdrop to close menu on outside click -->
+<div class="fixed inset-0 z-40 bg-transparent" onclick="this.parentElement.innerHTML = ''"></div>
+
+<div class="absolute right-0 top-full mt-1 w-56 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl shadow-2xl py-1.5 z-50 text-left text-xs divide-y divide-slate-100 dark:divide-slate-800 animate-fade-in">
     <div class="py-1">
         <!-- Toggle Approval -->
         <button hx-post="/api/hosts/{{.Host.IP}}/toggle_approval" hx-target="#main-content" hx-swap="outerHTML"
