@@ -124,4 +124,12 @@ func TestWebRoutes(t *testing.T) {
 	if ret != 90 {
 		t.Errorf("expected retention days updated to 90, got %d", ret)
 	}
+
+	// 7. Test Check Update endpoint
+	req = httptest.NewRequest("GET", "/api/system/update/check", nil)
+	rec = httptest.NewRecorder()
+	router.ServeHTTP(rec, req)
+	if rec.Code != http.StatusOK {
+		t.Errorf("expected 200 from update check, got %d", rec.Code)
+	}
 }

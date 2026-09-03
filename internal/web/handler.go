@@ -16,6 +16,7 @@ import (
 	"lanmap/internal/kuma"
 	"lanmap/internal/notifier"
 	"lanmap/internal/scanner"
+	"lanmap/internal/updater"
 	"lanmap/web"
 )
 
@@ -499,6 +500,102 @@ func (h *Handler) HandleTestWebhook(w http.ResponseWriter, r *http.Request) {
 		<div class="mt-1 p-2 bg-emerald-50 dark:bg-emerald-950/40 border border-emerald-300 dark:border-emerald-700 rounded text-emerald-800 dark:text-emerald-300 text-[11px] flex items-center space-x-1.5 animate-fade-in">
 			<span class="shrink-0 font-bold">✅ 送信成功:</span>
 			<span>テスト通知が正常に送信されました (HTTP 200)</span>
+		</div>
+	`))
+}
+
+// HandleCheckUpdate queries GitHub Releases for updates
+func (h *Handler) HandleCheckUpdate(w http.ResponseWriter, r *http.Request) {
+	currentVer := "v0.0.4"
+	rel, err := updater.CheckLatestRelease(currentVer)
+	if err != nil {
+		w.Header().Set("Content-Type", "text/html; charset=utf-8")
+		w.WriteHeader(http.StatusOK)
+		_, _ = w.Write([]byte(fmt.Sprintf(`
+			<div class="p-3 bg-red-50 dark:bg-red-950/40 border border-red-200 dark:border-red-800 rounded-lg text-red-700 dark:text-red-300 text-xs">
+				❌ 更新確認に失敗しました: %s
+			</div>
+		`, err.Error())))
+		return
+	}
+
+	w.Header().Set("Content-Type", "text/html; charset=utf-8")
+	if rel.IsNewer {
+		bodyEscaped := template.HTMLEscapeString(rel.Body)
+		if len(bodyEscaped) > 300 {
+			bodyEscaped = bodyEscaped[:300] + "..."
+		}
+		_, _ = w.Write([]byte(fmt.Sprintf(`
+			<div class="p-3 bg-blue-50 dark:bg-blue-950/60 border border-blue-200 dark:border-blue-800 rounded-lg text-xs space-y-2 text-slate-800 dark:text-slate-100 animate-fade-in">
+				<div class="flex items-center justify-between">
+					<span class="font-bold text-blue-700 dark:text-blue-300 text-sm">🚀 新バージョン %s が利用可能です！</span>
+					<span class="text-[10px] text-slate-500">%s 公開</span>
+				</div>
+				<p class="text-[11px] text-slate-600 dark:text-slate-300 whitespace-pre-line font-mono bg-white/60 dark:bg-slate-900/60 p-2 rounded border border-slate-200/60 dark:border-slate-800/60">%s</p>
+				<div class="pt-1 flex items-center space-x-2">
+					<button type="button"
+							hx-post="/api/system/update/apply?url=%s"
+							hx-target="#update-check-result"
+							hx-swap="innerHTML"
+							hx-indicator="#update-spinner"
+							class="px-4 py-2 rounded-lg bg-emerald-600 hover:bg-emerald-500 text-white font-bold transition shadow text-xs flex items-center space-x-1.5 cursor-pointer">
+						<span>⚡</span>
+						<span>今すぐ %s へアップデートして再起動</span>
+					</button>
+					<a href="https://github.com/kh813/lanmap/releases/tag/%s" target="_blank" rel="noopener noreferrer"
+					   class="px-3 py-2 rounded-lg bg-slate-200 dark:bg-slate-800 hover:bg-slate-300 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-300 font-medium transition text-xs flex items-center space-x-1">
+						<span>🔗 リリースノート</span>
+					</a>
+				</div>
+				<div id="update-spinner" class="htmx-indicator text-blue-600 dark:text-blue-400 text-xs pt-1 font-bold animate-pulse">
+					⏳ 最新バイナリをダウンロードして更新・再起動中...
+				</div>
+			</div>
+		`, rel.TagName, rel.PublishedAt.Format("2006-01-02 15:04"), bodyEscaped, template.URLQueryEscaper(rel.AssetURL), rel.TagName, rel.TagName)))
+	} else {
+		_, _ = w.Write([]byte(fmt.Sprintf(`
+			<div class="p-3 bg-emerald-50 dark:bg-emerald-950/40 border border-emerald-200 dark:border-emerald-800 rounded-lg text-emerald-700 dark:text-emerald-300 text-xs flex items-center justify-between animate-fade-in">
+				<span class="font-medium">✅ 現在、最新バージョン (%s) を使用しています。</span>
+				<span class="text-[10px] text-emerald-600 dark:text-emerald-400 font-mono">最終確認: %s</span>
+			</div>
+		`, currentVer, time.Now().Format("15:04:05"))))
+	}
+}
+
+// HandleApplyUpdate downloads and applies the new release
+func (h *Handler) HandleApplyUpdate(w http.ResponseWriter, r *http.Request) {
+	assetURL := r.URL.Query().Get("url")
+	if assetURL == "" {
+		http.Error(w, "Asset URL required", http.StatusBadRequest)
+		return
+	}
+
+	w.Header().Set("Content-Type", "text/html; charset=utf-8")
+	if err := updater.DownloadAndApplyUpdate(assetURL); err != nil {
+		w.WriteHeader(http.StatusOK)
+		_, _ = w.Write([]byte(fmt.Sprintf(`
+			<div class="p-3 bg-red-50 dark:bg-red-950/40 border border-red-200 dark:border-red-800 rounded-lg text-red-700 dark:text-red-300 text-xs">
+				❌ アップデート適用に失敗しました: %s
+			</div>
+		`, err.Error())))
+		return
+	}
+
+	// Trigger self restart in background
+	_ = updater.RestartSelf()
+
+	_, _ = w.Write([]byte(`
+		<div class="p-4 bg-emerald-50 dark:bg-emerald-950/60 border border-emerald-300 dark:border-emerald-700 rounded-lg text-emerald-800 dark:text-emerald-200 text-xs space-y-2 animate-pulse">
+			<div class="font-bold text-sm flex items-center space-x-1.5">
+				<span>🎉</span>
+				<span>アップデートが正常に完了しました！</span>
+			</div>
+			<p>最新バイナリへ更新され、プロセスが自動再起動しています。5秒後に画面を自動再読み込みします...</p>
+			<script>
+				setTimeout(function() {
+					window.location.reload();
+				}, 4500);
+			</script>
 		</div>
 	`))
 }

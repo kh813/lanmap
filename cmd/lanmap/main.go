@@ -9,6 +9,7 @@ import (
 	"net/http"
 	"os"
 	"os/signal"
+	"runtime"
 	"syscall"
 	"time"
 
@@ -19,6 +20,7 @@ import (
 	"lanmap/internal/notifier"
 	"lanmap/internal/scanner"
 	"lanmap/internal/service"
+	"lanmap/internal/updater"
 	"lanmap/internal/web"
 )
 
@@ -29,6 +31,9 @@ func main() {
 		switch os.Args[1] {
 		case "version", "-v", "--version":
 			fmt.Printf("lanmap (lmap) %s\n", Version)
+			return
+		case "update", "upgrade":
+			handleCLIUpdate()
 			return
 		case "service":
 			if len(os.Args) < 3 {
@@ -46,6 +51,32 @@ func main() {
 	}
 
 	runServer()
+}
+
+func handleCLIUpdate() {
+	fmt.Printf("🔍 Checking for updates on GitHub (current: %s)...\n", Version)
+	rel, err := updater.CheckLatestRelease(Version)
+	if err != nil {
+		log.Fatalf("❌ Failed to check for updates: %v", err)
+	}
+
+	if !rel.IsNewer {
+		fmt.Printf("✅ You are already using the latest version (%s).\n", Version)
+		return
+	}
+
+	fmt.Printf("🚀 Found new release: %s (Published: %s)\n", rel.TagName, rel.PublishedAt.Format("2006-01-02 15:04"))
+	if rel.AssetURL == "" {
+		log.Fatalf("❌ No matching release asset found for %s/%s", runtime.GOOS, runtime.GOARCH)
+	}
+
+	fmt.Printf("⬇️  Downloading asset %s...\n", rel.AssetName)
+	if err := updater.DownloadAndApplyUpdate(rel.AssetURL); err != nil {
+		log.Fatalf("❌ Update failed: %v", err)
+	}
+
+	fmt.Printf("🎉 Successfully updated to %s!\n", rel.TagName)
+	fmt.Println("Please restart lanmap or run 'lanmap service restart' to run the new version.")
 }
 
 func printHelp() {

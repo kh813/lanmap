@@ -73,9 +73,11 @@ func NewRouter(h *Handler) http.Handler {
 		h.HandleDeleteSegment(w, r, id)
 	})
 
-	// Settings, Kuma Sync & Scan
+	// Settings, Webhook Test, Update, Kuma Sync & Scan
 	mux.HandleFunc("POST /api/settings", h.HandleSaveSettings)
 	mux.HandleFunc("POST /api/webhooks/test", h.HandleTestWebhook)
+	mux.HandleFunc("GET /api/system/update/check", h.HandleCheckUpdate)
+	mux.HandleFunc("POST /api/system/update/apply", h.HandleApplyUpdate)
 	mux.HandleFunc("POST /api/kuma/sync", h.HandleKumaSync)
 	mux.HandleFunc("POST /api/scan", h.HandleScanNow)
 
