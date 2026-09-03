@@ -8,7 +8,7 @@ import (
 	"io"
 	"log"
 	"net/http"
-	"net/url"
+	// "net/url" // (Uncomment if enabling LINE Notify)
 	"strings"
 	"sync"
 	"time"
@@ -78,8 +78,6 @@ func (n *Notifier) NotifyUnapprovedHosts(ctx context.Context, hosts []*db.Host) 
 	slackURL := strings.TrimSpace(settings["webhook_slack_url"])
 	discordURL := strings.TrimSpace(settings["webhook_discord_url"])
 	teamsURL := strings.TrimSpace(settings["webhook_teams_url"])
-	lineToken := strings.TrimSpace(settings["webhook_line_token"])
-	lineURL := strings.TrimSpace(settings["webhook_line_url"])
 
 	var errs []string
 
@@ -111,7 +109,10 @@ func (n *Notifier) NotifyUnapprovedHosts(ctx context.Context, hosts []*db.Host) 
 		}
 	}
 
-	// LINE Notify
+	/*
+	// LINE Notify (Uncomment if needed)
+	lineToken := strings.TrimSpace(settings["webhook_line_token"])
+	lineURL := strings.TrimSpace(settings["webhook_line_url"])
 	if lineToken != "" {
 		if err := n.sendLINENotify(ctx, lineToken, hosts); err != nil {
 			errs = append(errs, fmt.Sprintf("LINE Notify: %v", err))
@@ -121,6 +122,7 @@ func (n *Notifier) NotifyUnapprovedHosts(ctx context.Context, hosts []*db.Host) 
 			errs = append(errs, fmt.Sprintf("LINE Webhook: %v", err))
 		}
 	}
+	*/
 
 	if len(errs) > 0 {
 		return fmt.Errorf("webhook errors: %s", strings.Join(errs, "; "))
@@ -260,6 +262,9 @@ func (n *Notifier) sendTeams(ctx context.Context, webhookURL string, hosts []*db
 	return n.postJSON(ctx, webhookURL, payload)
 }
 
+/*
+// LINE Notify Integration (Uncomment when ready to test & enable)
+// Note: also uncomment "net/url" in imports at top of file
 func (n *Notifier) sendLINENotify(ctx context.Context, token string, hosts []*db.Host) error {
 	var sb strings.Builder
 	sb.WriteString(fmt.Sprintf("\n🚨【lanmap 警戒】未承認端末検出 (%d 件)\n", len(hosts)))
@@ -293,6 +298,7 @@ func (n *Notifier) postLineRawMessage(ctx context.Context, token, message string
 
 	return nil
 }
+*/
 
 func (n *Notifier) postJSON(ctx context.Context, endpoint string, data interface{}) error {
 	body, err := json.Marshal(data)
@@ -405,9 +411,11 @@ func (n *Notifier) NotifyBroadcastStorm(ctx context.Context, host *db.Host, coun
 		})
 	}
 
+	/*
 	if lineToken := settings["webhook_line_token"]; lineToken != "" {
 		_ = n.postLineRawMessage(ctx, lineToken, fmt.Sprintf("\n%s\n%s", title, body))
 	}
+	*/
 
 	return nil
 }
