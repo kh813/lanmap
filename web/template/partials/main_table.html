@@ -14,7 +14,7 @@
                 {{end}}
             </div>
             <p id="host-count-badge" class="text-xs text-slate-500 dark:text-slate-400 mt-0.5">
-                合計 {{len .Hosts}} 台の端末が登録されています (30秒ごとに自動更新 / IPホバーでWeb名・型番・SSL・ポート詳細表示)
+                {{tf .Lang "table_total_hosts" (len .Hosts)}}
             </p>
         </div>
 
@@ -26,7 +26,7 @@
                 </span>
                 <input type="text"
                        id="host-search-input"
-                       placeholder="検索 (IP, ホスト名, モデル, ポート等)..."
+                       placeholder="{{t .Lang "search_placeholder"}}"
                        oninput="filterTableRows(this.value)"
                        class="w-full pl-8 pr-7 py-1.5 bg-slate-100 dark:bg-slate-900 border border-slate-300 dark:border-slate-700 rounded-lg text-xs text-slate-900 dark:text-slate-100 placeholder-slate-400 focus:outline-none focus:border-blue-500 font-sans transition">
                 <button type="button"
@@ -43,12 +43,12 @@
                 <button hx-get="/partials/main_table?segment_id={{.CurrentSegmentID}}&online_only=true"
                         hx-target="#main-content" hx-swap="outerHTML"
                         class="px-2.5 py-1 rounded-md font-medium transition {{if .OnlineOnly}}bg-white text-slate-900 dark:bg-slate-900 dark:text-white shadow-sm{{else}}text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-200{{end}}">
-                    🟢 オンラインのみ
+                    {{t .Lang "table_filter_online"}}
                 </button>
                 <button hx-get="/partials/main_table?segment_id={{.CurrentSegmentID}}&online_only=false"
                         hx-target="#main-content" hx-swap="outerHTML"
                         class="px-2.5 py-1 rounded-md font-medium transition {{if not .OnlineOnly}}bg-white text-slate-900 dark:bg-slate-900 dark:text-white shadow-sm{{else}}text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-200{{end}}">
-                    📋 すべて
+                    {{t .Lang "table_filter_all"}}
                 </button>
             </div>
 
@@ -56,15 +56,27 @@
             <button hx-get="/modals/add_host" hx-target="#modal-container" hx-swap="innerHTML"
                     class="flex items-center space-x-1.5 px-3 py-1.5 rounded-lg bg-white hover:bg-slate-100 dark:bg-slate-800 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-200 border border-slate-300 dark:border-slate-700 text-xs font-medium transition shadow-sm">
                 <span>➕</span>
-                <span>追加</span>
+                <span>{{t .Lang "table_btn_add"}}</span>
             </button>
 
             <!-- Scan Now -->
             <button hx-post="/api/scan?segment_id={{.CurrentSegmentID}}" hx-target="#main-content" hx-swap="outerHTML"
                     class="flex items-center space-x-1.5 px-3 py-1.5 rounded-lg bg-blue-600 hover:bg-blue-500 text-white text-xs font-medium transition shadow-sm">
                 <span>⚡</span>
-                <span>Scan Now</span>
+                <span>{{t .Lang "table_btn_scan_now"}}</span>
             </button>
+
+            <!-- Language Switcher (EN / JP) -->
+            <div class="bg-slate-200/80 dark:bg-slate-800/80 p-0.5 rounded-lg flex text-[11px] font-bold border border-slate-300 dark:border-slate-700">
+                <button type="button" onclick="changeLanguage('en')" title="Switch to English"
+                        class="px-2 py-0.5 rounded transition {{if eq .Lang "en"}}bg-white text-blue-600 dark:bg-slate-900 dark:text-blue-400 shadow-sm{{else}}text-slate-500 hover:text-slate-800 dark:text-slate-400 dark:hover:text-white{{end}}">
+                    EN
+                </button>
+                <button type="button" onclick="changeLanguage('ja')" title="日本語に切り替え"
+                        class="px-2 py-0.5 rounded transition {{if eq .Lang "ja"}}bg-white text-blue-600 dark:bg-slate-900 dark:text-blue-400 shadow-sm{{else}}text-slate-500 hover:text-slate-800 dark:text-slate-400 dark:hover:text-white{{end}}">
+                    JP
+                </button>
+            </div>
         </div>
     </header>
 
@@ -74,40 +86,40 @@
         <div class="px-3.5 py-2 bg-blue-50/70 dark:bg-blue-950/40 border border-blue-200/80 dark:border-blue-800/60 rounded-lg text-[11px] text-blue-700 dark:text-blue-300 flex items-center justify-between">
             <div class="flex items-center space-x-2">
                 <span>💡</span>
-                <span>任意の行をクリックすると、<strong>過去7日間のPingレスポンスグラフ・死活分析</strong>を含む詳細モーダルが開きます。</span>
+                <span>{{t .Lang "table_guide_banner" | safeHTML}}</span>
             </div>
-            <span class="text-[10px] text-blue-600/80 dark:text-blue-400/80 font-mono hidden sm:inline">クリック: 詳細モーダル / ホバー: クイック概要</span>
+            <span class="text-[10px] text-blue-600/80 dark:text-blue-400/80 font-mono hidden sm:inline">{{t .Lang "table_guide_banner_sub"}}</span>
         </div>
 
         <div class="border border-slate-200 dark:border-slate-800 rounded-lg overflow-visible bg-white dark:bg-slate-950/60 shadow-sm">
             <table class="w-full text-left border-collapse text-xs">
                 <thead>
                     <tr class="border-b border-slate-200 dark:border-slate-800 bg-slate-100/80 dark:bg-slate-900/80 text-slate-600 dark:text-slate-400 font-semibold uppercase tracking-wider text-[11px]">
-                        <th class="py-3 px-3">IPアドレス / 詳細</th>
-                        <th class="py-3 px-3">ホスト名</th>
-                        <th class="py-3 px-3">表示名</th>
-                        <th class="py-3 px-3">メーカー / モデル</th>
-                        <th class="py-3 px-3">推定OS</th>
-                        <th class="py-3 px-3 text-center">接続形態</th>
-                        <th class="py-3 px-3 text-center">承認</th>
-                        <th class="py-3 px-3 text-center">状態</th>
-                        <th class="py-3 px-3 text-center">応答速度</th>
-                        <th class="py-3 px-3 text-center">固定IP</th>
-                        <th class="py-3 px-3 text-right">操作</th>
+                        <th class="py-3 px-3">{{t .Lang "col_ip_details"}}</th>
+                        <th class="py-3 px-3">{{t .Lang "col_hostname"}}</th>
+                        <th class="py-3 px-3">{{t .Lang "col_display_name"}}</th>
+                        <th class="py-3 px-3">{{t .Lang "col_vendor_model"}}</th>
+                        <th class="py-3 px-3">{{t .Lang "col_os"}}</th>
+                        <th class="py-3 px-3 text-center">{{t .Lang "col_connection"}}</th>
+                        <th class="py-3 px-3 text-center">{{t .Lang "col_approval"}}</th>
+                        <th class="py-3 px-3 text-center">{{t .Lang "col_status"}}</th>
+                        <th class="py-3 px-3 text-center">{{t .Lang "col_latency"}}</th>
+                        <th class="py-3 px-3 text-center">{{t .Lang "col_static_ip"}}</th>
+                        <th class="py-3 px-3 text-right">{{t .Lang "col_actions"}}</th>
                     </tr>
                 </thead>
                 <tbody id="host-table-body" class="divide-y divide-slate-100 dark:divide-slate-800/60">
                     {{if eq (len .Hosts) 0}}
                     <tr>
                         <td colspan="11" class="py-12 text-center text-slate-400 dark:text-slate-500">
-                            ホストが見つかりません。「Scan Now」を実行するか、手動でホストを追加してください。
+                            {{t .Lang "table_no_hosts"}}
                         </td>
                     </tr>
                     {{end}}
 
                     <tr id="no-match-row" class="hidden">
                         <td colspan="11" class="py-12 text-center text-slate-400 dark:text-slate-500">
-                            🔍 検索条件に一致する端末が見つかりませんでした。
+                            {{t .Lang "table_no_match"}}
                         </td>
                     </tr>
 
@@ -124,11 +136,11 @@
                             onmouseleave="hideHostPopover('popover-{{.IPID}}')">
                             <div class="flex items-center space-x-1.5">
                                 {{if .IsStorming}}
-                                <span title="🚨 ブロードキャスト過多・ストーム異常検知" class="text-red-600 font-bold text-base animate-bounce">💥</span>
+                                <span title="{{t $.Lang "badge_storm_alert"}}" class="text-red-600 font-bold text-base animate-bounce">💥</span>
                                 {{else if .IsDHCP}}
-                                <span title="DHCP動的端末 (自動許可)" class="text-emerald-500 font-bold text-xs">🟢</span>
+                                <span title="DHCP" class="text-emerald-500 font-bold text-xs">🟢</span>
                                 {{else if not .IsApproved}}
-                                <span title="未承認端末 (警戒対象)" class="text-red-500 font-bold">⚠️</span>
+                                <span title="{{t $.Lang "badge_unapproved"}}" class="text-red-500 font-bold">⚠️</span>
                                 {{end}}
                                 <div>
                                     <div class="font-mono font-medium text-slate-900 dark:text-slate-100 flex items-center space-x-1 group-hover/ip:text-blue-600 dark:group-hover/ip:text-blue-400 transition-colors">
@@ -151,24 +163,24 @@
                                             <div class="font-bold text-slate-900 dark:text-white font-mono text-xs flex items-center space-x-2">
                                                 <span>{{.IP}}</span>
                                                 {{if .IsStaticIP}}
-                                                <span class="px-1 py-0.2 rounded text-[9px] bg-slate-100 text-slate-600 dark:bg-slate-800 dark:text-slate-400">固定IP</span>
+                                                <span class="px-1 py-0.2 rounded text-[9px] bg-slate-100 text-slate-600 dark:bg-slate-800 dark:text-slate-400">{{t $.Lang "col_static_ip"}}</span>
                                                 {{else if .IsDHCP}}
                                                 <span class="px-1.5 py-0.2 rounded text-[9px] bg-emerald-100 text-emerald-800 dark:bg-emerald-950/60 dark:text-emerald-300 font-medium">🟢 DHCP</span>
                                                 {{end}}
                                             </div>
-                                            <div class="text-[10px] text-slate-500 truncate max-w-[200px]">{{if .Hostname}}{{.Hostname}}{{else}}ホスト名なし{{end}}</div>
+                                            <div class="text-[10px] text-slate-500 truncate max-w-[200px]">{{if .Hostname}}{{.Hostname}}{{else}}{{t $.Lang "popover_no_hostname"}}{{end}}</div>
                                         </div>
                                     </div>
                                     <div class="text-right">
                                         <span class="px-1.5 py-0.5 rounded text-[10px] font-medium {{if eq .Status "up"}}bg-emerald-100 text-emerald-800 dark:bg-emerald-500/10 dark:text-emerald-400{{else}}bg-slate-100 text-slate-600{{end}}">
-                                            {{.Status}} (稼働率: {{printf "%.1f" .UptimePct}}%)
+                                            {{.Status}} ({{t $.Lang "popover_uptime"}}: {{printf "%.1f" .UptimePct}}%)
                                         </span>
                                     </div>
                                 </div>
 
                                 <!-- Connection Medium Badge (Wired vs Wi-Fi) -->
                                 <div class="flex items-center justify-between text-[11px] bg-slate-50 dark:bg-slate-950/60 px-2.5 py-1.5 rounded-lg border border-slate-200/80 dark:border-slate-800">
-                                    <span class="text-slate-500 dark:text-slate-400 font-medium">🔗 接続形態:</span>
+                                    <span class="text-slate-500 dark:text-slate-400 font-medium">{{t $.Lang "popover_conn_type"}}</span>
                                     <div class="flex items-center space-x-1.5">
                                         <span class="inline-flex items-center px-2 py-0.5 rounded-full font-medium text-[11px] border {{.ConnectionBadgeClass}}">
                                             {{.ConnectionLabel}}
@@ -197,30 +209,30 @@
 
                                     {{if .MDNSModel}}
                                     <div class="flex items-start space-x-1.5">
-                                        <span class="text-slate-400 shrink-0">🍏 モデル:</span>
-                                        <span class="font-medium text-blue-700 dark:text-blue-400">{{.MDNSModel}}</span>
-                                    </div>
-                                    {{end}}
+                                         <span class="text-slate-400 shrink-0">🍏 {{if eq $.Lang "ja"}}モデル{{else}}Model{{end}}:</span>
+                                         <span class="font-medium text-blue-700 dark:text-blue-400">{{.MDNSModel}}</span>
+                                     </div>
+                                     {{end}}
 
-                                    {{if .HasTLS}}
-                                    <div class="flex items-start space-x-1.5">
-                                        <span class="text-slate-400 shrink-0">🔒 SSL:</span>
-                                        <div class="text-[10px] truncate">
-                                            <span class="font-medium text-slate-800 dark:text-slate-200">{{.TLSSubject}}</span>
-                                            {{if .TLSExpiry}}
-                                            <span class="ml-1 {{if .TLSExpiresSoon}}text-red-500 font-bold{{else}}text-slate-500{{end}}">
-                                                (残{{.DaysUntilTLSExpiry}}日{{if .TLSExpiresSoon}} ⚠️失効間近{{end}})
-                                            </span>
-                                            {{end}}
-                                        </div>
-                                    </div>
-                                    {{end}}
+                                     {{if .HasTLS}}
+                                     <div class="flex items-start space-x-1.5">
+                                         <span class="text-slate-400 shrink-0">🔒 SSL:</span>
+                                         <div class="text-[10px] truncate">
+                                             <span class="font-medium text-slate-800 dark:text-slate-200">{{.TLSSubject}}</span>
+                                             {{if .TLSExpiry}}
+                                             <span class="ml-1 {{if .TLSExpiresSoon}}text-red-500 font-bold{{else}}text-slate-500{{end}}">
+                                                 ({{if eq $.Lang "ja"}}残{{else}}Expires in {{end}}{{.DaysUntilTLSExpiry}}{{if eq $.Lang "ja"}}日{{else}}d{{end}}{{if .TLSExpiresSoon}} ⚠️{{if eq $.Lang "ja"}}失効間近{{else}}Expires soon{{end}}{{end}})
+                                             </span>
+                                             {{end}}
+                                         </div>
+                                     </div>
+                                     {{end}}
 
-                                    {{if and (not .HTTPTitle) (not .UPnPName) (not .UPnPModel) (not .MDNSModel) (not .HasTLS)}}
-                                    <div class="text-[10px] text-slate-400 dark:text-slate-500 italic">
-                                        メーカー: {{if .VendorModel}}{{.VendorModel}}{{else}}不明{{end}} / 推定OS: {{if .OSVendor}}{{.OSVendor}}{{else}}-{{end}}
-                                    </div>
-                                    {{end}}
+                                     {{if and (not .HTTPTitle) (not .UPnPName) (not .UPnPModel) (not .MDNSModel) (not .HasTLS)}}
+                                     <div class="text-[10px] text-slate-400 dark:text-slate-500 italic">
+                                         {{if eq $.Lang "ja"}}メーカー{{else}}Vendor{{end}}: {{if .VendorModel}}{{.VendorModel}}{{else}}{{t $.Lang "unknown"}}{{end}} / {{if eq $.Lang "ja"}}推定OS{{else}}OS{{end}}: {{if .OSVendor}}{{.OSVendor}}{{else}}-{{end}}
+                                     </div>
+                                     {{end}}
                                 </div>
 
                                 <!-- 24-Hour Ping Response & Uptime History Chart (Time-Proportional) -->
@@ -228,7 +240,7 @@
                                     <div class="flex items-center justify-between text-[11px]">
                                         <span class="font-bold text-slate-700 dark:text-slate-200 flex items-center space-x-1">
                                             <span>📈</span>
-                                            <span>Ping レスポンス推移 (過去24時間)</span>
+                                            <span>{{t $.Lang "popover_ping_chart"}}</span>
                                         </span>
                                     </div>
                                     <!-- Sparkline Line Chart (Accurately Plots from Detection Timestamp) -->
@@ -238,9 +250,9 @@
                                     <!-- Uptime Status Blocks (24h Time-Slotted) -->
                                     <div class="space-y-0.5 pt-0.5">
                                         <div class="flex items-center justify-between text-[9px] text-slate-400 dark:text-slate-500 font-mono">
-                                            <span>24時間前</span>
+                                            <span>24h</span>
                                             <span class="text-slate-600 dark:text-slate-400 font-sans font-medium">{{.PingStats7d}}</span>
-                                            <span>現在</span>
+                                            <span>now</span>
                                         </div>
                                         <div class="w-full">
                                             {{.UptimeBlocksSVG}}
@@ -251,9 +263,9 @@
                                 <!-- Open Ports & Services -->
                                 <div class="space-y-1">
                                     <div class="text-[11px] font-bold text-slate-700 dark:text-slate-300 flex items-center justify-between">
-                                        <span>🌐 オープンポート & 提供サービス:</span>
+                                        <span>{{t $.Lang "popover_open_ports"}}</span>
                                         {{if .HasOpenPorts}}
-                                        <span class="text-[10px] text-emerald-600 dark:text-emerald-400 font-mono">{{len .OpenPortsList}} 件検出</span>
+                                        <span class="text-[10px] text-emerald-600 dark:text-emerald-400 font-mono">{{len .OpenPortsList}}</span>
                                         {{end}}
                                     </div>
                                     {{if .HasOpenPorts}}
@@ -267,7 +279,7 @@
                                     </div>
                                     {{else}}
                                     <div class="text-[10px] text-slate-400 dark:text-slate-500 italic bg-slate-50 dark:bg-slate-950/40 p-1.5 rounded border border-slate-100 dark:border-slate-800">
-                                        オープンポートなし（通常クライアントPC / スマホ端末）
+                                        {{t $.Lang "popover_no_ports"}}
                                     </div>
                                     {{end}}
                                 </div>
@@ -275,23 +287,23 @@
                                 <!-- Network Quality (RTT & Jitter & Broadcast) -->
                                 <div class="grid grid-cols-2 gap-2 pt-1 border-t border-slate-100 dark:border-slate-800 text-[10px] text-slate-600 dark:text-slate-400">
                                     <div>
-                                        <span class="text-slate-400">Ping応答:</span>
+                                        <span class="text-slate-400">{{t $.Lang "col_latency"}}:</span>
                                         <div class="font-medium font-mono text-slate-800 dark:text-slate-200">
                                             {{if .HasPingRTT}}{{.PingRTTFormatted}} ({{.JitterFormatted}}){{else}}-{{end}}
                                         </div>
                                     </div>
                                     <div>
-                                        <span class="text-slate-400">ブロードキャスト:</span>
+                                        <span class="text-slate-400">Broadcast:</span>
                                         <div class="font-medium font-mono {{if .IsStorming}}text-red-500 font-bold{{else}}text-slate-800 dark:text-slate-200{{end}}">
-                                            {{.BroadcastCount1m}} pkt/分
+                                            {{.BroadcastCount1m}} pkt/m
                                         </div>
                                     </div>
                                 </div>
 
                                 <!-- Timestamps -->
                                 <div class="text-[9px] text-slate-400 dark:text-slate-500 border-t border-slate-100 dark:border-slate-800 pt-1 flex justify-between">
-                                    <span>初回: {{.FirstSeen.Format "2006-01-02 15:04"}}</span>
-                                    <span>最終: {{if .LastSeen}}{{.LastSeen.Format "15:04:05"}}{{else}}-{{end}}</span>
+                                    <span>{{t $.Lang "popover_first_seen"}} {{.FirstSeen.Format "2006-01-02 15:04"}}</span>
+                                    <span>{{t $.Lang "popover_last_seen"}} {{if .LastSeen}}{{.LastSeen.Format "15:04:05"}}{{else}}-{{end}}</span>
                                 </div>
                             </div>
                         </td>
@@ -314,7 +326,7 @@
 
                         <!-- Vendor / Model -->
                         <td class="py-3 px-3 text-slate-600 dark:text-slate-300">
-                            {{if .VendorModel}}{{.VendorModel}}{{else}}<span class="text-slate-400 dark:text-slate-600">Unknown</span>{{end}}
+                            {{if .VendorModel}}{{.VendorModel}}{{else}}<span class="text-slate-400 dark:text-slate-600">{{t $.Lang "unknown"}}</span>{{end}}
                         </td>
 
                         <!-- OS -->
@@ -325,7 +337,7 @@
                         <!-- Connection Type (Dedicated Column) -->
                         <td class="py-3 px-3 text-center">
                             <span class="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-medium border {{.ConnectionBadgeClass}}"
-                                  title="接続形態: {{.ConnectionLabel}} (判定理由: {{.ConnectionReason}})">
+                                  title="{{.ConnectionReason}}">
                                 {{.ConnectionLabel}}
                             </span>
                         </td>
@@ -334,29 +346,27 @@
                         <td class="py-3 px-3 text-center">
                             {{if .IsApproved}}
                             <span class="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-medium bg-emerald-100 text-emerald-800 dark:bg-emerald-500/10 dark:text-emerald-400 border border-emerald-200 dark:border-emerald-500/20">
-                                🟢 承認済
+                                {{t $.Lang "badge_approved"}}
                             </span>
                             {{else if .IsDHCP}}
                                 {{if .IsNewHost}}
                                 <span class="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-bold bg-emerald-100 text-emerald-800 dark:bg-emerald-950/60 dark:text-emerald-300 border border-emerald-300 dark:border-emerald-800"
-                                      title="DHCP動的レンジ内の新規接続端末 (自動許可・24時間以内)">
-                                    🟢 DHCP 🆕
+                                      title="DHCP">
+                                    {{t $.Lang "badge_dhcp_new"}}
                                 </span>
                                 {{else}}
                                 <span class="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-medium bg-emerald-50 text-emerald-700 dark:bg-emerald-950/40 dark:text-emerald-400 border border-emerald-200 dark:border-emerald-900/60"
-                                      title="DHCP動的レンジ内の端末 (自動許可)">
-                                    🟢 DHCP動的
+                                      title="DHCP">
+                                    {{t $.Lang "badge_dhcp_dynamic"}}
                                 </span>
                                 {{end}}
                             {{else if .IsNewHost}}
-                            <span class="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-bold bg-purple-100 text-purple-800 dark:bg-purple-500/20 dark:text-purple-300 border border-purple-200 dark:border-purple-500/30 animate-pulse"
-                                  title="固定IP帯の未承認新規端末 (警戒対象)">
-                                🆕 NEW
+                            <span class="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-bold bg-purple-100 text-purple-800 dark:bg-purple-500/20 dark:text-purple-300 border border-purple-200 dark:border-purple-500/30 animate-pulse">
+                                {{t $.Lang "badge_new"}}
                             </span>
                             {{else}}
-                            <span class="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-medium bg-red-100 text-red-800 dark:bg-red-500/10 dark:text-red-400 border border-red-200 dark:border-red-500/20"
-                                  title="固定IP帯の未承認端末 (警戒対象)">
-                                🔴 未承認
+                            <span class="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-medium bg-red-100 text-red-800 dark:bg-red-500/10 dark:text-red-400 border border-red-200 dark:border-red-500/20">
+                                {{t $.Lang "badge_unapproved"}}
                             </span>
                             {{end}}
                         </td>
@@ -365,8 +375,8 @@
                         <td class="py-3 px-3 text-center">
                             {{if .IsStorming}}
                             <span class="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-bold bg-red-600 text-white animate-pulse"
-                                  title="直近1分間のブロードキャスト送信数: {{.BroadcastCount1m}} パケット (異常過多)">
-                                💥 異常通信 ({{.BroadcastCount1m}} pkt/分)
+                                  title="{{tf $.Lang "badge_storm_title" .BroadcastCount1m}}">
+                                {{tf $.Lang "badge_storm_text" .BroadcastCount1m}}
                             </span>
                             {{else if eq .Status "up"}}
                             <span class="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-medium bg-emerald-100 text-emerald-800 dark:bg-emerald-500/10 dark:text-emerald-400">
@@ -384,15 +394,15 @@
                         <td class="py-3 px-3 text-center">
                             {{if .HasPingRTT}}
                                 {{if eq .PingRTTLevel "fast"}}
-                                <span class="inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-mono font-medium bg-emerald-100 text-emerald-800 dark:bg-emerald-500/10 dark:text-emerald-400" title="応答速度: 良好 (有線 / 強電波)">
+                                <span class="inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-mono font-medium bg-emerald-100 text-emerald-800 dark:bg-emerald-500/10 dark:text-emerald-400" title="{{t $.Lang "badge_rtt_fast"}}">
                                     ⚡ {{.PingRTTFormatted}}
                                 </span>
                                 {{else if eq .PingRTTLevel "normal"}}
-                                <span class="inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-mono font-medium bg-amber-100 text-amber-800 dark:bg-amber-500/10 dark:text-amber-400" title="応答速度: 通常 (Wi-Fi)">
+                                <span class="inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-mono font-medium bg-amber-100 text-amber-800 dark:bg-amber-500/10 dark:text-amber-400" title="{{t $.Lang "badge_rtt_normal"}}">
                                     📶 {{.PingRTTFormatted}}
                                 </span>
                                 {{else}}
-                                <span class="inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-mono font-medium bg-orange-100 text-orange-800 dark:bg-orange-500/10 dark:text-orange-400" title="応答速度: やや遅延 / 混雑">
+                                <span class="inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-mono font-medium bg-orange-100 text-orange-800 dark:bg-orange-500/10 dark:text-orange-400" title="{{t $.Lang "badge_rtt_slow"}}">
                                     🐢 {{.PingRTTFormatted}}
                                 </span>
                                 {{end}}
@@ -457,10 +467,19 @@
 
             const countBadge = document.getElementById('host-count-badge');
             if (countBadge) {
+                const isJa = '{{.Lang}}' === 'ja';
                 if (q) {
-                    countBadge.innerHTML = `<span class="text-blue-600 dark:text-blue-400 font-bold">🔍 絞り込み中:</span> ${visibleCount} / 全 ${rows.length} 台を表示`;
+                    if (isJa) {
+                        countBadge.innerHTML = `<span class="text-blue-600 dark:text-blue-400 font-bold">🔍 絞り込み中:</span> ${visibleCount} / 全 ${rows.length} 台を表示`;
+                    } else {
+                        countBadge.innerHTML = `<span class="text-blue-600 dark:text-blue-400 font-bold">🔍 Filtering:</span> ${visibleCount} of ${rows.length} hosts shown`;
+                    }
                 } else {
-                    countBadge.innerText = `合計 ${rows.length} 台の端末が登録されています (30秒ごとに自動更新 / IPホバーでWeb名・型番・SSL・ポート詳細表示)`;
+                    if (isJa) {
+                        countBadge.innerText = `合計 ${rows.length} 台の端末が登録されています (30秒ごとに自動更新 / IPホバーでWeb名・型番・SSL・ポート詳細表示)`;
+                    } else {
+                        countBadge.innerText = `Total ${rows.length} host(s) registered (Auto-refreshes every 30s / Hover IP for details)`;
+                    }
                 }
             }
         }

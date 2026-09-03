@@ -2,21 +2,20 @@
     <div class="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl max-w-md w-full p-6 shadow-2xl space-y-4 text-slate-800 dark:text-slate-100">
         <div class="flex items-center justify-between pb-3 border-b border-slate-200 dark:border-slate-800">
             <h2 class="text-base font-bold text-slate-900 dark:text-white flex items-center space-x-2">
-                <span>➕</span>
-                <span>ホストを手動登録</span>
+                <span>{{t .Lang "add_host_title"}}</span>
             </h2>
             <button onclick="closeModal()" class="text-slate-400 hover:text-slate-700 dark:hover:text-white text-lg">&times;</button>
         </div>
 
         <form hx-post="/api/hosts" hx-target="#main-content" hx-swap="outerHTML" onclick="if(event.submitter) closeModal()" class="space-y-4 text-xs">
             <div>
-                <label class="block font-medium text-slate-700 dark:text-slate-300">IPアドレス <span class="text-red-500">*</span></label>
-                <input type="text" name="ip" required placeholder="例: 192.168.1.50"
+                <label class="block font-medium text-slate-700 dark:text-slate-300">{{t .Lang "add_host_ip_label"}}</label>
+                <input type="text" name="ip" required placeholder="192.168.1.50"
                        class="w-full mt-1 bg-white dark:bg-slate-950 border border-slate-300 dark:border-slate-700 rounded px-3 py-2 text-slate-800 dark:text-slate-200 focus:outline-none focus:border-blue-500 font-mono">
             </div>
 
             <div>
-                <label class="block font-medium text-slate-700 dark:text-slate-300">所属セグメント</label>
+                <label class="block font-medium text-slate-700 dark:text-slate-300">{{t .Lang "add_host_seg_label"}}</label>
                 <select name="segment_id" class="w-full mt-1 bg-white dark:bg-slate-950 border border-slate-300 dark:border-slate-700 rounded px-3 py-2 text-slate-800 dark:text-slate-200 focus:outline-none focus:border-blue-500">
                     {{range .Segments}}
                     <option value="{{.ID}}">{{.Name}} {{if .CIDR}}({{.CIDR}}){{end}}</option>
@@ -25,14 +24,14 @@
             </div>
 
             <div>
-                <label class="block font-medium text-slate-700 dark:text-slate-300">表示名 / 機器名</label>
-                <input type="text" name="display_name" placeholder="例: 社長用ノートPC"
+                <label class="block font-medium text-slate-700 dark:text-slate-300">{{t .Lang "add_host_name_label"}}</label>
+                <input type="text" name="display_name" placeholder="{{t .Lang "add_host_name_ph"}}"
                        class="w-full mt-1 bg-white dark:bg-slate-950 border border-slate-300 dark:border-slate-700 rounded px-3 py-2 text-slate-800 dark:text-slate-200 focus:outline-none focus:border-blue-500">
             </div>
 
             <div>
-                <label class="block font-medium text-slate-700 dark:text-slate-300">メーカー / モデル</label>
-                <input type="text" name="vendor_model" placeholder="例: Dell Latitude 5420"
+                <label class="block font-medium text-slate-700 dark:text-slate-300">{{t .Lang "col_vendor_model"}}</label>
+                <input type="text" name="vendor_model" placeholder="Dell Latitude 5420, iPhone 15"
                        class="w-full mt-1 bg-white dark:bg-slate-950 border border-slate-300 dark:border-slate-700 rounded px-3 py-2 text-slate-800 dark:text-slate-200 focus:outline-none focus:border-blue-500">
             </div>
 
@@ -40,21 +39,21 @@
                 <div class="flex items-center space-x-2">
                     <input type="checkbox" name="is_approved" id="add_is_approved" value="true" checked
                            class="rounded bg-white dark:bg-slate-800 border-slate-300 dark:border-slate-700 text-blue-600 focus:ring-0">
-                    <label for="add_is_approved" class="text-slate-700 dark:text-slate-300 font-medium cursor-pointer">社内承認済み端末として登録 (未承認アラートを除外)</label>
+                    <label for="add_is_approved" class="text-slate-700 dark:text-slate-300 font-medium cursor-pointer">{{t .Lang "add_host_approve_chk"}}</label>
                 </div>
                 <div class="flex items-center space-x-2">
                     <input type="checkbox" name="is_static_ip" id="add_is_static_ip" value="true"
                            class="rounded bg-white dark:bg-slate-800 border-slate-300 dark:border-slate-700 text-blue-600 focus:ring-0">
-                    <label for="add_is_static_ip" class="text-slate-700 dark:text-slate-300 font-medium cursor-pointer">固定IP端末 (自動クリーンアップから保護)</label>
+                    <label for="add_is_static_ip" class="text-slate-700 dark:text-slate-300 font-medium cursor-pointer">{{t .Lang "add_host_protect_chk"}}</label>
                 </div>
             </div>
 
             <div class="flex items-center justify-end space-x-2 pt-3 border-t border-slate-200 dark:border-slate-800">
                 <button type="button" onclick="closeModal()" class="px-4 py-2 rounded-lg bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-300 font-medium">
-                    キャンセル
+                    {{t .Lang "cancel"}}
                 </button>
                 <button type="submit" class="px-5 py-2 rounded-lg bg-blue-600 hover:bg-blue-500 text-white font-medium shadow">
-                    追加
+                    {{t .Lang "add"}}
                 </button>
             </div>
         </form>

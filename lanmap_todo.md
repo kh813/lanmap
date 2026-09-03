@@ -298,3 +298,30 @@
 - [x] **14.4 ドキュメント更新**
   - [x] `README.md`、`lanmap_design.md`、`lanmap_todo.md` 更新
 
+---
+
+### 🔹 Phase 15: i18n 国際化・多言語対応 (デフォルト英語 & ブラウザ言語自動切替 & EN/JP スイッチャー)
+- [x] **15.1 i18n 辞書 & 言語判定パッケージ (`internal/i18n`)**
+  - [x] `DetectLanguage(r)`: Cookie (`lanmap_lang`) ➔ クエリパラメータ (`?lang=`) ➔ `Accept-Language` ヘッダー ➔ デフォルト英語 (`en`) の優先順位判定
+  - [x] `T(lang, key)` / `TF(lang, key, args...)`: キー翻訳 & `fmt.Sprintf` フォーマット関数
+  - [x] 英語（EN）/ 日本語（JA）全UIキー定義（テーブル、サイドバー、アクションメニュー、各モーダル、バッジ、ツールチップ）
+  - [x] 単体テスト & 辞書キー整合性テスト作成 (`internal/i18n/i18n_test.go`)
+- [x] **15.2 Web ハンドラー & テンプレートエンジン (`internal/web`)**
+  - [x] テンプレート FuncMap に `t` (`i18n.T`)、`tf` (`i18n.TF`)、`safeHTML` を登録
+  - [x] 全ハンドラーでコンテキストに `Lang: i18n.DetectLanguage(r)` を付与
+  - [x] `POST /api/set_language`: Cookie `lanmap_lang` 設定および `HX-Refresh: true` レスポンス実装
+  - [x] Web 単体テスト追加 & 実行 (`internal/web/web_test.go`: デフォルト英語検証、日本語Accept-Language検証、Cookieオーバーライド検証)
+- [x] **15.3 フロントエンド & UI テンプレート改修 (`web/template`)**
+  - [x] `index.html`: 動的 `<html lang="...">` 属性、動的 `<title>`、`changeLanguage(lang)` JS ヘルパー
+  - [x] `main_table.html`: 右上に `[ EN | JP ]` トグルスイッチ設置、各列ヘッダー・アクションボタン・バッジ・ポップオーバー・検索スクリプトの i18n 化
+  - [x] `sidebar.html`: セグメント一覧、未登録NICバッジ、テーマ切替ツールチップ、設定ボタン等の i18n 化
+  - [x] `action_menu.html`: 承認トグル、削除保護、DHCPマーク、編集、削除項目の i18n 化
+  - [x] `segment_menu.html`: スキャン一時停止/再開、セグメント編集、削除項目の i18n 化
+  - [x] `add_host_modal.html` & `edit_host_modal.html`: フォーム項目・チェックボックス・ボタンの i18n 化
+  - [x] `segment_modal.html`: 未登録NICカード、CIDR/DHCP説明文、手動固定チェックボックス、プリセットボタン等の i18n 化
+  - [x] `settings_modal.html`: システム設定、保持期間、Webhook通知設定、証明書設定、セルフアップデート等の i18n 化
+  - [x] `host_detail_modal.html`: 7日間Ping推移見出し、各メトリクスカード、デバイスプロファイル項目の i18n 化
+  - [x] `whitelist_modal.html`: 端末台帳モーダル、CSVインポートフォーム、一覧テーブルの i18n 化
+- [x] **15.4 ドキュメント更新**
+  - [x] `README.md`、`lanmap_design.md`、`lanmap_todo.md` 更新
+

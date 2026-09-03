@@ -3,7 +3,7 @@
         <div class="flex items-center justify-between pb-3 border-b border-slate-200 dark:border-slate-800">
             <h2 class="text-base font-bold text-slate-900 dark:text-white flex items-center space-x-2">
                 <span>🏢</span>
-                <span>{{if .Segment.ID}}セグメントの編集{{else}}新規セグメント追加{{end}}</span>
+                <span>{{if .Segment.ID}}{{t .Lang "seg_modal_title_edit"}}{{else}}{{t .Lang "seg_modal_title_add"}}{{end}}</span>
             </h2>
             <button onclick="closeModal()" class="text-slate-400 hover:text-slate-700 dark:hover:text-white text-lg">&times;</button>
         </div>
@@ -14,9 +14,9 @@
             <div class="flex items-center justify-between">
                 <div class="text-xs font-bold text-blue-900 dark:text-blue-300 flex items-center space-x-1.5">
                     <span>💡</span>
-                    <span>検出された未登録 / 削除済みのローカルNIC ({{len .UnaddedNetworks}}件)</span>
+                    <span>{{tf .Lang "seg_modal_unadded_header" (len .UnaddedNetworks)}}</span>
                 </div>
-                <span class="text-[10px] text-blue-600 dark:text-blue-400 font-medium">ワンクリックで再登録可能</span>
+                <span class="text-[10px] text-blue-600 dark:text-blue-400 font-medium">{{t .Lang "seg_modal_unadded_sub"}}</span>
             </div>
 
             <div class="space-y-2">
@@ -26,7 +26,7 @@
                         <div class="flex items-center space-x-1.5">
                             <span class="text-xs">{{if .IsDefault}}🌐{{else}}🏢{{end}}</span>
                             <span class="font-bold text-slate-800 dark:text-slate-100 text-xs truncate">
-                                {{if .IsDefault}}メインLAN{{else}}ローカルLAN{{end}} ({{.Name}})
+                                {{if .IsDefault}}{{t $.Lang "seg_modal_main_lan"}}{{else}}{{t $.Lang "seg_modal_local_lan"}}{{end}} ({{.Name}})
                             </span>
                             {{if .IsDefault}}
                             <span class="text-[9px] px-1.5 py-0.2 rounded bg-emerald-100 dark:bg-emerald-900/60 text-emerald-700 dark:text-emerald-300 font-mono font-medium">Default GW</span>
@@ -36,20 +36,20 @@
                     </div>
                     <div class="flex items-center space-x-1.5 shrink-0 pl-4 sm:pl-0">
                         <form hx-post="/api/segments" hx-target="#sidebar-container" hx-swap="outerHTML" onclick="closeModal()" class="inline">
-                            <input type="hidden" name="name" value="{{if .IsDefault}}メインLAN{{else}}ローカルLAN{{end}} ({{.Name}})">
+                            <input type="hidden" name="name" value="{{if .IsDefault}}Main LAN{{else}}Local LAN{{end}} ({{.Name}})">
                             <input type="hidden" name="cidr" value="{{.CIDR}}">
                             <input type="hidden" name="interface_name" value="{{.Name}}">
                             <input type="hidden" name="is_enabled" value="true">
                             <button type="submit"
                                     class="px-2.5 py-1 text-[11px] rounded bg-blue-600 hover:bg-blue-500 text-white font-medium transition shadow-xs flex items-center space-x-1">
                                 <span>➕</span>
-                                <span>ワンクリック追加</span>
+                                <span>{{t $.Lang "seg_modal_unadded_btn"}}</span>
                             </button>
                         </form>
                         <button type="button"
-                                onclick="fillSegmentForm('{{if .IsDefault}}メインLAN{{else}}ローカルLAN{{end}} ({{.Name}})', '{{.CIDR}}', '{{.Name}}')"
+                                onclick="fillSegmentForm('{{if .IsDefault}}Main LAN{{else}}Local LAN{{end}} ({{.Name}})', '{{.CIDR}}', '{{.Name}}')"
                                 class="px-2 py-1 text-[11px] rounded bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 text-slate-600 dark:text-slate-300 border border-slate-200 dark:border-slate-700 transition">
-                            📝 編集
+                            {{t $.Lang "seg_modal_unadded_edit"}}
                         </button>
                     </div>
                 </div>
@@ -59,7 +59,7 @@
 
         <div class="relative flex py-1 items-center">
             <div class="flex-grow border-t border-slate-200 dark:border-slate-800"></div>
-            <span class="flex-shrink mx-3 text-[11px] text-slate-400 dark:text-slate-500 font-medium">または手動で入力</span>
+            <span class="flex-shrink mx-3 text-[11px] text-slate-400 dark:text-slate-500 font-medium">{{t .Lang "seg_modal_or_manual"}}</span>
             <div class="flex-grow border-t border-slate-200 dark:border-slate-800"></div>
         </div>
         {{end}}
@@ -72,29 +72,29 @@
               hx-on::after-request="if(event.detail.successful) closeModal()"
               class="space-y-4 text-xs">
             <div>
-                <label class="block font-medium text-slate-700 dark:text-slate-300">セグメント表示名 <span class="text-red-500">*</span></label>
-                <input type="text" id="seg_input_name" name="name" required value="{{.Segment.Name}}" placeholder="例: 本社LAN, 開発拠点VPN"
+                <label class="block font-medium text-slate-700 dark:text-slate-300">{{t .Lang "seg_modal_name_label"}}</label>
+                <input type="text" id="seg_input_name" name="name" required value="{{.Segment.Name}}" placeholder="{{t .Lang "seg_modal_name_ph"}}"
                        class="w-full mt-1 bg-white dark:bg-slate-950 border border-slate-300 dark:border-slate-700 rounded px-3 py-2 text-slate-800 dark:text-slate-200 focus:outline-none focus:border-blue-500">
             </div>
 
             <div>
-                <label class="block font-medium text-slate-700 dark:text-slate-300">CIDR サブネット表記 <span class="text-red-500">*</span></label>
-                <input type="text" id="seg_input_cidr" name="cidr" required value="{{.Segment.CIDR}}" placeholder="例: 192.168.1.0/24, 10.8.0.0/24"
+                <label class="block font-medium text-slate-700 dark:text-slate-300">{{t .Lang "seg_modal_cidr_label"}}</label>
+                <input type="text" id="seg_input_cidr" name="cidr" required value="{{.Segment.CIDR}}" placeholder="{{t .Lang "seg_modal_cidr_ph"}}"
                        class="w-full mt-1 bg-white dark:bg-slate-950 border border-slate-300 dark:border-slate-700 rounded px-3 py-2 text-slate-800 dark:text-slate-200 focus:outline-none focus:border-blue-500 font-mono">
-                <p class="text-slate-500 dark:text-slate-400 text-[11px] mt-1">スキャン対象のIPv4サブネット（CIDR表記）を指定します。</p>
+                <p class="text-slate-500 dark:text-slate-400 text-[11px] mt-1">{{t .Lang "seg_modal_cidr_help"}}</p>
             </div>
 
             <div>
                 <div class="flex items-center justify-between">
-                    <label class="block font-medium text-slate-700 dark:text-slate-300">DHCP IPレンジ (任意・複数指定可)</label>
-                    <span class="text-[10px] text-slate-400">カンマ区切りで複数指定可能</span>
+                    <label class="block font-medium text-slate-700 dark:text-slate-300">{{t .Lang "seg_modal_dhcp_label"}}</label>
+                    <span class="text-[10px] text-slate-400">{{t .Lang "seg_modal_dhcp_sub"}}</span>
                 </div>
                 <input type="text" id="seg_input_dhcp" name="dhcp_range" value="{{.Segment.DHCPRange}}"
                        oninput="document.getElementById('seg_is_dhcp_manual').checked = true;"
-                       placeholder="例: 100-150, 180-200 または 192.168.1.100-192.168.1.200"
+                       placeholder="{{t .Lang "seg_modal_dhcp_ph"}}"
                        class="w-full mt-1 bg-white dark:bg-slate-950 border border-slate-300 dark:border-slate-700 rounded px-3 py-2 text-slate-800 dark:text-slate-200 focus:outline-none focus:border-blue-500 font-mono">
                 <p class="text-slate-500 dark:text-slate-400 text-[11px] mt-1">
-                    動的に払い出されるDHCP端末帯域を指定すると、未承認時の赤色警戒表示を抑え、スマートな青色バッジ (ℹ️) で表示します。複数レンジはカンマ区切りで指定できます。
+                    {{t .Lang "seg_modal_dhcp_help"}}
                 </p>
 
                 <!-- Manual Fixed Checkbox -->
@@ -103,18 +103,18 @@
                            class="rounded bg-white dark:bg-slate-800 border-slate-300 dark:border-slate-700 text-blue-600 focus:ring-0">
                     <label for="seg_is_dhcp_manual" class="text-slate-700 dark:text-slate-300 text-[11px] font-semibold cursor-pointer flex items-center space-x-1">
                         <span>🔒</span>
-                        <span>手入力したIPレンジを固定する (端末マーク時の自動推測・自動調整を停止)</span>
+                        <span>{{t .Lang "seg_modal_dhcp_manual"}}</span>
                     </label>
                 </div>
 
                 <!-- Quick Preset & Estimation Buttons -->
                 <div class="flex flex-wrap items-center gap-1.5 pt-1 text-[11px]">
-                    <span class="text-slate-400 shrink-0">プリセット:</span>
+                    <span class="text-slate-400 shrink-0">{{t .Lang "seg_modal_presets"}}</span>
                     {{if .SuggestedDHCP}}
                     <button type="button" onclick="setDHCPRange('{{.SuggestedDHCP}}')"
                             class="px-2 py-0.5 rounded bg-blue-50 hover:bg-blue-100 dark:bg-blue-950/60 dark:hover:bg-blue-900/60 text-blue-700 dark:text-blue-300 border border-blue-200 dark:border-blue-800 font-mono text-[10px] font-semibold transition"
-                            title="検出されたWi-Fi/クライアント端末の分布から自動推定">
-                        💡 推定: {{.SuggestedDHCP}}
+                            title="{{t .Lang "seg_modal_dhcp_suggest_title"}}">
+                        {{tf .Lang "seg_modal_dhcp_suggest" .SuggestedDHCP}}
                     </button>
                     {{end}}
                     <button type="button" onclick="setDHCPRange('100-200')"
@@ -123,7 +123,7 @@
                     </button>
                     <button type="button" onclick="setDHCPRange('100-150, 180-200')"
                             class="px-2 py-0.5 rounded bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 text-slate-600 dark:text-slate-300 border border-slate-200 dark:border-slate-700 font-mono text-[10px] transition"
-                            title="複数範囲の例">
+                            title="{{t .Lang "seg_modal_dhcp_multi_title"}}">
                         100〜150, 180〜200
                     </button>
                     <button type="button" onclick="setDHCPRange('2-100')"
@@ -136,29 +136,29 @@
                     </button>
                     <button type="button" onclick="setDHCPRange('')"
                             class="px-1.5 py-0.5 rounded text-slate-400 hover:text-red-500 text-[10px] transition">
-                        クリア
+                        {{t .Lang "seg_modal_dhcp_clear"}}
                     </button>
                 </div>
             </div>
 
             <div>
-                <label class="block font-medium text-slate-700 dark:text-slate-300">バインドNIC / インターフェース (任意)</label>
-                <input type="text" id="seg_input_iface" name="interface_name" value="{{.Segment.InterfaceName}}" placeholder="例: eth0, en0 (未指定でデフォルト)"
+                <label class="block font-medium text-slate-700 dark:text-slate-300">{{t .Lang "seg_modal_iface_label"}}</label>
+                <input type="text" id="seg_input_iface" name="interface_name" value="{{.Segment.InterfaceName}}" placeholder="{{t .Lang "seg_modal_iface_ph"}}"
                        class="w-full mt-1 bg-white dark:bg-slate-950 border border-slate-300 dark:border-slate-700 rounded px-3 py-2 text-slate-800 dark:text-slate-200 focus:outline-none focus:border-blue-500 font-mono">
             </div>
 
             <div class="flex items-center space-x-2 pt-1">
                 <input type="checkbox" name="is_enabled" id="seg_is_enabled" value="true" {{if or .Segment.IsEnabled (not .Segment.ID)}}checked{{end}}
                        class="rounded bg-white dark:bg-slate-800 border-slate-300 dark:border-slate-700 text-blue-600 focus:ring-0">
-                <label for="seg_is_enabled" class="text-slate-700 dark:text-slate-300 font-medium cursor-pointer">スキャンを有効にする</label>
+                <label for="seg_is_enabled" class="text-slate-700 dark:text-slate-300 font-medium cursor-pointer">{{t .Lang "seg_modal_enabled_chk"}}</label>
             </div>
 
             <div class="flex items-center justify-end space-x-2 pt-3 border-t border-slate-200 dark:border-slate-800">
                 <button type="button" onclick="closeModal()" class="px-4 py-2 rounded-lg bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-300 font-medium">
-                    キャンセル
+                    {{t .Lang "cancel"}}
                 </button>
                 <button type="submit" class="px-5 py-2 rounded-lg bg-blue-600 hover:bg-blue-500 text-white font-medium shadow">
-                    保存
+                    {{t .Lang "save"}}
                 </button>
             </div>
         </form>

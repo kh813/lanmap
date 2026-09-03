@@ -3,7 +3,7 @@
         <div class="flex items-center justify-between pb-3 border-b border-slate-200 dark:border-slate-800">
             <div class="flex items-center space-x-2">
                 <span class="text-lg">⚙️</span>
-                <h2 class="text-base font-bold text-slate-900 dark:text-white">lanmap システム設定</h2>
+                <h2 class="text-base font-bold text-slate-900 dark:text-white">{{t .Lang "settings_title"}}</h2>
             </div>
             <button onclick="closeModal()" class="text-slate-400 hover:text-slate-700 dark:hover:text-white text-lg">&times;</button>
         </div>
@@ -15,16 +15,16 @@
             <!-- Theme setting -->
             <div class="space-y-2 bg-slate-50 dark:bg-slate-950/60 p-4 rounded-lg border border-slate-200 dark:border-slate-800">
                 <label class="block font-bold text-slate-800 dark:text-slate-200">
-                    🎨 テーマ表示切替 (Theme)
+                    {{t .Lang "settings_theme_label"}}
                 </label>
                 <div class="flex items-center space-x-4 pt-1">
                     <button type="button" onclick="localStorage.setItem('lanmap-theme', 'light'); document.documentElement.classList.remove('dark')"
                             class="px-3 py-1.5 rounded-lg border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-900 text-slate-800 dark:text-slate-200 hover:border-blue-500 font-medium">
-                        ☀️ ライトテーマ (既定)
+                        {{t .Lang "settings_theme_light"}}
                     </button>
                     <button type="button" onclick="localStorage.setItem('lanmap-theme', 'dark'); document.documentElement.classList.add('dark')"
                             class="px-3 py-1.5 rounded-lg border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-900 text-slate-800 dark:text-slate-200 hover:border-blue-500 font-medium">
-                        🌙 ダークテーマ
+                        {{t .Lang "settings_theme_dark"}}
                     </button>
                 </div>
             </div>
@@ -32,18 +32,18 @@
             <!-- 1. Retention Policy -->
             <div class="space-y-2 bg-slate-50 dark:bg-slate-950/60 p-4 rounded-lg border border-slate-200 dark:border-slate-800">
                 <label class="block font-bold text-slate-800 dark:text-slate-200">
-                    🧹 古いホストの自動クリーンアップ保持期間 (Retention Policy)
+                    {{t .Lang "settings_retention_label"}}
                 </label>
                 <p class="text-slate-500 dark:text-slate-400 text-[11px]">
-                    最終検出日時から指定期間経過した未保護・未承認端末を自動削除します。
+                    {{t .Lang "settings_retention_help"}}
                 </p>
                 <select name="retention_days" class="w-full bg-white dark:bg-slate-900 border border-slate-300 dark:border-slate-700 rounded px-3 py-2 text-slate-800 dark:text-slate-200 focus:outline-none focus:border-blue-500">
-                    <option value="30" {{if eq .Settings.retention_days "30"}}selected{{end}}>30 日間</option>
-                    <option value="60" {{if eq .Settings.retention_days "60"}}selected{{end}}>60 日間</option>
-                    <option value="90" {{if or (eq .Settings.retention_days "90") (not .Settings.retention_days)}}selected{{end}}>90 日間 (既定)</option>
-                    <option value="180" {{if eq .Settings.retention_days "180"}}selected{{end}}>180 日間</option>
-                    <option value="365" {{if eq .Settings.retention_days "365"}}selected{{end}}>365 日間 (1年)</option>
-                    <option value="0" {{if eq .Settings.retention_days "0"}}selected{{end}}>自動削除しない (無効)</option>
+                    <option value="30" {{if eq .Settings.retention_days "30"}}selected{{end}}>{{t .Lang "settings_days_30"}}</option>
+                    <option value="60" {{if eq .Settings.retention_days "60"}}selected{{end}}>{{t .Lang "settings_days_60"}}</option>
+                    <option value="90" {{if or (eq .Settings.retention_days "90") (not .Settings.retention_days)}}selected{{end}}>{{t .Lang "settings_days_90"}}</option>
+                    <option value="180" {{if eq .Settings.retention_days "180"}}selected{{end}}>{{t .Lang "settings_days_180"}}</option>
+                    <option value="365" {{if eq .Settings.retention_days "365"}}selected{{end}}>{{t .Lang "settings_days_365"}}</option>
+                    <option value="0" {{if eq .Settings.retention_days "0"}}selected{{end}}>{{t .Lang "settings_days_0"}}</option>
                 </select>
             </div>
 
@@ -51,9 +51,9 @@
             <div class="space-y-4 bg-slate-50 dark:bg-slate-950/60 p-4 rounded-lg border border-slate-200 dark:border-slate-800">
                 <div class="flex items-center justify-between">
                     <label class="block font-bold text-slate-800 dark:text-slate-200">
-                        🚨 未承認端末検出時の Webhook 通知設定 (即時アラート)
+                        {{t .Lang "settings_webhook_label"}}
                     </label>
-                    <span class="text-[10px] text-slate-400">※各項目の「テスト送信」で疎通確認が可能</span>
+                    <span class="text-[10px] text-slate-400">{{t .Lang "settings_webhook_test_hint"}}</span>
                 </div>
 
                 <div class="space-y-3">
@@ -66,14 +66,14 @@
                                     hx-include="#settings-form"
                                     hx-target="#test-result-gchat"
                                     class="px-2.5 py-0.5 rounded text-[10px] font-medium bg-blue-50 text-blue-700 dark:bg-blue-950/60 dark:text-blue-300 border border-blue-200 dark:border-blue-800/60 hover:bg-blue-100 dark:hover:bg-blue-900/60 transition">
-                                🔔 テスト送信
+                                {{t .Lang "settings_webhook_test_btn"}}
                             </button>
                         </div>
                         <input type="text" name="webhook_gchat_url" value="{{.Settings.webhook_gchat_url}}"
-                               placeholder="https://chat.googleapis.com/v1/spaces/.../messages?key=...&token=..."
-                               class="w-full bg-white dark:bg-slate-900 border border-slate-300 dark:border-slate-700 rounded px-3 py-1.5 text-slate-800 dark:text-slate-200 focus:outline-none focus:border-blue-500 font-mono text-[11px]">
+                                placeholder="https://chat.googleapis.com/v1/spaces/.../messages?key=...&token=..."
+                                class="w-full bg-white dark:bg-slate-900 border border-slate-300 dark:border-slate-700 rounded px-3 py-1.5 text-slate-800 dark:text-slate-200 focus:outline-none focus:border-blue-500 font-mono text-[11px]">
                         <p class="text-[10px] text-slate-400 dark:text-slate-500">
-                            ※ Google Chat スペース設定 ➔「アプリと統合」➔「Webhookを追加」で取得したURLを入力してください（ChatroomのブラウザURLではありません）。
+                            {{t .Lang "settings_gchat_hint"}}
                         </p>
                         <div id="test-result-gchat"></div>
                     </div>
@@ -87,12 +87,12 @@
                                     hx-include="#settings-form"
                                     hx-target="#test-result-slack"
                                     class="px-2.5 py-0.5 rounded text-[10px] font-medium bg-blue-50 text-blue-700 dark:bg-blue-950/60 dark:text-blue-300 border border-blue-200 dark:border-blue-800/60 hover:bg-blue-100 dark:hover:bg-blue-900/60 transition">
-                                🔔 テスト送信
+                                {{t .Lang "settings_webhook_test_btn"}}
                             </button>
                         </div>
                         <input type="text" name="webhook_slack_url" value="{{.Settings.webhook_slack_url}}"
-                               placeholder="https://hooks.slack.com/services/..."
-                               class="w-full bg-white dark:bg-slate-900 border border-slate-300 dark:border-slate-700 rounded px-3 py-1.5 text-slate-800 dark:text-slate-200 focus:outline-none focus:border-blue-500 font-mono text-[11px]">
+                                placeholder="https://hooks.slack.com/services/..."
+                                class="w-full bg-white dark:bg-slate-900 border border-slate-300 dark:border-slate-700 rounded px-3 py-1.5 text-slate-800 dark:text-slate-200 focus:outline-none focus:border-blue-500 font-mono text-[11px]">
                         <div id="test-result-slack"></div>
                     </div>
 
@@ -105,12 +105,12 @@
                                     hx-include="#settings-form"
                                     hx-target="#test-result-teams"
                                     class="px-2.5 py-0.5 rounded text-[10px] font-medium bg-blue-50 text-blue-700 dark:bg-blue-950/60 dark:text-blue-300 border border-blue-200 dark:border-blue-800/60 hover:bg-blue-100 dark:hover:bg-blue-900/60 transition">
-                                🔔 テスト送信
+                                {{t .Lang "settings_webhook_test_btn"}}
                             </button>
                         </div>
                         <input type="text" name="webhook_teams_url" value="{{.Settings.webhook_teams_url}}"
-                               placeholder="https://outlook.office.com/webhook/..."
-                               class="w-full bg-white dark:bg-slate-900 border border-slate-300 dark:border-slate-700 rounded px-3 py-1.5 text-slate-800 dark:text-slate-200 focus:outline-none focus:border-blue-500 font-mono text-[11px]">
+                                placeholder="https://outlook.office.com/webhook/..."
+                                class="w-full bg-white dark:bg-slate-900 border border-slate-300 dark:border-slate-700 rounded px-3 py-1.5 text-slate-800 dark:text-slate-200 focus:outline-none focus:border-blue-500 font-mono text-[11px]">
                         <div id="test-result-teams"></div>
                     </div>
 
@@ -123,12 +123,12 @@
                                     hx-include="#settings-form"
                                     hx-target="#test-result-discord"
                                     class="px-2.5 py-0.5 rounded text-[10px] font-medium bg-blue-50 text-blue-700 dark:bg-blue-950/60 dark:text-blue-300 border border-blue-200 dark:border-blue-800/60 hover:bg-blue-100 dark:hover:bg-blue-900/60 transition">
-                                🔔 テスト送信
+                                {{t .Lang "settings_webhook_test_btn"}}
                             </button>
                         </div>
                         <input type="text" name="webhook_discord_url" value="{{.Settings.webhook_discord_url}}"
-                               placeholder="https://discord.com/api/webhooks/..."
-                               class="w-full bg-white dark:bg-slate-900 border border-slate-300 dark:border-slate-700 rounded px-3 py-1.5 text-slate-800 dark:text-slate-200 focus:outline-none focus:border-blue-500 font-mono text-[11px]">
+                                placeholder="https://discord.com/api/webhooks/..."
+                                class="w-full bg-white dark:bg-slate-900 border border-slate-300 dark:border-slate-700 rounded px-3 py-1.5 text-slate-800 dark:text-slate-200 focus:outline-none focus:border-blue-500 font-mono text-[11px]">
                         <div id="test-result-discord"></div>
                     </div>
                 </div>
@@ -137,23 +137,23 @@
             <!-- 3. TLS Certificates (Section 10.1) -->
             <div class="space-y-3 bg-slate-50 dark:bg-slate-950/60 p-4 rounded-lg border border-slate-200 dark:border-slate-800">
                 <label class="block font-bold text-slate-800 dark:text-slate-200">
-                    🔒 カスタム TLS / HTTPS 証明書設定 (任意)
+                    {{t .Lang "settings_tls_label"}}
                 </label>
                 <p class="text-slate-500 dark:text-slate-400 text-[11px]">
-                    未指定時は自動生成された自己署名証明書（certs/cert.pem）を使用します。
+                    {{t .Lang "settings_tls_help"}}
                 </p>
                 <div class="grid grid-cols-1 md:grid-cols-2 gap-2">
                     <div>
-                        <span class="text-slate-500 dark:text-slate-400 text-[11px]">証明書ファイルパス (cert.pem):</span>
+                        <span class="text-slate-500 dark:text-slate-400 text-[11px]">{{t .Lang "settings_tls_cert_label"}}</span>
                         <input type="text" name="tls_cert_path" value="{{.Settings.tls_cert_path}}"
-                               placeholder="/path/to/fullchain.pem"
-                               class="w-full mt-1 bg-white dark:bg-slate-900 border border-slate-300 dark:border-slate-700 rounded px-3 py-1.5 text-slate-800 dark:text-slate-200 focus:outline-none focus:border-blue-500">
+                                placeholder="/path/to/fullchain.pem"
+                                class="w-full mt-1 bg-white dark:bg-slate-900 border border-slate-300 dark:border-slate-700 rounded px-3 py-1.5 text-slate-800 dark:text-slate-200 focus:outline-none focus:border-blue-500">
                     </div>
                     <div>
-                        <span class="text-slate-500 dark:text-slate-400 text-[11px]">秘密鍵ファイルパス (key.pem):</span>
+                        <span class="text-slate-500 dark:text-slate-400 text-[11px]">{{t .Lang "settings_tls_key_label"}}</span>
                         <input type="text" name="tls_key_path" value="{{.Settings.tls_key_path}}"
-                               placeholder="/path/to/privkey.pem"
-                               class="w-full mt-1 bg-white dark:bg-slate-900 border border-slate-300 dark:border-slate-700 rounded px-3 py-1.5 text-slate-800 dark:text-slate-200 focus:outline-none focus:border-blue-500">
+                                placeholder="/path/to/privkey.pem"
+                                class="w-full mt-1 bg-white dark:bg-slate-900 border border-slate-300 dark:border-slate-700 rounded px-3 py-1.5 text-slate-800 dark:text-slate-200 focus:outline-none focus:border-blue-500">
                     </div>
                 </div>
             </div>
@@ -162,14 +162,14 @@
             <div class="space-y-3 bg-slate-50 dark:bg-slate-950/60 p-4 rounded-lg border border-slate-200 dark:border-slate-800">
                 <div class="flex items-center justify-between">
                     <label class="block font-bold text-slate-800 dark:text-slate-200">
-                        🚀 システムアップデート (Self-Update)
+                        {{t .Lang "settings_update_label"}}
                     </label>
                     <span class="text-[11px] font-mono px-2 py-0.5 rounded bg-blue-50 text-blue-700 dark:bg-blue-950/60 dark:text-blue-300 border border-blue-200 dark:border-blue-800/60">
-                        現在: {{if .CurrentVersion}}{{.CurrentVersion}}{{else}}v0.0.9{{end}}
+                        {{tf .Lang "settings_current_ver" (or .CurrentVersion "v0.0.10")}}
                     </span>
                 </div>
                 <p class="text-slate-500 dark:text-slate-400 text-[11px]">
-                    GitHub Releases から最新バイナリを照会し、ワンクリックで安全にインプレース更新・自動再起動します。
+                    {{t .Lang "settings_update_help"}}
                 </p>
                 <div class="pt-1">
                     <button type="button"
@@ -179,10 +179,10 @@
                             hx-indicator="#checking-spinner"
                             class="px-3.5 py-1.5 rounded-lg bg-white dark:bg-slate-900 border border-slate-300 dark:border-slate-700 hover:border-blue-500 text-slate-800 dark:text-slate-200 font-medium transition text-xs flex items-center space-x-1.5 shadow-sm cursor-pointer">
                         <span>🔄</span>
-                        <span>最新アップデートを確認</span>
+                        <span>{{t .Lang "settings_update_check_btn"}}</span>
                     </button>
                     <div id="checking-spinner" class="htmx-indicator text-blue-600 dark:text-blue-400 text-xs pt-2 font-medium">
-                        ⏳ GitHub Releases を照会中...
+                        {{t .Lang "settings_update_checking"}}
                     </div>
                 </div>
                 <div id="update-check-result" class="pt-1"></div>
@@ -192,11 +192,11 @@
             <div class="flex items-center justify-end space-x-2 pt-3 border-t border-slate-200 dark:border-slate-800">
                 <button type="button" onclick="closeModal()"
                         class="px-4 py-2 rounded-lg bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-300 font-medium transition">
-                    閉じる
+                    {{t .Lang "close"}}
                 </button>
                 <button type="submit"
                         class="px-5 py-2 rounded-lg bg-blue-600 hover:bg-blue-500 text-white font-medium transition shadow">
-                    💾 設定を保存
+                    {{t .Lang "settings_btn_save"}}
                 </button>
             </div>
         </form>

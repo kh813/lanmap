@@ -83,12 +83,14 @@ func NewRouter(h *Handler) http.Handler {
 		h.HandleToggleSegmentEnabled(w, r, id)
 	})
 
-	// Settings, Webhook Test, Update & Scan
+	// Settings, Webhook Test, Update, Scan & Language
 	mux.HandleFunc("POST /api/settings", h.HandleSaveSettings)
 	mux.HandleFunc("POST /api/webhooks/test", h.HandleTestWebhook)
 	mux.HandleFunc("GET /api/system/update/check", h.HandleCheckUpdate)
 	mux.HandleFunc("POST /api/system/update/apply", h.HandleApplyUpdate)
 	mux.HandleFunc("POST /api/scan", h.HandleScanNow)
+	mux.HandleFunc("POST /api/set_language", h.HandleSetLanguage)
+	mux.HandleFunc("GET /api/set_language", h.HandleSetLanguage)
 
 	return mux
 }

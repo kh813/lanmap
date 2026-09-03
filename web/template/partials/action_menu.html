@@ -6,20 +6,19 @@
         <!-- Toggle Approval -->
         <button hx-post="/api/hosts/{{.Host.IP}}/toggle_approval" hx-target="#main-content" hx-swap="outerHTML"
                 class="w-full text-left px-3 py-1.5 hover:bg-slate-100 dark:hover:bg-slate-800 flex items-center space-x-2 text-slate-800 dark:text-slate-200">
-            <span>{{if .Host.IsApproved}}🔴 未承認に戻す{{else}}✅ 承認済みに変更{{end}}</span>
+            <span>{{if .Host.IsApproved}}{{t $.Lang "action_mark_unapproved"}}{{else}}{{t $.Lang "action_mark_approved"}}{{end}}</span>
         </button>
 
         <!-- Toggle Protection -->
         <button hx-post="/api/hosts/{{.Host.IP}}/toggle_protection" hx-target="#main-content" hx-swap="outerHTML"
                 class="w-full text-left px-3 py-1.5 hover:bg-slate-100 dark:hover:bg-slate-800 flex items-center space-x-2 text-slate-800 dark:text-slate-200">
-            <span>{{if .Host.IsProtected}}📌 保護を解除{{else}}📌 自動削除から保護{{end}}</span>
+            <span>{{if .Host.IsProtected}}{{t $.Lang "action_unprotect"}}{{else}}{{t $.Lang "action_protect"}}{{end}}</span>
         </button>
 
         <!-- Toggle DHCP -->
         <button hx-post="/api/hosts/{{.Host.IP}}/toggle_dhcp" hx-target="#main-content" hx-swap="outerHTML"
-                class="w-full text-left px-3 py-1.5 hover:bg-slate-100 dark:hover:bg-slate-800 flex items-center space-x-2 text-slate-800 dark:text-slate-200"
-                title="{{if .Host.IsDHCP}}固定IP端末として扱います{{else}}DHCP動的端末としてマークし、セグメントのDHCPレンジを自動学習します{{end}}">
-            <span>{{if .Host.IsDHCP}}🔌 固定IP / 静的端末に変更{{else}}🟢 DHCP動的端末としてマーク{{end}}</span>
+                class="w-full text-left px-3 py-1.5 hover:bg-slate-100 dark:hover:bg-slate-800 flex items-center space-x-2 text-slate-800 dark:text-slate-200">
+            <span>{{if .Host.IsDHCP}}{{t $.Lang "action_toggle_dhcp_unmark"}}{{else}}{{t $.Lang "action_toggle_dhcp_mark"}}{{end}}</span>
         </button>
     </div>
 
@@ -27,16 +26,16 @@
     <div class="py-1">
         <button hx-get="/modals/edit_host?ip={{.Host.IP}}" hx-target="#modal-container" hx-swap="innerHTML"
                 class="w-full text-left px-3 py-1.5 hover:bg-slate-100 dark:hover:bg-slate-800 flex items-center space-x-2 text-slate-700 dark:text-slate-300">
-            <span>✏️ ホスト情報・表示名を編集</span>
+            <span>{{t $.Lang "action_edit_host"}}</span>
         </button>
     </div>
 
     <!-- Delete -->
     <div class="py-1">
-        <button hx-delete="/api/hosts/{{.Host.IP}}" hx-confirm="ホスト {{.Host.IP}} を削除しますか？"
+        <button hx-delete="/api/hosts/{{.Host.IP}}" hx-confirm="Delete host {{.Host.IP}}?"
                 hx-target="#main-content" hx-swap="outerHTML"
                 class="w-full text-left px-3 py-1.5 hover:bg-red-50 dark:hover:bg-red-950/60 flex items-center space-x-2 text-red-600 dark:text-red-400">
-            <span>🗑️ このホストを削除</span>
+            <span>{{t $.Lang "action_delete_host"}}</span>
         </button>
     </div>
 </div>

@@ -11,28 +11,28 @@
             </div>
             <div class="flex items-center space-x-1.5">
                 <!-- Theme Switch Button -->
-                <button type="button" onclick="toggleTheme()" title="テーマ切替 (ライト/ダーク)"
+                <button type="button" onclick="toggleTheme()" title="{{t .Lang "sidebar_theme_toggle"}}"
                         class="p-1 rounded text-slate-500 hover:text-slate-800 dark:text-slate-400 dark:hover:text-white hover:bg-slate-100 dark:hover:bg-slate-800 transition">
                     <span class="dark:hidden">🌙</span>
                     <span class="hidden dark:inline">☀️</span>
                 </button>
                 <button type="button"
                         hx-get="/modals/settings" hx-target="#modal-container" hx-swap="innerHTML"
-                        title="システム設定・アップデートを開く"
+                        title="{{t .Lang "sidebar_settings_tooltip"}}"
                         class="text-[11px] px-1.5 py-0.5 rounded-full bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 text-slate-500 hover:text-slate-800 dark:text-slate-400 dark:hover:text-white border border-slate-200 dark:border-slate-700 transition cursor-pointer">
-                    {{if .Version}}{{.Version}}{{else}}v0.0.9{{end}}
+                    {{if .Version}}{{.Version}}{{else}}v0.0.10{{end}}
                 </button>
             </div>
         </div>
 
         <!-- Segments Header -->
         <div class="px-4 pt-4 pb-2 flex items-center justify-between text-xs font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wider">
-            <span>セグメント一覧</span>
+            <span>{{t .Lang "sidebar_segments"}}</span>
             <button hx-get="/modals/segment" hx-target="#modal-container" hx-swap="innerHTML"
                     class="text-blue-600 dark:text-blue-400 hover:underline font-normal normal-case flex items-center space-x-1 text-xs">
-                <span>+ 追加</span>
+                <span>{{t .Lang "sidebar_btn_add_segment"}}</span>
                 {{if .UnaddedCount}}
-                <span class="px-1.5 py-0.2 rounded-full bg-blue-100 dark:bg-blue-900/80 text-blue-700 dark:text-blue-300 font-mono text-[10px] font-bold" title="未登録のローカルNICが {{.UnaddedCount}} 件あります">
+                <span class="px-1.5 py-0.2 rounded-full bg-blue-100 dark:bg-blue-900/80 text-blue-700 dark:text-blue-300 font-mono text-[10px] font-bold" title="{{tf .Lang "sidebar_unadded_badge" .UnaddedCount}}">
                     {{.UnaddedCount}}
                 </span>
                 {{end}}
@@ -47,7 +47,7 @@
                class="flex items-center justify-between px-3 py-2 text-sm font-medium rounded-md transition-colors cursor-pointer {{if not .SelectedSegmentID}}bg-blue-50 text-blue-700 border border-blue-200 dark:bg-blue-600/20 dark:text-blue-400 dark:border-blue-500/30{{else}}text-slate-700 hover:bg-slate-100 dark:text-slate-300 dark:hover:bg-slate-900 dark:hover:text-white{{end}}">
                 <div class="flex items-center space-x-2 truncate">
                     <span>🌐</span>
-                    <span class="truncate">すべてのホスト</span>
+                    <span class="truncate">{{t .Lang "sidebar_all_hosts"}}</span>
                 </div>
                 <span class="text-xs text-slate-500 dark:text-slate-400 bg-slate-100 dark:bg-slate-800/80 px-1.5 py-0.5 rounded border border-slate-200 dark:border-transparent">{{.TotalHostsCount}}</span>
             </a>
@@ -59,9 +59,9 @@
                      class="flex-1 flex flex-col min-w-0 pr-1">
                     <div class="flex items-center space-x-2">
                         <span>{{if .IsDefault}}📁{{else if not .IsEnabled}}⏸️{{else}}🏢{{end}}</span>
-                        <span class="truncate font-medium {{if not .IsEnabled}}text-slate-500 dark:text-slate-400{{end}}">{{.Name}}</span>
+                        <span class="truncate font-medium {{if not .IsEnabled}}text-slate-500 dark:text-slate-400{{end}}">{{if .IsDefault}}{{t $.Lang "sidebar_uncategorized"}}{{else}}{{.Name}}{{end}}</span>
                         {{if not .IsEnabled}}
-                        <span class="px-1 py-0.2 rounded text-[9px] font-mono bg-slate-200 dark:bg-slate-800 text-slate-500 dark:text-slate-400">停止中</span>
+                        <span class="px-1 py-0.2 rounded text-[9px] font-mono bg-slate-200 dark:bg-slate-800 text-slate-500 dark:text-slate-400">{{t $.Lang "disabled"}}</span>
                         {{end}}
                     </div>
                     {{if .CIDR}}
@@ -72,7 +72,7 @@
                 <div class="relative shrink-0" onclick="event.stopPropagation()">
                     <button hx-get="/partials/segment_menu?id={{.ID}}" hx-target="#segment-menu-{{.ID}}" hx-swap="innerHTML"
                             onclick="event.stopPropagation(); const m = document.getElementById('segment-menu-{{.ID}}'); if (m && m.children.length > 0) { m.innerHTML = ''; event.stopImmediatePropagation(); }"
-                            title="セグメント操作"
+                            title="{{t $.Lang "col_actions"}}"
                             class="p-1 rounded text-slate-400 hover:text-slate-800 dark:hover:text-white hover:bg-slate-200/60 dark:hover:bg-slate-800 transition font-bold text-xs tracking-widest px-1.5 focus:outline-none">
                         ...
                     </button>
@@ -88,13 +88,13 @@
             <button hx-get="/modals/whitelist" hx-target="#modal-container" hx-swap="innerHTML"
                     class="w-full flex items-center justify-center space-x-1.5 py-1.5 px-3 rounded-md bg-emerald-50 hover:bg-emerald-100 dark:bg-emerald-950/40 dark:hover:bg-emerald-900/60 text-emerald-800 dark:text-emerald-300 border border-emerald-300 dark:border-emerald-800/60 text-xs font-semibold transition shadow-sm">
                 <span>📋</span>
-                <span>台帳ホワイトリスト登録</span>
+                <span>{{t .Lang "settings_whitelist_btn"}}</span>
             </button>
 
             <button hx-get="/modals/add_host" hx-target="#modal-container" hx-swap="innerHTML"
                     class="w-full flex items-center justify-center space-x-1.5 py-1.5 px-3 rounded-md bg-slate-50 hover:bg-slate-100 dark:bg-slate-900 dark:hover:bg-slate-800 text-slate-700 dark:text-slate-200 border border-slate-300 dark:border-slate-700 text-xs font-medium transition shadow-sm">
                 <span>➕</span>
-                <span>ホストを手動追加</span>
+                <span>{{t .Lang "add_host_title"}}</span>
             </button>
         </div>
     </div>
@@ -105,10 +105,10 @@
                 class="w-full flex items-center justify-between px-3 py-2 rounded-lg bg-white dark:bg-slate-900 text-slate-800 dark:text-slate-100 hover:border-blue-500 hover:text-blue-600 dark:hover:text-blue-400 border border-slate-300 dark:border-slate-700 shadow-sm transition group">
             <div class="flex items-center space-x-2">
                 <span class="p-1 rounded-md bg-blue-50 dark:bg-blue-950/60 text-blue-600 dark:text-blue-400 group-hover:scale-110 transition-transform">⚙️</span>
-                <span class="font-semibold text-xs">設定画面</span>
+                <span class="font-semibold text-xs">{{t .Lang "settings_title"}}</span>
             </div>
             <span class="text-[11px] text-slate-400 dark:text-slate-500 font-medium group-hover:text-blue-600 dark:group-hover:text-blue-400 transition-colors">
-                開く ➔
+                ➔
             </span>
         </button>
     </div>

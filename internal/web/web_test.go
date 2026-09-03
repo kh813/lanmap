@@ -132,12 +132,21 @@ func TestWebRoutes(t *testing.T) {
 		t.Errorf("expected 200 from update check, got %d", rec.Code)
 	}
 
-	// 8. Test Host Detail Modal endpoint
+	// 8. Test Host Detail Modal endpoint (Default English)
 	req = httptest.NewRequest("GET", "/modals/host_detail?ip=192.168.1.50", nil)
 	rec = httptest.NewRecorder()
 	router.ServeHTTP(rec, req)
-	if rec.Code != http.StatusOK || !strings.Contains(rec.Body.String(), "過去7日間の Ping レスポンス推移") {
-		t.Errorf("expected 200 with 7-day ping metrics from host detail modal, got %d", rec.Code)
+	if rec.Code != http.StatusOK || !strings.Contains(rec.Body.String(), "Past 7-Day Ping Response Trends") {
+		t.Errorf("expected 200 with 7-day ping metrics from host detail modal (English default), got %d body=%s", rec.Code, rec.Body.String())
+	}
+
+	// 8b. Test Host Detail Modal endpoint with Japanese Accept-Language
+	reqJA := httptest.NewRequest("GET", "/modals/host_detail?ip=192.168.1.50", nil)
+	reqJA.Header.Set("Accept-Language", "ja-JP,ja;q=0.9,en;q=0.8")
+	recJA := httptest.NewRecorder()
+	router.ServeHTTP(recJA, reqJA)
+	if recJA.Code != http.StatusOK || !strings.Contains(recJA.Body.String(), "過去7日間の Ping レスポンス推移") {
+		t.Errorf("expected 200 with 7-day ping metrics in Japanese, got %d", recJA.Code)
 	}
 
 	// 9. Test On-demand Ping Test endpoint
@@ -163,12 +172,12 @@ func TestWebRoutes(t *testing.T) {
 		t.Errorf("expected 200 from /static/favicon.svg, got %d", rec.Code)
 	}
 
-	// 11. Test Segment Menu & Toggle
+	// 11. Test Segment Menu & Toggle (Default English)
 	req = httptest.NewRequest("GET", fmt.Sprintf("/partials/segment_menu?id=%d", seg.ID), nil)
 	rec = httptest.NewRecorder()
 	router.ServeHTTP(rec, req)
-	if rec.Code != http.StatusOK || !strings.Contains(rec.Body.String(), "スキャン") {
-		t.Errorf("expected 200 and 'スキャン' in segment menu, got %d", rec.Code)
+	if rec.Code != http.StatusOK || !strings.Contains(rec.Body.String(), "Scanning") {
+		t.Errorf("expected 200 and 'Scanning' in segment menu, got %d body=%s", rec.Code, rec.Body.String())
 	}
 
 	req = httptest.NewRequest("POST", fmt.Sprintf("/api/segments/%d/toggle", seg.ID), nil)
@@ -183,12 +192,20 @@ func TestWebRoutes(t *testing.T) {
 		t.Errorf("expected segment to be toggled to disabled, got %+v", segUpdated)
 	}
 
-	// 12. Test Segment Modal with Unadded Networks suggestion
+	// 12. Test Segment Modal with Unadded Networks suggestion (Default English & Japanese)
 	req = httptest.NewRequest("GET", "/modals/segment", nil)
 	rec = httptest.NewRecorder()
 	router.ServeHTTP(rec, req)
-	if rec.Code != http.StatusOK || !strings.Contains(rec.Body.String(), "新規セグメント追加") {
-		t.Errorf("expected 200 and '新規セグメント追加' from /modals/segment, got %d", rec.Code)
+	if rec.Code != http.StatusOK || !strings.Contains(rec.Body.String(), "Add Network Segment") {
+		t.Errorf("expected 200 and 'Add Network Segment' from /modals/segment, got %d", rec.Code)
+	}
+
+	reqSegJA := httptest.NewRequest("GET", "/modals/segment", nil)
+	reqSegJA.Header.Set("Accept-Language", "ja")
+	recSegJA := httptest.NewRecorder()
+	router.ServeHTTP(recSegJA, reqSegJA)
+	if recSegJA.Code != http.StatusOK || !strings.Contains(recSegJA.Body.String(), "ネットワークセグメントの追加") {
+		t.Errorf("expected 200 and 'ネットワークセグメントの追加' from /modals/segment in Japanese, got %d", recSegJA.Code)
 	}
 
 	// 13. Test DHCP Range in Segment & Main Table Rendering
@@ -259,5 +276,31 @@ func TestWebRoutes(t *testing.T) {
 	router.ServeHTTP(rec, req)
 	if rec.Code != http.StatusOK {
 		t.Errorf("expected 200 for valid DHCP range, got status=%d body=%s", rec.Code, rec.Body.String())
+	}
+
+	// 16. Test Language Switching Endpoint and Cookie Detection
+	// A. Set language to JA
+	reqLang := httptest.NewRequest("POST", "/api/set_language?lang=ja", nil)
+	recLang := httptest.NewRecorder()
+	router.ServeHTTP(recLang, reqLang)
+	if recLang.Code != http.StatusOK {
+		t.Errorf("expected 200 from /api/set_language, got %d", recLang.Code)
+	}
+	if recLang.Header().Get("HX-Refresh") != "true" {
+		t.Errorf("expected HX-Refresh: true from /api/set_language")
+	}
+	cookieHeader := recLang.Header().Get("Set-Cookie")
+	if !strings.Contains(cookieHeader, "lanmap_lang=ja") {
+		t.Errorf("expected lanmap_lang=ja in Set-Cookie, got: %s", cookieHeader)
+	}
+
+	// B. Test that cookie overrides Accept-Language
+	reqCookie := httptest.NewRequest("GET", "/modals/segment", nil)
+	reqCookie.AddCookie(&http.Cookie{Name: "lanmap_lang", Value: "ja"})
+	reqCookie.Header.Set("Accept-Language", "en-US,en;q=0.9") // Browser header is English, but cookie is ja
+	recCookie := httptest.NewRecorder()
+	router.ServeHTTP(recCookie, reqCookie)
+	if recCookie.Code != http.StatusOK || !strings.Contains(recCookie.Body.String(), "ネットワークセグメントの追加") {
+		t.Errorf("expected Japanese output due to lanmap_lang=ja cookie, got body=%s", recCookie.Body.String())
 	}
 }

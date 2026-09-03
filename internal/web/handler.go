@@ -15,6 +15,7 @@ import (
 
 	"lanmap/internal/config"
 	"lanmap/internal/db"
+	"lanmap/internal/i18n"
 	"lanmap/internal/notifier"
 	"lanmap/internal/scanner"
 	"lanmap/internal/updater"
@@ -32,7 +33,11 @@ type Handler struct {
 
 // NewHandler creates a new web Handler
 func NewHandler(database *db.DB, cfg *config.Config, sc *scanner.Scanner, notif *notifier.Notifier) (*Handler, error) {
-	tmpl, err := template.New("base").ParseFS(web.WebFS, "template/*.html", "template/partials/*.html")
+	tmpl, err := template.New("base").Funcs(template.FuncMap{
+		"t":        i18n.T,
+		"tf":       i18n.TF,
+		"safeHTML": func(s string) template.HTML { return template.HTML(s) },
+	}).ParseFS(web.WebFS, "template/*.html", "template/partials/*.html")
 	if err != nil {
 		return nil, fmt.Errorf("failed to parse templates: %w", err)
 	}
@@ -48,7 +53,11 @@ func NewHandler(database *db.DB, cfg *config.Config, sc *scanner.Scanner, notif 
 
 // HandleIndex serves the main single-page layout
 func (h *Handler) HandleIndex(w http.ResponseWriter, r *http.Request) {
-	if err := h.tmpl.ExecuteTemplate(w, "index.html", nil); err != nil {
+	lang := i18n.DetectLanguage(r)
+	if err := h.tmpl.ExecuteTemplate(w, "index.html", map[string]interface{}{
+		"Lang":    lang,
+		"Version": h.cfg.Version,
+	}); err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 	}
 }
@@ -76,6 +85,7 @@ func (h *Handler) HandleSidebarPartial(w http.ResponseWriter, r *http.Request) {
 		"TotalHostsCount":   len(hosts),
 		"UnaddedCount":      len(unadded),
 		"Version":           h.cfg.Version,
+		"Lang":              i18n.DetectLanguage(r),
 	}
 
 	_ = h.tmpl.ExecuteTemplate(w, "sidebar.html", data)
@@ -111,8 +121,9 @@ func (h *Handler) getUnaddedLocalNetworks() []scanner.DetectedNetwork {
 
 // HandleMainTablePartial renders the main host table partial
 func (h *Handler) HandleMainTablePartial(w http.ResponseWriter, r *http.Request) {
+	lang := i18n.DetectLanguage(r)
 	var segID *int64
-	var segTitle = "すべてのホスト"
+	var segTitle = i18n.T(lang, "sidebar_all_hosts")
 	var segCIDR = ""
 
 	sIDStr := r.URL.Query().Get("segment_id")
@@ -180,6 +191,7 @@ func (h *Handler) HandleMainTablePartial(w http.ResponseWriter, r *http.Request)
 		"SegmentCIDR":      segCIDR,
 		"CurrentSegmentID": curSegIDStr,
 		"OnlineOnly":       onlineOnly,
+		"Lang":             lang,
 	}
 
 	_ = h.tmpl.ExecuteTemplate(w, "main_table.html", data)
@@ -202,6 +214,7 @@ func (h *Handler) HandleActionMenuPartial(w http.ResponseWriter, r *http.Request
 
 	_ = h.tmpl.ExecuteTemplate(w, "action_menu.html", map[string]interface{}{
 		"Host": host,
+		"Lang": i18n.DetectLanguage(r),
 	})
 }
 
@@ -216,6 +229,7 @@ func (h *Handler) HandleSettingsModal(w http.ResponseWriter, r *http.Request) {
 	_ = h.tmpl.ExecuteTemplate(w, "settings_modal.html", map[string]interface{}{
 		"Settings":       settings,
 		"CurrentVersion": h.cfg.Version,
+		"Lang":           i18n.DetectLanguage(r),
 	})
 }
 
@@ -224,6 +238,7 @@ func (h *Handler) HandleAddHostModal(w http.ResponseWriter, r *http.Request) {
 	segments, _ := h.db.ListSegments()
 	_ = h.tmpl.ExecuteTemplate(w, "add_host_modal.html", map[string]interface{}{
 		"Segments": segments,
+		"Lang":     i18n.DetectLanguage(r),
 	})
 }
 
@@ -238,6 +253,7 @@ func (h *Handler) HandleEditHostModal(w http.ResponseWriter, r *http.Request) {
 
 	_ = h.tmpl.ExecuteTemplate(w, "edit_host_modal.html", map[string]interface{}{
 		"Host": host,
+		"Lang": i18n.DetectLanguage(r),
 	})
 }
 
@@ -262,6 +278,7 @@ func (h *Handler) HandleHostDetailModal(w http.ResponseWriter, r *http.Request) 
 		"Stats7d":           stats7d,
 		"Chart7dSVG":        chart7dSVG,
 		"UptimeBlocks7dSVG": uptimeBlocks7dSVG,
+		"Lang":              i18n.DetectLanguage(r),
 	})
 }
 
@@ -335,6 +352,7 @@ func (h *Handler) HandleSegmentModal(w http.ResponseWriter, r *http.Request) {
 		"Segment":         seg,
 		"UnaddedNetworks": unadded,
 		"SuggestedDHCP":   suggestedDHCP,
+		"Lang":            i18n.DetectLanguage(r),
 	})
 }
 
@@ -343,6 +361,7 @@ func (h *Handler) HandleWhitelistModal(w http.ResponseWriter, r *http.Request) {
 	entries, _ := h.db.ListWhitelistEntries()
 	_ = h.tmpl.ExecuteTemplate(w, "whitelist_modal.html", map[string]interface{}{
 		"Entries": entries,
+		"Lang":    i18n.DetectLanguage(r),
 	})
 }
 
@@ -569,7 +588,32 @@ func (h *Handler) HandleSegmentMenuPartial(w http.ResponseWriter, r *http.Reques
 
 	_ = h.tmpl.ExecuteTemplate(w, "segment_menu.html", map[string]interface{}{
 		"Segment": seg,
+		"Lang":    i18n.DetectLanguage(r),
 	})
+}
+
+// HandleSetLanguage updates the user's language preference via Cookie
+func (h *Handler) HandleSetLanguage(w http.ResponseWriter, r *http.Request) {
+	lang := r.URL.Query().Get("lang")
+	if lang == "" {
+		_ = r.ParseForm()
+		lang = r.FormValue("lang")
+	}
+	if lang != i18n.LangJA && lang != i18n.LangEN {
+		lang = i18n.LangEN
+	}
+
+	http.SetCookie(w, &http.Cookie{
+		Name:     i18n.CookieName,
+		Value:    lang,
+		Path:     "/",
+		MaxAge:   365 * 24 * 3600,
+		HttpOnly: false,
+		SameSite: http.SameSiteLaxMode,
+	})
+
+	w.Header().Set("HX-Refresh", "true")
+	w.WriteHeader(http.StatusOK)
 }
 
 // HandleSaveSettings saves application settings

@@ -24,7 +24,7 @@ import (
 	"lanmap/internal/web"
 )
 
-var Version = "v0.0.9"
+var Version = "v0.0.10"
 
 func main() {
 	if len(os.Args) > 1 {
