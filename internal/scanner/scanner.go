@@ -37,29 +37,54 @@ func NewScanner(database *db.DB, cfg *config.Config) *Scanner {
 	}
 }
 
-// EnsureLocalSegmentAutoRegistered auto-creates local LAN segment if no segment has CIDR
+// EnsureLocalSegmentAutoRegistered discovers local network interfaces and auto-registers them.
+// The interface with the default gateway route is enabled by default.
+// Secondary/virtual interfaces are registered in disabled (paused) state for security.
 func (s *Scanner) EnsureLocalSegmentAutoRegistered() error {
 	segments, err := s.db.ListSegments()
 	if err != nil {
 		return err
 	}
 
-	hasCustomCIDR := false
+	existingCIDRs := make(map[string]bool)
+	hasEnabledCustom := false
 	for _, seg := range segments {
-		if !seg.IsDefault && seg.CIDR != "" {
-			hasCustomCIDR = true
-			break
+		if seg.CIDR != "" {
+			existingCIDRs[seg.CIDR] = true
+			if !seg.IsDefault && seg.IsEnabled {
+				hasEnabledCustom = true
+			}
 		}
 	}
 
-	if !hasCustomCIDR {
-		networks, err := DetectLocalNetworks()
+	networks, err := DetectLocalNetworks()
+	if err != nil {
+		return err
+	}
+
+	for _, n := range networks {
+		if existingCIDRs[n.CIDR] {
+			continue
+		}
+
+		// Only enable if it's the default gateway interface, or if no custom segment is enabled yet
+		enableScan := n.IsDefault && !hasEnabledCustom
+		var segName string
+		if n.IsDefault {
+			segName = fmt.Sprintf("メインLAN (%s)", n.Name)
+		} else {
+			segName = fmt.Sprintf("ローカルLAN (%s)", n.Name)
+		}
+
+		_, err := s.db.CreateSegment(segName, n.CIDR, n.Name, enableScan)
 		if err == nil {
-			for _, n := range networks {
-				segName := fmt.Sprintf("ローカルLAN (%s)", n.Name)
-				_, _ = s.db.CreateSegment(segName, n.CIDR, n.Name, true)
-				log.Printf("[INFO] Auto-detected and registered local network segment: %s (%s)", segName, n.CIDR)
+			statusStr := "停止中 (スキャン対象外)"
+			if enableScan {
+				statusStr = "有効 (スキャン対象)"
+				hasEnabledCustom = true
 			}
+			log.Printf("[INFO] Auto-detected local network %s (%s) -> 状態: %s", segName, n.CIDR, statusStr)
+			existingCIDRs[n.CIDR] = true
 		}
 	}
 

@@ -1,6 +1,7 @@
 package web
 
 import (
+	"fmt"
 	"net/http"
 	"net/http/httptest"
 	"net/url"
@@ -160,5 +161,25 @@ func TestWebRoutes(t *testing.T) {
 	router.ServeHTTP(rec, req)
 	if rec.Code != http.StatusOK {
 		t.Errorf("expected 200 from /static/favicon.svg, got %d", rec.Code)
+	}
+
+	// 11. Test Segment Menu & Toggle
+	req = httptest.NewRequest("GET", fmt.Sprintf("/partials/segment_menu?id=%d", seg.ID), nil)
+	rec = httptest.NewRecorder()
+	router.ServeHTTP(rec, req)
+	if rec.Code != http.StatusOK || !strings.Contains(rec.Body.String(), "スキャン") {
+		t.Errorf("expected 200 and 'スキャン' in segment menu, got %d", rec.Code)
+	}
+
+	req = httptest.NewRequest("POST", fmt.Sprintf("/api/segments/%d/toggle", seg.ID), nil)
+	rec = httptest.NewRecorder()
+	router.ServeHTTP(rec, req)
+	if rec.Code != http.StatusOK {
+		t.Errorf("expected 200 from toggle segment, got %d", rec.Code)
+	}
+
+	segUpdated, _ := database.GetSegment(seg.ID)
+	if segUpdated.IsEnabled {
+		t.Errorf("expected segment to be toggled to disabled, got %+v", segUpdated)
 	}
 }

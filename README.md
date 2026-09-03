@@ -12,8 +12,9 @@
 
 1. **シングルバイナリ・外部依存なし（完全自己完結・CGO非依存）**
    * Docker や Node.js、追加の外部監視サーバーは一切不要。Go と `modernc.org/sqlite` によるピュアGo実装。Web UI資材、高精細ベクターFavicon、OUIデータベースもバイナリ内に完全内包。
-2. **安全・低負荷な自動スキャン & ゼロ設定での死活監視開始**
-   * 一般ユーザー権限で動作する非侵入型 ICMP Ping、mDNS、NetBIOS、UPnP/SSDP、OUIメーカー推定。検出された全端末のPing死活監視と履歴蓄積が即座に自動開始。
+2. **安全・低負荷な自動スキャン & マルチNIC安全設計**
+   * 一般ユーザー権限で動作する非侵入型 ICMP Ping、mDNS、NetBIOS、UPnP/SSDP、OUIメーカー推定。
+   * **マルチNIC・仮想NIC安全設計**: 複数NIC環境（業務LAN/検証用LAN/VPN/Docker等）では、OSのルーティング情報から **Default Gateway を持つメインNICのみをデフォルトでスキャン有効化**。その他のNICは安全のため停止状態で自動登録され、左カラムの「`...`」メニューからワンクリックでいつでもスキャン対象に追加・一時停止を切り替え可能。
 3. **未承認端末の即時 Webhook 通知**
    * 社内管理下にない未知の端末を検出した際、**Google Chat**、**Slack**、**Microsoft Teams**、**Discord**、**LINE Notify** へ即座にアラート送信。
 4. **資産管理台帳（ホワイトリスト）CSV/TSV 一括インポート**

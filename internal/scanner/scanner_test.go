@@ -184,3 +184,50 @@ func TestDetectDetailedOS(t *testing.T) {
 		t.Errorf("expected Netgear Firmware, got %s", os4)
 	}
 }
+
+func TestEnsureLocalSegmentDefaultGateway(t *testing.T) {
+	tempDir := t.TempDir()
+	dbPath := filepath.Join(tempDir, "test_seg_gw.db")
+	database, err := db.Open(dbPath)
+	if err != nil {
+		t.Fatalf("Open DB failed: %v", err)
+	}
+	defer database.Close()
+
+	cfg := &config.Config{
+		DataDir: tempDir,
+	}
+
+	sc := NewScanner(database, cfg)
+	err = sc.EnsureLocalSegmentAutoRegistered()
+	if err != nil {
+		t.Fatalf("EnsureLocalSegmentAutoRegistered failed: %v", err)
+	}
+
+	segments, err := database.ListSegments()
+	if err != nil {
+		t.Fatalf("ListSegments failed: %v", err)
+	}
+
+	// Filter custom segments (excluding is_default=1 '未分類')
+	var customSegs []*db.Segment
+	for _, s := range segments {
+		if !s.IsDefault && s.CIDR != "" {
+			customSegs = append(customSegs, s)
+		}
+	}
+
+	if len(customSegs) > 0 {
+		// At least one segment should be enabled (the default gateway one)
+		hasEnabled := false
+		for _, s := range customSegs {
+			if s.IsEnabled {
+				hasEnabled = true
+				break
+			}
+		}
+		if !hasEnabled {
+			t.Errorf("expected at least one segment to be enabled as default gateway, but all were disabled")
+		}
+	}
+}

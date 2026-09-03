@@ -245,3 +245,21 @@
   - [x] `lanmap_design.md` 更新（セルフアップデート仕様、ロードマップ完了反映）
   - [x] `lanmap_todo.md` 更新（全フェーズ反映）
 
+---
+
+### 🔹 Phase 13: マルチNIC・仮想NIC安全スキャン & サイドバー3点リーダー操作
+- [x] **13.1 スキャナー & ネットワーク検出層 (`internal/scanner`)**
+  - [x] `GetDefaultGatewayLocalIP()` によるOSルーティングテーブル照会（Default Gateway判定）
+  - [x] `DetectLocalNetworks()` による全物理・仮想NICの検出と `IsDefault` 付与
+  - [x] `EnsureLocalSegmentAutoRegistered()` で Default Gateway のみ `is_enabled=true`、他NICは安全のため `is_enabled=false` で自動登録
+  - [x] 単体テスト作成 & 実行 (`internal/scanner/scanner_test.go`)
+- [x] **13.2 Web API & ハンドラー (`internal/web`)**
+  - [x] `POST /api/segments/{id}/toggle` セグメントスキャン有効/無効トグルAPI実装
+  - [x] `GET /partials/segment_menu` セグメント行アクションメニューAPI実装
+  - [x] Web 単体テスト追加 & 実行 (`internal/web/web_test.go`)
+- [x] **13.3 Web UI テンプレート (`web/template`)**
+  - [x] `web/template/partials/segment_menu.html` 新規作成（スキャン追加/停止、名前編集、削除）
+  - [x] `web/template/partials/sidebar.html` セグメントループ改修（停止中セグメントのグレーアウト表示、3点リーダーボタン設置）
+- [x] **13.4 ドキュメント更新**
+  - [x] `README.md`、`lanmap_design.md`、`lanmap_todo.md` 更新
+

@@ -49,30 +49,31 @@
 
             <!-- Segment items -->
             {{range .Segments}}
-            <div class="group flex items-center justify-between px-3 py-2 text-sm font-medium rounded-md transition-colors cursor-pointer {{if eq $.SelectedSegmentID .ID}}bg-blue-50 text-blue-700 border border-blue-200 dark:bg-blue-600/20 dark:text-blue-400 dark:border-blue-500/30{{else}}text-slate-700 hover:bg-slate-100 dark:text-slate-300 dark:hover:bg-slate-900 dark:hover:text-white{{end}}">
+            <div class="group relative flex items-center justify-between px-3 py-2 text-sm font-medium rounded-md transition-colors cursor-pointer {{if not .IsEnabled}}opacity-60 hover:opacity-100 bg-slate-50/50 dark:bg-slate-900/40 text-slate-400 dark:text-slate-500{{else if eq $.SelectedSegmentID .ID}}bg-blue-50 text-blue-700 border border-blue-200 dark:bg-blue-600/20 dark:text-blue-400 dark:border-blue-500/30{{else}}text-slate-700 hover:bg-slate-100 dark:text-slate-300 dark:hover:bg-slate-900 dark:hover:text-white{{end}}">
                 <div hx-get="/partials/main_table?segment_id={{.ID}}" hx-target="#main-content" hx-swap="outerHTML"
                      class="flex-1 flex flex-col min-w-0 pr-1">
                     <div class="flex items-center space-x-2">
-                        <span>{{if .IsDefault}}📁{{else}}🏢{{end}}</span>
-                        <span class="truncate font-medium">{{.Name}}</span>
+                        <span>{{if .IsDefault}}📁{{else if not .IsEnabled}}⏸️{{else}}🏢{{end}}</span>
+                        <span class="truncate font-medium {{if not .IsEnabled}}text-slate-500 dark:text-slate-400{{end}}">{{.Name}}</span>
+                        {{if not .IsEnabled}}
+                        <span class="px-1 py-0.2 rounded text-[9px] font-mono bg-slate-200 dark:bg-slate-800 text-slate-500 dark:text-slate-400">停止中</span>
+                        {{end}}
                     </div>
                     {{if .CIDR}}
-                    <span class="text-[11px] text-slate-500 dark:text-slate-400 truncate pl-6 font-mono">{{.CIDR}}</span>
+                    <span class="text-[11px] text-slate-400 dark:text-slate-500 truncate pl-6 font-mono">{{.CIDR}}</span>
                     {{end}}
                 </div>
-                {{if not .IsDefault}}
-                <div class="opacity-0 group-hover:opacity-100 flex items-center space-x-1">
-                    <button hx-get="/modals/segment?id={{.ID}}" hx-target="#modal-container" hx-swap="innerHTML"
-                            title="編集" class="p-1 text-slate-400 hover:text-blue-600 dark:hover:text-blue-400">
-                        ✏️
+                <!-- Action Menu Button (...) -->
+                <div class="relative shrink-0" onclick="event.stopPropagation()">
+                    <button hx-get="/partials/segment_menu?id={{.ID}}" hx-target="#segment-menu-{{.ID}}" hx-swap="innerHTML"
+                            onclick="event.stopPropagation(); const m = document.getElementById('segment-menu-{{.ID}}'); if (m && m.children.length > 0) { m.innerHTML = ''; event.stopImmediatePropagation(); }"
+                            title="セグメント操作"
+                            class="p-1 rounded text-slate-400 hover:text-slate-800 dark:hover:text-white hover:bg-slate-200/60 dark:hover:bg-slate-800 transition font-bold text-xs tracking-widest px-1.5 focus:outline-none">
+                        ...
                     </button>
-                    <button hx-delete="/api/segments/{{.ID}}" hx-confirm="セグメント「{{.Name}}」を削除しますか？ 所属ホストは未分類に移動します。"
-                            hx-target="#sidebar-container" hx-swap="outerHTML"
-                            title="削除" class="p-1 text-slate-400 hover:text-red-600 dark:hover:text-red-400">
-                        🗑️
-                    </button>
+                    <!-- Dropdown container -->
+                    <div id="segment-menu-{{.ID}}" class="relative" onclick="event.stopPropagation()"></div>
                 </div>
-                {{end}}
             </div>
             {{end}}
         </nav>

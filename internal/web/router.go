@@ -24,6 +24,7 @@ func NewRouter(h *Handler) http.Handler {
 	mux.HandleFunc("GET /partials/sidebar", h.HandleSidebarPartial)
 	mux.HandleFunc("GET /partials/main_table", h.HandleMainTablePartial)
 	mux.HandleFunc("GET /partials/action_menu", h.HandleActionMenuPartial)
+	mux.HandleFunc("GET /partials/segment_menu", h.HandleSegmentMenuPartial)
 
 	// Modals
 	mux.HandleFunc("GET /modals/settings", h.HandleSettingsModal)
@@ -73,6 +74,10 @@ func NewRouter(h *Handler) http.Handler {
 	mux.HandleFunc("DELETE /api/segments/{id}", func(w http.ResponseWriter, r *http.Request) {
 		id, _ := strconv.ParseInt(r.PathValue("id"), 10, 64)
 		h.HandleDeleteSegment(w, r, id)
+	})
+	mux.HandleFunc("POST /api/segments/{id}/toggle", func(w http.ResponseWriter, r *http.Request) {
+		id, _ := strconv.ParseInt(r.PathValue("id"), 10, 64)
+		h.HandleToggleSegmentEnabled(w, r, id)
 	})
 
 	// Settings, Webhook Test, Update & Scan

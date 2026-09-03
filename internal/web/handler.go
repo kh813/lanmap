@@ -398,7 +398,43 @@ func (h *Handler) HandleDeleteSegment(w http.ResponseWriter, r *http.Request, se
 	if err != nil {
 		log.Printf("[WARN] Failed to delete segment: %v", err)
 	}
+	w.Header().Set("HX-Trigger", "refreshSidebar, refreshMainTable")
 	h.HandleSidebarPartial(w, r)
+}
+
+// HandleToggleSegmentEnabled toggles segment is_enabled state
+func (h *Handler) HandleToggleSegmentEnabled(w http.ResponseWriter, r *http.Request, segID int64) {
+	seg, err := h.db.GetSegment(segID)
+	if err != nil || seg == nil {
+		http.Error(w, "Segment not found", http.StatusNotFound)
+		return
+	}
+
+	seg.IsEnabled = !seg.IsEnabled
+	_ = h.db.UpdateSegment(seg)
+
+	w.Header().Set("HX-Trigger", "refreshSidebar, refreshMainTable")
+	h.HandleSidebarPartial(w, r)
+}
+
+// HandleSegmentMenuPartial renders segment action dropdown menu
+func (h *Handler) HandleSegmentMenuPartial(w http.ResponseWriter, r *http.Request) {
+	sIDStr := r.URL.Query().Get("id")
+	segID, err := strconv.ParseInt(sIDStr, 10, 64)
+	if err != nil || segID <= 0 {
+		http.Error(w, "Invalid segment ID", http.StatusBadRequest)
+		return
+	}
+
+	seg, err := h.db.GetSegment(segID)
+	if err != nil || seg == nil {
+		http.Error(w, "Segment not found", http.StatusNotFound)
+		return
+	}
+
+	_ = h.tmpl.ExecuteTemplate(w, "segment_menu.html", map[string]interface{}{
+		"Segment": seg,
+	})
 }
 
 // HandleSaveSettings saves application settings
