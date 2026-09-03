@@ -290,11 +290,11 @@
   - [x] `segment_menu.html` の編集ボタンの onclick 不具合（同期消滅によるリクエスト阻害）を修正し、セグメント編集モーダルが確実に表示されるように改善
   - [x] `segment_modal.html` に DHCP IPレンジ複数指定説明、手入力固定チェックボックス (`seg_is_dhcp_manual`) 設置
   - [x] `segment_modal.html` にエラー表示コンテナ設置およびバリデーションエラー時の安全なモーダル開閉制御
-  - [x] `action_menu.html` に「📶 DHCP動的端末としてマーク / 🔌 固定IPに変更」項目を追加
+  - [x] `action_menu.html` に「🟢 DHCP動的端末としてマーク / 🔌 固定IPに変更」項目を追加
   - [x] `main_table.html` 改修：
     - [x] 行背景: DHCP動的端末は赤色ハイライトから除外（日常利用端末のアラート疲れ防止）
-    - [x] IP横アイコン: 固定IP帯未承認端末は `⚠️`（警戒）、DHCP端末は `ℹ️`（情報）
-    - [x] 承認列バッジ: `🔵 DHCP 🆕`（新規・水色）、`ℹ️ DHCP動的`（既存・ブルーグレー）
+    - [x] IP横アイコン: 固定IP帯未承認端末は `⚠️`（警戒）、DHCP端末は `🟢`（自動許可・DHCP動的識別）
+    - [x] 承認列バッジ: `🟢 DHCP 🆕`（新規・自動許可）、`🟢 DHCP動的`（既存・自動許可）
 - [x] **14.4 ドキュメント更新**
   - [x] `README.md`、`lanmap_design.md`、`lanmap_todo.md` 更新
 

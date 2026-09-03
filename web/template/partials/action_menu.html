@@ -19,7 +19,7 @@
         <button hx-post="/api/hosts/{{.Host.IP}}/toggle_dhcp" hx-target="#main-content" hx-swap="outerHTML"
                 class="w-full text-left px-3 py-1.5 hover:bg-slate-100 dark:hover:bg-slate-800 flex items-center space-x-2 text-slate-800 dark:text-slate-200"
                 title="{{if .Host.IsDHCP}}固定IP端末として扱います{{else}}DHCP動的端末としてマークし、セグメントのDHCPレンジを自動学習します{{end}}">
-            <span>{{if .Host.IsDHCP}}🔌 固定IP / 静的端末に変更{{else}}📶 DHCP動的端末としてマーク{{end}}</span>
+            <span>{{if .Host.IsDHCP}}🔌 固定IP / 静的端末に変更{{else}}🟢 DHCP動的端末としてマーク{{end}}</span>
         </button>
     </div>
 
