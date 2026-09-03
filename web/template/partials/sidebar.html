@@ -29,8 +29,13 @@
         <div class="px-4 pt-4 pb-2 flex items-center justify-between text-xs font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wider">
             <span>セグメント一覧</span>
             <button hx-get="/modals/segment" hx-target="#modal-container" hx-swap="innerHTML"
-                    class="text-blue-600 dark:text-blue-400 hover:underline font-normal normal-case flex items-center text-xs">
-                + 追加
+                    class="text-blue-600 dark:text-blue-400 hover:underline font-normal normal-case flex items-center space-x-1 text-xs">
+                <span>+ 追加</span>
+                {{if .UnaddedCount}}
+                <span class="px-1.5 py-0.2 rounded-full bg-blue-100 dark:bg-blue-900/80 text-blue-700 dark:text-blue-300 font-mono text-[10px] font-bold" title="未登録のローカルNICが {{.UnaddedCount}} 件あります">
+                    {{.UnaddedCount}}
+                </span>
+                {{end}}
             </button>
         </div>
 

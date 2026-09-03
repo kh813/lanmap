@@ -1,5 +1,5 @@
 <div class="fixed inset-0 bg-black/60 dark:bg-black/80 backdrop-blur-sm flex items-center justify-center p-4 z-50 animate-fade-in" onclick="if(event.target===this) closeModal()">
-    <div class="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl max-w-md w-full p-6 shadow-2xl space-y-4 text-slate-800 dark:text-slate-100">
+    <div class="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl max-w-lg w-full p-6 shadow-2xl space-y-4 text-slate-800 dark:text-slate-100 max-h-[90vh] overflow-y-auto">
         <div class="flex items-center justify-between pb-3 border-b border-slate-200 dark:border-slate-800">
             <h2 class="text-base font-bold text-slate-900 dark:text-white flex items-center space-x-2">
                 <span>🏢</span>
@@ -8,24 +8,80 @@
             <button onclick="closeModal()" class="text-slate-400 hover:text-slate-700 dark:hover:text-white text-lg">&times;</button>
         </div>
 
-        <form hx-post="{{if .Segment.ID}}/api/segments/{{.Segment.ID}}{{else}}/api/segments{{end}}"
+        {{if .UnaddedNetworks}}
+        <!-- Detected Unadded / Restorable Local Networks -->
+        <div class="p-3.5 bg-blue-50/80 dark:bg-blue-950/40 border border-blue-200 dark:border-blue-800/80 rounded-xl space-y-2.5">
+            <div class="flex items-center justify-between">
+                <div class="text-xs font-bold text-blue-900 dark:text-blue-300 flex items-center space-x-1.5">
+                    <span>💡</span>
+                    <span>検出された未登録 / 削除済みのローカルNIC ({{len .UnaddedNetworks}}件)</span>
+                </div>
+                <span class="text-[10px] text-blue-600 dark:text-blue-400 font-medium">ワンクリックで再登録可能</span>
+            </div>
+
+            <div class="space-y-2">
+                {{range .UnaddedNetworks}}
+                <div class="flex flex-col sm:flex-row sm:items-center justify-between p-2.5 rounded-lg bg-white dark:bg-slate-900 border border-blue-100 dark:border-blue-900/60 shadow-xs gap-2">
+                    <div class="flex flex-col min-w-0">
+                        <div class="flex items-center space-x-1.5">
+                            <span class="text-xs">{{if .IsDefault}}🌐{{else}}🏢{{end}}</span>
+                            <span class="font-bold text-slate-800 dark:text-slate-100 text-xs truncate">
+                                {{if .IsDefault}}メインLAN{{else}}ローカルLAN{{end}} ({{.Name}})
+                            </span>
+                            {{if .IsDefault}}
+                            <span class="text-[9px] px-1.5 py-0.2 rounded bg-emerald-100 dark:bg-emerald-900/60 text-emerald-700 dark:text-emerald-300 font-mono font-medium">Default GW</span>
+                            {{end}}
+                        </div>
+                        <span class="font-mono text-[11px] text-slate-500 dark:text-slate-400 pl-4">{{.CIDR}} (Host IP: {{.IP}})</span>
+                    </div>
+                    <div class="flex items-center space-x-1.5 shrink-0 pl-4 sm:pl-0">
+                        <form hx-post="/api/segments" hx-target="#sidebar-container" hx-swap="outerHTML" onclick="closeModal()" class="inline">
+                            <input type="hidden" name="name" value="{{if .IsDefault}}メインLAN{{else}}ローカルLAN{{end}} ({{.Name}})">
+                            <input type="hidden" name="cidr" value="{{.CIDR}}">
+                            <input type="hidden" name="interface_name" value="{{.Name}}">
+                            <input type="hidden" name="is_enabled" value="true">
+                            <button type="submit"
+                                    class="px-2.5 py-1 text-[11px] rounded bg-blue-600 hover:bg-blue-500 text-white font-medium transition shadow-xs flex items-center space-x-1">
+                                <span>➕</span>
+                                <span>ワンクリック追加</span>
+                            </button>
+                        </form>
+                        <button type="button"
+                                onclick="fillSegmentForm('{{if .IsDefault}}メインLAN{{else}}ローカルLAN{{end}} ({{.Name}})', '{{.CIDR}}', '{{.Name}}')"
+                                class="px-2 py-1 text-[11px] rounded bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 text-slate-600 dark:text-slate-300 border border-slate-200 dark:border-slate-700 transition">
+                            📝 編集
+                        </button>
+                    </div>
+                </div>
+                {{end}}
+            </div>
+        </div>
+
+        <div class="relative flex py-1 items-center">
+            <div class="flex-grow border-t border-slate-200 dark:border-slate-800"></div>
+            <span class="flex-shrink mx-3 text-[11px] text-slate-400 dark:text-slate-500 font-medium">または手動で入力</span>
+            <div class="flex-grow border-t border-slate-200 dark:border-slate-800"></div>
+        </div>
+        {{end}}
+
+        <form id="segment-form" hx-post="{{if .Segment.ID}}/api/segments/{{.Segment.ID}}{{else}}/api/segments{{end}}"
               hx-target="#sidebar-container" hx-swap="outerHTML" onclick="if(event.submitter) closeModal()" class="space-y-4 text-xs">
             <div>
                 <label class="block font-medium text-slate-700 dark:text-slate-300">セグメント表示名 <span class="text-red-500">*</span></label>
-                <input type="text" name="name" required value="{{.Segment.Name}}" placeholder="例: 本社LAN, 開発拠点VPN"
+                <input type="text" id="seg_input_name" name="name" required value="{{.Segment.Name}}" placeholder="例: 本社LAN, 開発拠点VPN"
                        class="w-full mt-1 bg-white dark:bg-slate-950 border border-slate-300 dark:border-slate-700 rounded px-3 py-2 text-slate-800 dark:text-slate-200 focus:outline-none focus:border-blue-500">
             </div>
 
             <div>
                 <label class="block font-medium text-slate-700 dark:text-slate-300">CIDR サブネット表記 <span class="text-red-500">*</span></label>
-                <input type="text" name="cidr" required value="{{.Segment.CIDR}}" placeholder="例: 192.168.1.0/24, 10.8.0.0/24"
+                <input type="text" id="seg_input_cidr" name="cidr" required value="{{.Segment.CIDR}}" placeholder="例: 192.168.1.0/24, 10.8.0.0/24"
                        class="w-full mt-1 bg-white dark:bg-slate-950 border border-slate-300 dark:border-slate-700 rounded px-3 py-2 text-slate-800 dark:text-slate-200 focus:outline-none focus:border-blue-500 font-mono">
                 <p class="text-slate-500 dark:text-slate-400 text-[11px] mt-1">スキャン対象のIPv4サブネット（CIDR表記）を指定します。</p>
             </div>
 
             <div>
                 <label class="block font-medium text-slate-700 dark:text-slate-300">バインドNIC / インターフェース (任意)</label>
-                <input type="text" name="interface_name" value="{{.Segment.InterfaceName}}" placeholder="例: eth0, en0 (未指定でデフォルト)"
+                <input type="text" id="seg_input_iface" name="interface_name" value="{{.Segment.InterfaceName}}" placeholder="例: eth0, en0 (未指定でデフォルト)"
                        class="w-full mt-1 bg-white dark:bg-slate-950 border border-slate-300 dark:border-slate-700 rounded px-3 py-2 text-slate-800 dark:text-slate-200 focus:outline-none focus:border-blue-500 font-mono">
             </div>
 
@@ -45,4 +101,16 @@
             </div>
         </form>
     </div>
+
+    <script>
+        function fillSegmentForm(name, cidr, iface) {
+            const nameEl = document.getElementById('seg_input_name');
+            const cidrEl = document.getElementById('seg_input_cidr');
+            const ifaceEl = document.getElementById('seg_input_iface');
+            if (nameEl) nameEl.value = name;
+            if (cidrEl) cidrEl.value = cidr;
+            if (ifaceEl) ifaceEl.value = iface;
+            nameEl.focus();
+        }
+    </script>
 </div>

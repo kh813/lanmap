@@ -67,13 +67,44 @@ func (h *Handler) HandleSidebarPartial(w http.ResponseWriter, r *http.Request) {
 		selectedID, _ = strconv.ParseInt(sIDStr, 10, 64)
 	}
 
+	unadded := h.getUnaddedLocalNetworks()
+
 	data := map[string]interface{}{
 		"Segments":          segments,
 		"SelectedSegmentID": selectedID,
 		"TotalHostsCount":   len(hosts),
+		"UnaddedCount":      len(unadded),
 	}
 
 	_ = h.tmpl.ExecuteTemplate(w, "sidebar.html", data)
+}
+
+// getUnaddedLocalNetworks returns active local network interfaces not currently registered in DB
+func (h *Handler) getUnaddedLocalNetworks() []scanner.DetectedNetwork {
+	segments, err := h.db.ListSegments()
+	if err != nil {
+		return nil
+	}
+
+	existingCIDRs := make(map[string]bool)
+	for _, seg := range segments {
+		if seg.CIDR != "" {
+			existingCIDRs[seg.CIDR] = true
+		}
+	}
+
+	networks, err := scanner.DetectLocalNetworks()
+	if err != nil {
+		return nil
+	}
+
+	var unadded []scanner.DetectedNetwork
+	for _, n := range networks {
+		if !existingCIDRs[n.CIDR] {
+			unadded = append(unadded, n)
+		}
+	}
+	return unadded
 }
 
 // HandleMainTablePartial renders the main host table partial
@@ -244,9 +275,14 @@ func (h *Handler) HandleSegmentModal(w http.ResponseWriter, r *http.Request) {
 	if seg == nil {
 		seg = &db.Segment{IsEnabled: true}
 	}
+	var unadded []scanner.DetectedNetwork
+	if seg.ID == 0 {
+		unadded = h.getUnaddedLocalNetworks()
+	}
 
 	_ = h.tmpl.ExecuteTemplate(w, "segment_modal.html", map[string]interface{}{
-		"Segment": seg,
+		"Segment":         seg,
+		"UnaddedNetworks": unadded,
 	})
 }
 

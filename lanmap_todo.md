@@ -259,7 +259,8 @@
   - [x] Web 単体テスト追加 & 実行 (`internal/web/web_test.go`)
 - [x] **13.3 Web UI テンプレート (`web/template`)**
   - [x] `web/template/partials/segment_menu.html` 新規作成（スキャン追加/停止、名前編集、削除）
-  - [x] `web/template/partials/sidebar.html` セグメントループ改修（停止中セグメントのグレーアウト表示、3点リーダーボタン設置）
+  - [x] `web/template/partials/sidebar.html` セグメントループ改修（停止中セグメントのグレーアウト表示、3点リーダーボタン設置、未登録NIC件数バッジ表示）
+  - [x] `web/template/partials/segment_modal.html` 改修（未登録/削除済みNICのサジェストカード、ワンクリック再追加、フォーム自動反映）
 - [x] **13.4 ドキュメント更新**
   - [x] `README.md`、`lanmap_design.md`、`lanmap_todo.md` 更新
 

@@ -182,4 +182,12 @@ func TestWebRoutes(t *testing.T) {
 	if segUpdated.IsEnabled {
 		t.Errorf("expected segment to be toggled to disabled, got %+v", segUpdated)
 	}
+
+	// 12. Test Segment Modal with Unadded Networks suggestion
+	req = httptest.NewRequest("GET", "/modals/segment", nil)
+	rec = httptest.NewRecorder()
+	router.ServeHTTP(rec, req)
+	if rec.Code != http.StatusOK || !strings.Contains(rec.Body.String(), "新規セグメント追加") {
+		t.Errorf("expected 200 and '新規セグメント追加' from /modals/segment, got %d", rec.Code)
+	}
 }
