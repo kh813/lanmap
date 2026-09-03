@@ -148,4 +148,19 @@ func TestWebRoutes(t *testing.T) {
 	if rec.Code != http.StatusOK {
 		t.Errorf("expected 200 from ping test endpoint, got %d", rec.Code)
 	}
+
+	// 10. Test Favicon endpoints (/favicon.ico and /static/favicon.svg)
+	req = httptest.NewRequest("GET", "/favicon.ico", nil)
+	rec = httptest.NewRecorder()
+	router.ServeHTTP(rec, req)
+	if rec.Code != http.StatusOK {
+		t.Errorf("expected 200 from /favicon.ico, got %d", rec.Code)
+	}
+
+	req = httptest.NewRequest("GET", "/static/favicon.svg", nil)
+	rec = httptest.NewRecorder()
+	router.ServeHTTP(rec, req)
+	if rec.Code != http.StatusOK {
+		t.Errorf("expected 200 from /static/favicon.svg, got %d", rec.Code)
+	}
 }

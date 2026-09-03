@@ -3,6 +3,8 @@ package web
 import (
 	"net/http"
 	"strconv"
+
+	"lanmap/web"
 )
 
 // NewRouter registers HTTP routes and returns the http.Handler
@@ -11,6 +13,9 @@ func NewRouter(h *Handler) http.Handler {
 
 	// Static Assets
 	mux.Handle("GET /static/", http.StripPrefix("/static/", http.FileServer(StaticFS())))
+	mux.HandleFunc("GET /favicon.ico", func(w http.ResponseWriter, r *http.Request) {
+		http.ServeFileFS(w, r, web.WebFS, "static/favicon.ico")
+	})
 
 	// Main Layout
 	mux.HandleFunc("GET /{$}", h.HandleIndex)
