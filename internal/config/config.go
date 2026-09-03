@@ -9,8 +9,12 @@ import (
 	"time"
 )
 
+// AppVersion is the current application version
+const AppVersion = "v0.0.9"
+
 // Config represents application configuration
 type Config struct {
+	Version         string
 	HTTPPort        int
 	ScanInterval    time.Duration
 	ScanConcurrency int
@@ -99,6 +103,7 @@ func LoadConfig() (*Config, error) {
 	}
 
 	cfg := &Config{
+		Version:         AppVersion,
 		HTTPPort:        port,
 		ScanInterval:    time.Duration(scanIntervalMin) * time.Minute,
 		ScanConcurrency: scanConcurrency,

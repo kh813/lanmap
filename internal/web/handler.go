@@ -75,6 +75,7 @@ func (h *Handler) HandleSidebarPartial(w http.ResponseWriter, r *http.Request) {
 		"SelectedSegmentID": selectedID,
 		"TotalHostsCount":   len(hosts),
 		"UnaddedCount":      len(unadded),
+		"Version":           h.cfg.Version,
 	}
 
 	_ = h.tmpl.ExecuteTemplate(w, "sidebar.html", data)
@@ -213,7 +214,8 @@ func (h *Handler) HandleSettingsModal(w http.ResponseWriter, r *http.Request) {
 	}
 
 	_ = h.tmpl.ExecuteTemplate(w, "settings_modal.html", map[string]interface{}{
-		"Settings": settings,
+		"Settings":       settings,
+		"CurrentVersion": h.cfg.Version,
 	})
 }
 
@@ -666,7 +668,10 @@ func (h *Handler) HandleTestWebhook(w http.ResponseWriter, r *http.Request) {
 
 // HandleCheckUpdate queries GitHub Releases for updates
 func (h *Handler) HandleCheckUpdate(w http.ResponseWriter, r *http.Request) {
-	currentVer := "v0.0.7"
+	currentVer := h.cfg.Version
+	if currentVer == "" {
+		currentVer = config.AppVersion
+	}
 	rel, err := updater.CheckLatestRelease(currentVer)
 	if err != nil {
 		w.Header().Set("Content-Type", "text/html; charset=utf-8")

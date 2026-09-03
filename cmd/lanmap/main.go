@@ -111,6 +111,7 @@ func runServer() {
 	if err != nil {
 		log.Fatalf("[FATAL] Failed to load configuration: %v", err)
 	}
+	cfg.Version = Version
 
 	log.Printf("[INFO] Starting lanmap %s...", Version)
 
