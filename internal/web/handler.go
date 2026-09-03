@@ -533,7 +533,7 @@ func (h *Handler) HandleTestWebhook(w http.ResponseWriter, r *http.Request) {
 
 // HandleCheckUpdate queries GitHub Releases for updates
 func (h *Handler) HandleCheckUpdate(w http.ResponseWriter, r *http.Request) {
-	currentVer := "v0.0.6"
+	currentVer := "v0.0.7"
 	rel, err := updater.CheckLatestRelease(currentVer)
 	if err != nil {
 		w.Header().Set("Content-Type", "text/html; charset=utf-8")
