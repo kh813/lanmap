@@ -53,6 +53,11 @@ type Host struct {
 	PingStats7d       string        `json:"-"`
 }
 
+// IPID returns sanitized IP string for HTML element IDs (e.g. "192-168-1-1")
+func (h *Host) IPID() string {
+	return strings.ReplaceAll(strings.ReplaceAll(h.IP, ".", "-"), ":", "-")
+}
+
 // IsNewHost returns true if host was first seen within the last 24 hours and is not yet approved
 func (h *Host) IsNewHost() bool {
 	if h.IsApproved {

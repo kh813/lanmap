@@ -87,6 +87,61 @@
         document.addEventListener('keydown', function(e) {
             if (e.key === 'Escape') closeModal();
         });
+
+        // Smart Popover Positioning (prevents clipping outside viewport)
+        let activePopoverId = null;
+        function showHostPopover(triggerEl, popoverId) {
+            hideHostPopover();
+            const popover = document.getElementById(popoverId);
+            if (!popover) return;
+
+            activePopoverId = popoverId;
+            popover.classList.remove('hidden');
+            popover.style.display = 'block';
+            popover.style.position = 'fixed';
+            popover.style.zIndex = '9999';
+
+            const rect = triggerEl.getBoundingClientRect();
+            const popoverHeight = popover.offsetHeight || 380;
+            const popoverWidth = popover.offsetWidth || 384;
+
+            // Horizontal position: align with trigger left, clamped within viewport
+            let left = rect.left + 10;
+            if (left + popoverWidth > window.innerWidth - 16) {
+                left = window.innerWidth - popoverWidth - 16;
+            }
+            if (left < 16) left = 16;
+
+            // Vertical position: if overflowing bottom, flip upwards
+            let top = rect.bottom + 6;
+            if (top + popoverHeight > window.innerHeight - 16) {
+                top = rect.top - popoverHeight - 6;
+                // If flipping upwards also overflows top, clamp in viewport
+                if (top < 16) {
+                    top = Math.max(16, window.innerHeight - popoverHeight - 16);
+                }
+            }
+
+            popover.style.left = left + 'px';
+            popover.style.top = top + 'px';
+        }
+
+        function hideHostPopover(popoverId) {
+            const id = popoverId || activePopoverId;
+            if (id) {
+                const popover = document.getElementById(id);
+                if (popover) {
+                    popover.style.display = 'none';
+                    popover.classList.add('hidden');
+                }
+                if (!popoverId || popoverId === activePopoverId) {
+                    activePopoverId = null;
+                }
+            }
+        }
+
+        // Hide floating popover when scrolling main table
+        window.addEventListener('scroll', function() { hideHostPopover(); }, true);
     </script>
 </body>
 </html>
