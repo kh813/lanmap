@@ -430,4 +430,17 @@ func TestConnectionTypeDetection(t *testing.T) {
 	if h5.ConnectionType() != "wifi" {
 		t.Errorf("expected h5 wifi, got %s", h5.ConnectionType())
 	}
+
+	// 6. Network Infrastructure (Netgear AP / Router) -> Ethernet (overrides Wi-Fi jitter)
+	h6 := &Host{
+		VendorModel:  "Netgear",
+		PingRTTMs:    &rttSlow,
+		PingJitterMs: &jitterSlow,
+	}
+	if h6.ConnectionType() != "ethernet" {
+		t.Errorf("expected h6 ethernet for Netgear, got %s", h6.ConnectionType())
+	}
+	if h6.ConnectionReason() != "ネットワーク機器 (AP/ルーター)" {
+		t.Errorf("expected network device reason, got %s", h6.ConnectionReason())
+	}
 }

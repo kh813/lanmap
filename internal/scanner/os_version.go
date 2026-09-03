@@ -83,6 +83,21 @@ func DetectDetailedOS(ip string, hostname, vendor, initialOS, mdnsModel, httpTit
 		return "TrueNAS SCALE (Linux)"
 	}
 
+	// 3.5 Network Equipment (Netgear, Cisco, Yamaha, Ubiquiti)
+	vLower := strings.ToLower(vendor)
+	if strings.Contains(vLower, "netgear") || strings.Contains(evidence, "netgear") {
+		return "Netgear Firmware (Embedded Linux)"
+	}
+	if strings.Contains(vLower, "cisco") || strings.Contains(evidence, "cisco") {
+		return "Cisco IOS / Network OS"
+	}
+	if strings.Contains(vLower, "yamaha") || strings.Contains(evidence, "yamaha") || strings.Contains(evidence, "rtx") {
+		return "Yamaha Network OS (RevBoot)"
+	}
+	if strings.Contains(vLower, "ubiquiti") || strings.Contains(evidence, "ubnt") || strings.Contains(evidence, "unifi") {
+		return "UniFi OS (Embedded Linux)"
+	}
+
 	// 4. Windows SMB & UPnP
 	if strings.Contains(openPorts, "445") || strings.Contains(evidence, "windows") || strings.Contains(evidence, "microsoft") {
 		if strings.Contains(evidence, "server") {

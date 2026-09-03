@@ -193,7 +193,7 @@ func (h *Host) ConnectionType() string {
 		return "wifi"
 	}
 
-	// 3. Known wired infrastructure (Routers, Gateways, Managed Switches, NAS, Hypervisors)
+	// 3. Known wired infrastructure (Routers, Gateways, Managed Switches, NAS, Hypervisors, Network APs)
 	if strings.Contains(combined, "openwrt") ||
 		strings.Contains(combined, "luci") ||
 		strings.Contains(combined, "synology") ||
@@ -201,6 +201,18 @@ func (h *Host) ConnectionType() string {
 		strings.Contains(combined, "truenas") ||
 		strings.Contains(combined, "proxmox") ||
 		strings.Contains(combined, "esxi") ||
+		strings.Contains(combined, "netgear") ||
+		strings.Contains(combined, "cisco") ||
+		strings.Contains(combined, "ubiquiti") ||
+		strings.Contains(combined, "unifi") ||
+		strings.Contains(combined, "yamaha") ||
+		strings.Contains(combined, "fortinet") ||
+		strings.Contains(combined, "mikrotik") ||
+		strings.Contains(combined, "allied telesis") ||
+		strings.Contains(combined, "juniper") ||
+		strings.Contains(combined, "aruba") ||
+		strings.Contains(combined, "router") ||
+		strings.Contains(combined, "access point") ||
 		strings.Contains(combined, "server") {
 		return "ethernet"
 	}
@@ -244,7 +256,7 @@ func (h *Host) ConnectionBadgeClass() string {
 
 // ConnectionReason returns human-readable explanation of why this connection type was determined
 func (h *Host) ConnectionReason() string {
-	combined := strings.ToLower(h.Hostname + " " + h.MDNSModel + " " + h.VendorModel + " " + h.UPnPName)
+	combined := strings.ToLower(h.Hostname + " " + h.MDNSModel + " " + h.VendorModel + " " + h.UPnPName + " " + h.DisplayName)
 	if strings.Contains(combined, "iphone") || strings.Contains(combined, "ipad") || strings.Contains(combined, "watch") || strings.Contains(combined, "galaxy") {
 		return "モバイル機器"
 	}
@@ -253,6 +265,9 @@ func (h *Host) ConnectionReason() string {
 	}
 	if h.IsRandomizedMAC() {
 		return "ランダムMAC"
+	}
+	if strings.Contains(combined, "netgear") || strings.Contains(combined, "cisco") || strings.Contains(combined, "yamaha") || strings.Contains(combined, "ubiquiti") || strings.Contains(combined, "router") || strings.Contains(combined, "access point") {
+		return "ネットワーク機器 (AP/ルーター)"
 	}
 	if strings.Contains(combined, "openwrt") || strings.Contains(combined, "synology") || strings.Contains(combined, "server") {
 		return "固定インフラ"

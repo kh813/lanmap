@@ -22,6 +22,7 @@ func TestOUILookup(t *testing.T) {
 		{"00:00:0C:11:22:33", "Cisco"},
 		{"00:11:32:44:55:66", "Synology"},
 		{"B8:27:EB:00:11:22", "Raspberry Pi"},
+		{"bc:a5:11:e0:90:cf", "Netgear"},
 		{"00:00:00:00:00:00", ""},
 		{"8a:22:c1:5c:85:f7", "端末 (プライベートMAC / Wi-Fi匿名化)"},
 		{"invalid", ""},
@@ -175,5 +176,11 @@ func TestDetectDetailedOS(t *testing.T) {
 	os3 := DetectDetailedOS("192.168.3.1", "custom-router.lan", "", "Linux", "", "OpenWrt - LuCI 23.05", "80:HTTP", "", "")
 	if !strings.Contains(os3, "OpenWrt 23.05") {
 		t.Errorf("expected OpenWrt 23.05, got %s", os3)
+	}
+
+	// 4. Netgear Network Equipment
+	os4 := DetectDetailedOS("192.168.3.9", "", "Netgear", "Linux", "", "", "80:HTTP,443:HTTPS", "", "")
+	if !strings.Contains(os4, "Netgear Firmware") {
+		t.Errorf("expected Netgear Firmware, got %s", os4)
 	}
 }
