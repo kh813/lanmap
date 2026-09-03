@@ -25,43 +25,7 @@ func FingerprintHost(ip string, initialHostname, initialVendor, initialOS string
 		RefinedOS:       initialOS,
 	}
 
-	// 1. Infer from Hostname patterns
-	hnLower := strings.ToLower(initialHostname)
-	if strings.Contains(hnLower, "openwrt") || strings.Contains(hnLower, "router") {
-		if details.RefinedVendor == "" || strings.Contains(details.RefinedVendor, "プライベート") {
-			details.RefinedVendor = "OpenWrt / Router"
-		}
-		details.RefinedOS = "Linux (OpenWrt)"
-	} else if strings.Contains(hnLower, "mbp") || strings.Contains(hnLower, "macbook") {
-		details.RefinedVendor = "Apple (MacBook)"
-		details.RefinedOS = "macOS"
-	} else if strings.Contains(hnLower, "ipad") {
-		details.RefinedVendor = "Apple (iPad)"
-		details.RefinedOS = "iPadOS"
-	} else if strings.Contains(hnLower, "iphone") {
-		details.RefinedVendor = "Apple (iPhone)"
-		details.RefinedOS = "iOS"
-	} else if strings.Contains(hnLower, "watch") {
-		details.RefinedVendor = "Apple (Apple Watch)"
-		details.RefinedOS = "watchOS"
-	} else if strings.Contains(hnLower, "google-home") || strings.Contains(hnLower, "nest") {
-		details.RefinedVendor = "Google (Nest / Home)"
-		details.RefinedOS = "Google Cast OS"
-	} else if strings.Contains(hnLower, "espressif") || strings.Contains(hnLower, "esp32") || strings.Contains(hnLower, "esp8266") {
-		details.RefinedVendor = "Espressif (ESP32/IoT)"
-		details.RefinedOS = "FreeRTOS / ESP-IDF"
-	} else if strings.Contains(hnLower, "fold") || strings.Contains(hnLower, "galaxy") || strings.Contains(hnLower, "samsung") {
-		details.RefinedVendor = "Samsung (Galaxy)"
-		details.RefinedOS = "Android"
-	} else if strings.Contains(hnLower, "pixel") {
-		details.RefinedVendor = "Google (Pixel)"
-		details.RefinedOS = "Android"
-	} else if strings.Contains(hnLower, "mac.") || strings.Contains(hnLower, "imac") || strings.Contains(hnLower, "mac-mini") || strings.Contains(hnLower, "mac-studio") {
-		details.RefinedVendor = "Apple (Mac)"
-		details.RefinedOS = "macOS"
-	}
-
-	// 2. Probe safe common ports with ultra-short timeouts (100ms)
+	// 1. Probe safe common services with short timeouts (evidence-based only)
 	// SSH (Port 22)
 	if sshBanner := probeSSH(ip, 100*time.Millisecond); sshBanner != "" {
 		if strings.Contains(sshBanner, "Ubuntu") {

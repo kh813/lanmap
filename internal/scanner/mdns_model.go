@@ -2,7 +2,9 @@ package scanner
 
 import (
 	"fmt"
+	"net"
 	"strings"
+	"time"
 )
 
 var appleModelMap = map[string]string{
@@ -50,53 +52,70 @@ var appleModelMap = map[string]string{
 	"AudioAccessory5,1": "HomePod mini",
 }
 
-// ResolveMDNSModel resolves raw model string or hostname into a clean model description
-func ResolveMDNSModel(rawModel string, hostname string) string {
+// QueryMDNSDeviceInfo sends a unicast mDNS query to target IP:5353 to retrieve verified hardware model signature (e.g. MacBookPro18,4)
+func QueryMDNSDeviceInfo(ipStr string, timeout time.Duration) string {
+	addr, err := net.ResolveUDPAddr("udp4", net.JoinHostPort(ipStr, "5353"))
+	if err != nil {
+		return ""
+	}
+	conn, err := net.DialUDP("udp4", nil, addr)
+	if err != nil {
+		return ""
+	}
+	defer conn.Close()
+	_ = conn.SetDeadline(time.Now().Add(timeout))
+
+	// DNS Query for _device-info._tcp.local (Type PTR = 12, Class IN = 1)
+	query := []byte{
+		0x00, 0x00, // ID
+		0x00, 0x00, // Flags
+		0x00, 0x01, // Questions: 1
+		0x00, 0x00, // Answer RRs
+		0x00, 0x00, // Authority RRs
+		0x00, 0x00, // Additional RRs
+		0x0c, '_', 'd', 'e', 'v', 'i', 'c', 'e', '-', 'i', 'n', 'f', 'o',
+		0x04, '_', 't', 'c', 'p',
+		0x05, 'l', 'o', 'c', 'a', 'l',
+		0x00,
+		0x00, 0x0c, // Type: PTR
+		0x80, 0x01, // Class: IN (Unicast response)
+	}
+
+	if _, err := conn.Write(query); err != nil {
+		return ""
+	}
+
+	buf := make([]byte, 1500)
+	n, err := conn.Read(buf)
+	if err != nil || n < 12 {
+		return ""
+	}
+
+	raw := string(buf[:n])
+	// Look for model=MacBookPro18,4 or model=iPhone17,1
+	if idx := strings.Index(raw, "model="); idx != -1 {
+		part := raw[idx+6:]
+		end := strings.IndexAny(part, "\x00\r\n\t ,;\"<>\x01\x02\x03\x04\x05\x06\x07\x08\x09")
+		if end != -1 {
+			part = part[:end]
+		}
+		part = strings.TrimSpace(part)
+		if part != "" {
+			return part
+		}
+	}
+	return ""
+}
+
+// ResolveMDNSModel resolves verified raw model signature into a clean human-readable model description.
+// It strictly maps evidence-based signatures (e.g. MacBookPro18,4) and does not guess from arbitrary hostnames.
+func ResolveMDNSModel(rawModel string) string {
 	rawModel = strings.TrimSpace(rawModel)
+	if rawModel == "" {
+		return ""
+	}
 	if pretty, found := appleModelMap[rawModel]; found {
 		return pretty
 	}
-
-	lowerHost := strings.ToLower(hostname)
-	if strings.Contains(lowerHost, "ipad") {
-		if strings.Contains(lowerHost, "m4") {
-			return "Apple iPad Pro (M4 1TB)"
-		}
-		return "Apple iPad"
-	}
-	if strings.Contains(lowerHost, "iphone16p") || (strings.Contains(lowerHost, "iphone16") && strings.Contains(lowerHost, "pro")) {
-		return "Apple iPhone 16 Pro"
-	}
-	if strings.Contains(lowerHost, "iphone") {
-		return "Apple iPhone"
-	}
-	if strings.Contains(lowerHost, "watch") {
-		return "Apple Watch"
-	}
-	if strings.Contains(lowerHost, "mbpm1m") || strings.Contains(lowerHost, "mbp-m1-max") || strings.Contains(lowerHost, "mbp-m1m") {
-		return "Apple MacBook Pro (14-inch, M1 Max)"
-	}
-	if strings.Contains(lowerHost, "mbpm1p") || strings.Contains(lowerHost, "mbp-m1-pro") || strings.Contains(lowerHost, "mbp-m1") {
-		return "Apple MacBook Pro (14-inch, M1 Pro)"
-	}
-	if strings.Contains(lowerHost, "mac.parkside") {
-		return "Apple Mac"
-	}
-	if strings.Contains(lowerHost, "fold5") {
-		return "Samsung Galaxy Z Fold5 5G"
-	}
-	if strings.Contains(lowerHost, "google-home") {
-		return "Google Home Mini"
-	}
-	if strings.Contains(lowerHost, "espressif") {
-		return "Espressif IoT Device (ESP32/ESP8266)"
-	}
-	if strings.Contains(lowerHost, "openwrt") {
-		return "OpenWrt Network Router"
-	}
-
-	if rawModel != "" {
-		return fmt.Sprintf("Model: %s", rawModel)
-	}
-	return ""
+	return fmt.Sprintf("Model: %s", rawModel)
 }

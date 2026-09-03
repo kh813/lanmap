@@ -8,52 +8,26 @@ import (
 	"time"
 )
 
-// DetectDetailedOS combines all available network signals to deduce exact OS name and version
+// DetectDetailedOS combines verified network signals (mDNS model signatures, SSH banners, HTTP headers, UPnP) to deduce exact OS
 func DetectDetailedOS(ip string, hostname, vendor, initialOS, mdnsModel, httpTitle, openPorts, upnpName, upnpModel string) string {
-	combined := strings.ToLower(fmt.Sprintf("%s %s %s %s %s %s %s", hostname, vendor, mdnsModel, httpTitle, openPorts, upnpName, upnpModel))
+	// Notice: We strictly DO NOT include arbitrary user hostnames in the evidence string
+	evidence := strings.ToLower(fmt.Sprintf("%s %s %s %s %s", mdnsModel, httpTitle, openPorts, upnpName, upnpModel))
 
-	// 1. Apple Devices & OS Version Deduction
-	if strings.Contains(combined, "iphone17") || strings.Contains(combined, "iphone16p") || strings.Contains(combined, "iphone 16 pro") {
-		return "iOS 18 (iPhone 16 Pro)"
+	// 1. Evidence from verified mDNS Model Signatures (e.g. MacBookPro18,4, iPhone17,1)
+	if strings.Contains(mdnsModel, "MacBook") || strings.Contains(mdnsModel, "Mac mini") || strings.Contains(mdnsModel, "Mac Studio") || strings.Contains(mdnsModel, "iMac") {
+		return "macOS (Apple Silicon)"
 	}
-	if strings.Contains(combined, "iphone16") || strings.Contains(combined, "iphone 15") {
-		return "iOS 17 / 18 (iPhone 15)"
-	}
-	if strings.Contains(combined, "iphone15") || strings.Contains(combined, "iphone 14") {
-		return "iOS 16 / 17 (iPhone 14)"
-	}
-	if strings.Contains(combined, "iphone") {
+	if strings.Contains(mdnsModel, "iPhone") {
 		return "iOS (Apple iPhone)"
 	}
-	if strings.Contains(combined, "ipad16") || strings.Contains(combined, "m4") {
-		return "iPadOS 18 (iPad Pro M4)"
+	if strings.Contains(mdnsModel, "iPad") {
+		return "iPadOS (Apple iPad)"
 	}
-	if strings.Contains(combined, "ipad14") || strings.Contains(combined, "ipad") {
-		return "iPadOS 17 / 18 (Apple iPad)"
+	if strings.Contains(mdnsModel, "Apple TV") {
+		return "tvOS (Apple TV)"
 	}
-	if strings.Contains(combined, "m1 max") || strings.Contains(combined, "mbpm1m") || strings.Contains(combined, "macbookpro18,4") || strings.Contains(combined, "macbookpro18,2") {
-		return "macOS 15 (Apple M1 Max)"
-	}
-	if strings.Contains(combined, "macbookpro18") || strings.Contains(combined, "m1 pro") || strings.Contains(combined, "mbpm1p") {
-		return "macOS 15 (Apple M1 Pro)"
-	}
-	if strings.Contains(combined, "mac16") || strings.Contains(combined, "m4 pro") {
-		return "macOS 15 (Apple M4)"
-	}
-	if strings.Contains(combined, "mac15") || strings.Contains(combined, "m3") {
-		return "macOS 14 / 15 (Apple M3)"
-	}
-	if strings.Contains(combined, "mac14") || strings.Contains(combined, "m2") {
-		return "macOS 14 (Apple M2)"
-	}
-	if strings.Contains(combined, "macbook") || strings.Contains(combined, "imac") || strings.Contains(combined, "mac-mini") || strings.Contains(combined, "mac.") {
-		return "macOS (Apple Silicon / Mac)"
-	}
-	if strings.Contains(combined, "watch") {
-		return "watchOS (Apple Watch)"
-	}
-	if strings.Contains(combined, "homepod") {
-		return "HomePod OS (Apple Audio)"
+	if strings.Contains(mdnsModel, "HomePod") {
+		return "HomePod OS"
 	}
 
 	// 2. SSH Banner (Port 22) Exact Linux Distro & Version
@@ -90,46 +64,46 @@ func DetectDetailedOS(ip string, hostname, vendor, initialOS, mdnsModel, httpTit
 	}
 
 	// 3. Web Titles & HTTP Headers (Router, NAS, Hypervisor)
-	if strings.Contains(combined, "luci 24") || strings.Contains(combined, "openwrt 24") {
+	if strings.Contains(evidence, "luci 24") || strings.Contains(evidence, "openwrt 24") {
 		return "OpenWrt 24.10 (Linux)"
 	}
-	if strings.Contains(combined, "luci 23") || strings.Contains(combined, "openwrt 23") {
+	if strings.Contains(evidence, "luci 23") || strings.Contains(evidence, "openwrt 23") {
 		return "OpenWrt 23.05 (Linux)"
 	}
-	if strings.Contains(combined, "openwrt") || strings.Contains(combined, "luci") {
+	if strings.Contains(evidence, "openwrt") || strings.Contains(evidence, "luci") {
 		return "OpenWrt (Linux Router)"
 	}
-	if strings.Contains(combined, "synology") || strings.Contains(combined, "dsm") {
+	if strings.Contains(evidence, "synology") || strings.Contains(evidence, "dsm") {
 		return "Synology DSM 7.x (Linux)"
 	}
-	if strings.Contains(combined, "proxmox") {
+	if strings.Contains(evidence, "proxmox") {
 		return "Proxmox VE (Debian Linux)"
 	}
-	if strings.Contains(combined, "truenas") {
+	if strings.Contains(evidence, "truenas") {
 		return "TrueNAS SCALE (Linux)"
 	}
 
-	// 4. Windows SMB & UPnP Build Number
-	if strings.Contains(openPorts, "445") || strings.Contains(combined, "windows") || strings.Contains(combined, "microsoft") {
-		if strings.Contains(combined, "server") {
+	// 4. Windows SMB & UPnP
+	if strings.Contains(openPorts, "445") || strings.Contains(evidence, "windows") || strings.Contains(evidence, "microsoft") {
+		if strings.Contains(evidence, "server") {
 			return "Windows Server"
 		}
-		if initialOS == "Windows" || strings.Contains(combined, "win") {
+		if initialOS == "Windows" || strings.Contains(evidence, "win") {
 			return "Windows 11 / 10"
 		}
 	}
 
 	// 5. IoT & Smart Home
-	if strings.Contains(combined, "google-home") || strings.Contains(combined, "google home") || strings.Contains(combined, "nest") {
+	if strings.Contains(evidence, "google-home") || strings.Contains(evidence, "google home") || strings.Contains(evidence, "nest") {
 		return "Google Cast OS"
 	}
-	if strings.Contains(combined, "fold5") || strings.Contains(combined, "galaxy") || strings.Contains(combined, "samsung") {
+	if strings.Contains(evidence, "galaxy") || strings.Contains(evidence, "samsung") {
 		return "Android (Samsung One UI)"
 	}
-	if strings.Contains(combined, "pixel") || strings.Contains(combined, "android") {
+	if strings.Contains(evidence, "pixel") || strings.Contains(evidence, "android") {
 		return "Android OS"
 	}
-	if strings.Contains(combined, "espressif") || strings.Contains(combined, "esp32") || strings.Contains(combined, "esp8266") {
+	if strings.Contains(evidence, "espressif") || strings.Contains(evidence, "esp32") || strings.Contains(evidence, "esp8266") {
 		return "FreeRTOS (ESP-IDF)"
 	}
 

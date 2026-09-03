@@ -129,15 +129,21 @@ func TestScanOpenPorts(t *testing.T) {
 }
 
 func TestExtendedProbes(t *testing.T) {
-	// 1. mDNS Model resolution
-	model := ResolveMDNSModel("MacBookPro18,1", "mbpm1m.local")
-	if model != "MacBook Pro (16-inch, 2021 M1 Pro)" {
+	// 1. Evidence-based mDNS Model resolution
+	model := ResolveMDNSModel("MacBookPro18,4")
+	if model != "MacBook Pro (14-inch, 2021 M1 Max)" {
 		t.Errorf("unexpected model: %s", model)
 	}
 
-	model2 := ResolveMDNSModel("", "ipad-me1tb-m4.local")
-	if model2 != "Apple iPad Pro (M4 1TB)" {
+	model2 := ResolveMDNSModel("iPad16,3")
+	if model2 != "iPad Pro 11-inch (M4, 2024)" {
 		t.Errorf("unexpected model2: %s", model2)
+	}
+
+	// Empty / no evidence returns empty string (no guessing!)
+	modelEmpty := ResolveMDNSModel("")
+	if modelEmpty != "" {
+		t.Errorf("expected empty model for empty input, got %s", modelEmpty)
 	}
 
 	// 2. Jitter calculation
@@ -153,27 +159,21 @@ func TestExtendedProbes(t *testing.T) {
 }
 
 func TestDetectDetailedOS(t *testing.T) {
-	// 1. iPhone 16 Pro -> iOS 18
-	os1 := DetectDetailedOS("192.168.3.150", "iphone16p.parkside.tokyo", "Apple", "iOS", "iPhone 16 Pro", "", "", "", "")
-	if !strings.Contains(os1, "iOS 18") {
-		t.Errorf("expected iOS 18, got %s", os1)
+	// 1. Verified Model Signature MacBookPro18,4 -> macOS (Apple Silicon)
+	os1 := DetectDetailedOS("192.168.3.170", "mbpm1m.parkside.tokyo", "Apple", "macOS", "MacBook Pro (14-inch, 2021 M1 Max)", "", "", "", "")
+	if !strings.Contains(os1, "macOS (Apple Silicon)") {
+		t.Errorf("expected macOS (Apple Silicon), got %s", os1)
 	}
 
-	// 2. iPad Pro M4 -> iPadOS 18
-	os2 := DetectDetailedOS("192.168.3.160", "ipad-me1tb-m4.parkside.tokyo", "Apple", "iOS", "", "", "", "", "")
-	if !strings.Contains(os2, "iPadOS 18") {
-		t.Errorf("expected iPadOS 18, got %s", os2)
+	// 2. Verified Model Signature iPhone17,1 -> iOS (Apple iPhone)
+	os2 := DetectDetailedOS("192.168.3.150", "random-hostname.local", "Apple", "iOS", "iPhone 16 Pro", "", "", "", "")
+	if !strings.Contains(os2, "iOS (Apple iPhone)") {
+		t.Errorf("expected iOS (Apple iPhone), got %s", os2)
 	}
 
-	// 3. MacBook Pro M1 Max -> macOS 15 (Apple M1 Max)
-	os3 := DetectDetailedOS("192.168.3.170", "mbpm1m.parkside.tokyo", "Apple", "macOS", "", "", "", "", "")
-	if !strings.Contains(os3, "M1 Max") {
-		t.Errorf("expected M1 Max, got %s", os3)
-	}
-
-	// 4. OpenWrt Web Title
-	os4 := DetectDetailedOS("192.168.3.1", "openwrt.lan", "", "Linux", "", "OpenWrt - LuCI 23.05", "80:HTTP", "", "")
-	if !strings.Contains(os4, "OpenWrt 23.05") {
-		t.Errorf("expected OpenWrt 23.05, got %s", os4)
+	// 3. OpenWrt Web Title
+	os3 := DetectDetailedOS("192.168.3.1", "custom-router.lan", "", "Linux", "", "OpenWrt - LuCI 23.05", "80:HTTP", "", "")
+	if !strings.Contains(os3, "OpenWrt 23.05") {
+		t.Errorf("expected OpenWrt 23.05, got %s", os3)
 	}
 }

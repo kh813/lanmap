@@ -246,10 +246,11 @@ func (s *Scanner) scanSegmentInternal(ctx context.Context, seg *db.Segment) ([]*
 			tlsExp = &tlsInfo.Expiry
 		}
 
-		// 4. mDNS Model
-		mdnsModel := ResolveMDNSModel("", hostname)
+		// 4. mDNS Model (Query target port 5353 for verified model signature)
+		rawModel := QueryMDNSDeviceInfo(ipStr, 80*time.Millisecond)
+		mdnsModel := ResolveMDNSModel(rawModel)
 
-		// 5. Refined OS & Version Detection
+		// 5. Refined OS & Version Detection (Evidence-based only)
 		detailedOS := DetectDetailedOS(ipStr, hostname, vendor, osVendor, mdnsModel, httpTitle, openPorts, upnpName, upnpModel)
 		if detailedOS != "" {
 			osVendor = detailedOS
