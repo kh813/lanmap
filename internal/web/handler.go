@@ -14,7 +14,6 @@ import (
 
 	"lanmap/internal/config"
 	"lanmap/internal/db"
-	"lanmap/internal/kuma"
 	"lanmap/internal/notifier"
 	"lanmap/internal/scanner"
 	"lanmap/internal/updater"
@@ -27,12 +26,11 @@ type Handler struct {
 	cfg      *config.Config
 	scanner  *scanner.Scanner
 	notifier *notifier.Notifier
-	kuma     *kuma.Manager
 	tmpl     *template.Template
 }
 
 // NewHandler creates a new web Handler
-func NewHandler(database *db.DB, cfg *config.Config, sc *scanner.Scanner, notif *notifier.Notifier, km *kuma.Manager) (*Handler, error) {
+func NewHandler(database *db.DB, cfg *config.Config, sc *scanner.Scanner, notif *notifier.Notifier) (*Handler, error) {
 	tmpl, err := template.New("base").ParseFS(web.WebFS, "template/*.html", "template/partials/*.html")
 	if err != nil {
 		return nil, fmt.Errorf("failed to parse templates: %w", err)
@@ -43,7 +41,6 @@ func NewHandler(database *db.DB, cfg *config.Config, sc *scanner.Scanner, notif 
 		cfg:      cfg,
 		scanner:  sc,
 		notifier: notif,
-		kuma:     km,
 		tmpl:     tmpl,
 	}, nil
 }
@@ -64,7 +61,6 @@ func (h *Handler) HandleSidebarPartial(w http.ResponseWriter, r *http.Request) {
 	}
 
 	hosts, _ := h.db.ListHosts(nil, false)
-	kumaStatus, _ := h.kuma.GetStatus()
 
 	var selectedID int64
 	if sIDStr := r.URL.Query().Get("segment_id"); sIDStr != "" {
@@ -75,7 +71,6 @@ func (h *Handler) HandleSidebarPartial(w http.ResponseWriter, r *http.Request) {
 		"Segments":          segments,
 		"SelectedSegmentID": selectedID,
 		"TotalHostsCount":   len(hosts),
-		"KumaStatus":        kumaStatus,
 	}
 
 	_ = h.tmpl.ExecuteTemplate(w, "sidebar.html", data)
@@ -135,20 +130,6 @@ func (h *Handler) HandleActionMenuPartial(w http.ResponseWriter, r *http.Request
 	})
 }
 
-// HandleConflictModal renders conflict resolution modal
-func (h *Handler) HandleConflictModal(w http.ResponseWriter, r *http.Request) {
-	ip := r.URL.Query().Get("ip")
-	host, err := h.db.GetHost(ip)
-	if err != nil || host == nil {
-		http.Error(w, "Host not found", http.StatusNotFound)
-		return
-	}
-
-	_ = h.tmpl.ExecuteTemplate(w, "conflict_modal.html", map[string]interface{}{
-		"Host": host,
-	})
-}
-
 // HandleSettingsModal renders settings modal
 func (h *Handler) HandleSettingsModal(w http.ResponseWriter, r *http.Request) {
 	settings, err := h.db.GetAllSettings()
@@ -157,10 +138,8 @@ func (h *Handler) HandleSettingsModal(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	kumaStatus, _ := h.kuma.GetStatus()
 	_ = h.tmpl.ExecuteTemplate(w, "settings_modal.html", map[string]interface{}{
-		"Settings":   settings,
-		"KumaStatus": kumaStatus,
+		"Settings": settings,
 	})
 }
 
@@ -346,12 +325,7 @@ func (h *Handler) HandleUpdateHost(w http.ResponseWriter, r *http.Request, ip st
 		return
 	}
 
-	if host.UptimeKumaID != nil && displayName != "" && displayName != host.DisplayName {
-		_ = h.kuma.EditMonitorName(r.Context(), ip, *host.UptimeKumaID, displayName)
-	} else {
-		_ = h.db.UpdateHostManual(ip, displayName, vendorModel, isStaticIP)
-	}
-
+	_ = h.db.UpdateHostManual(ip, displayName, vendorModel, isStaticIP)
 	h.HandleMainTablePartial(w, r)
 }
 
@@ -390,52 +364,7 @@ func (h *Handler) HandleCreateHost(w http.ResponseWriter, r *http.Request) {
 
 // HandleDeleteHost deletes a host
 func (h *Handler) HandleDeleteHost(w http.ResponseWriter, r *http.Request, ip string) {
-	host, _ := h.db.GetHost(ip)
-	if host != nil && host.UptimeKumaID != nil {
-		_ = h.kuma.DeleteMonitor(r.Context(), ip, *host.UptimeKumaID, true)
-	} else {
-		_ = h.db.DeleteHost(ip)
-	}
-
-	h.HandleMainTablePartial(w, r)
-}
-
-// HandleResolveConflict resolves name conflict
-func (h *Handler) HandleResolveConflict(w http.ResponseWriter, r *http.Request, ip string) {
-	adopt := r.URL.Query().Get("adopt")
-	err := h.kuma.ResolveConflict(r.Context(), ip, adopt == "lanmap")
-	if err != nil {
-		log.Printf("[ERROR] Failed to resolve conflict: %v", err)
-	}
-	h.HandleMainTablePartial(w, r)
-}
-
-// HandleKumaActions manages Kuma monitor actions from action menu
-func (h *Handler) HandleKumaActions(w http.ResponseWriter, r *http.Request, ip string, action string) {
-	host, err := h.db.GetHost(ip)
-	if err != nil || host == nil {
-		http.Error(w, "Host not found", http.StatusNotFound)
-		return
-	}
-
-	ctx := r.Context()
-	switch action {
-	case "start":
-		name := host.DisplayName
-		if name == "" {
-			name = host.Hostname
-		}
-		_, _ = h.kuma.AddMonitor(ctx, ip, name)
-	case "pause":
-		if host.UptimeKumaID != nil {
-			_ = h.kuma.PauseMonitor(ctx, ip, *host.UptimeKumaID)
-		}
-	case "resume":
-		if host.UptimeKumaID != nil {
-			_ = h.kuma.ResumeMonitor(ctx, ip, *host.UptimeKumaID)
-		}
-	}
-
+	_ = h.db.DeleteHost(ip)
 	h.HandleMainTablePartial(w, r)
 }
 
@@ -483,9 +412,6 @@ func (h *Handler) HandleSaveSettings(w http.ResponseWriter, r *http.Request) {
 		"webhook_teams_url",
 		"webhook_discord_url",
 		"webhook_line_token",
-		"kuma_url",
-		"kuma_username",
-		"kuma_password",
 		"tls_cert_path",
 		"tls_key_path",
 	}
@@ -494,9 +420,6 @@ func (h *Handler) HandleSaveSettings(w http.ResponseWriter, r *http.Request) {
 		val := strings.TrimSpace(r.FormValue(f))
 		_ = h.db.SetSetting(f, val)
 	}
-
-	// Reconnect Kuma
-	_ = h.kuma.Connect(r.Context())
 
 	// Trigger sidebar and main table refresh on body
 	w.Header().Set("HX-Trigger", "refreshSidebar, refreshMainTable")
@@ -666,16 +589,6 @@ func (h *Handler) HandleApplyUpdate(w http.ResponseWriter, r *http.Request) {
 			</script>
 		</div>
 	`))
-}
-
-// HandleKumaSync triggers Uptime Kuma synchronization
-func (h *Handler) HandleKumaSync(w http.ResponseWriter, r *http.Request) {
-	_ = h.kuma.Connect(r.Context())
-	_, err := h.kuma.Sync(r.Context())
-	if err != nil {
-		log.Printf("[WARN] Kuma Sync error: %v", err)
-	}
-	h.HandleMainTablePartial(w, r)
 }
 
 // HandleScanNow triggers immediate network scan

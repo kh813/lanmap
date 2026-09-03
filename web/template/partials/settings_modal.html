@@ -134,39 +134,7 @@
                 </div>
             </div>
 
-            <!-- 3. Uptime Kuma Integration -->
-            <div class="space-y-3 bg-slate-50 dark:bg-slate-950/60 p-4 rounded-lg border border-slate-200 dark:border-slate-800">
-                <div class="flex items-center justify-between">
-                    <label class="block font-bold text-slate-800 dark:text-slate-200">
-                        🦭 Uptime Kuma Socket.IO 双方向連携
-                    </label>
-                    <span class="text-[11px] font-medium text-slate-600 dark:text-slate-400 bg-white dark:bg-slate-900 px-2 py-0.5 rounded border border-slate-200 dark:border-slate-800">
-                        状態: {{.KumaStatus}}
-                    </span>
-                </div>
-                <div class="grid grid-cols-1 md:grid-cols-3 gap-2">
-                    <div class="md:col-span-3">
-                        <span class="text-slate-500 dark:text-slate-400 text-[11px]">Uptime Kuma URL:</span>
-                        <input type="text" name="kuma_url" value="{{.Settings.kuma_url}}"
-                               placeholder="http://localhost:3001"
-                               class="w-full mt-1 bg-white dark:bg-slate-900 border border-slate-300 dark:border-slate-700 rounded px-3 py-1.5 text-slate-800 dark:text-slate-200 focus:outline-none focus:border-blue-500">
-                    </div>
-                    <div>
-                        <span class="text-slate-500 dark:text-slate-400 text-[11px]">ユーザー名 (任意):</span>
-                        <input type="text" name="kuma_username" value="{{.Settings.kuma_username}}"
-                               placeholder="未入力で認証なし接続"
-                               class="w-full mt-1 bg-white dark:bg-slate-900 border border-slate-300 dark:border-slate-700 rounded px-3 py-1.5 text-slate-800 dark:text-slate-200 focus:outline-none focus:border-blue-500">
-                    </div>
-                    <div class="md:col-span-2">
-                        <span class="text-slate-500 dark:text-slate-400 text-[11px]">パスワード (任意):</span>
-                        <input type="password" name="kuma_password" value="{{.Settings.kuma_password}}"
-                               placeholder="••••••••"
-                               class="w-full mt-1 bg-white dark:bg-slate-900 border border-slate-300 dark:border-slate-700 rounded px-3 py-1.5 text-slate-800 dark:text-slate-200 focus:outline-none focus:border-blue-500">
-                    </div>
-                </div>
-            </div>
-
-            <!-- 4. TLS Certificates (Section 10.1) -->
+            <!-- 3. TLS Certificates (Section 10.1) -->
             <div class="space-y-3 bg-slate-50 dark:bg-slate-950/60 p-4 rounded-lg border border-slate-200 dark:border-slate-800">
                 <label class="block font-bold text-slate-800 dark:text-slate-200">
                     🔒 カスタム TLS / HTTPS 証明書設定 (任意)
@@ -190,7 +158,7 @@
                 </div>
             </div>
 
-            <!-- 5. System Update (Self-Update) -->
+            <!-- 4. System Update (Self-Update) -->
             <div class="space-y-3 bg-slate-50 dark:bg-slate-950/60 p-4 rounded-lg border border-slate-200 dark:border-slate-800">
                 <div class="flex items-center justify-between">
                     <label class="block font-bold text-slate-800 dark:text-slate-200">

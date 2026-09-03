@@ -296,9 +296,6 @@ func (h *Host) SearchKeywords() string {
 	if h.IsStorming {
 		parts = append(parts, "ストーム", "異常通信", "storm")
 	}
-	if h.IsMonitored {
-		parts = append(parts, "監視中", "kuma")
-	}
 	return strings.ToLower(strings.Join(parts, " "))
 }
 

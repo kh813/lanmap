@@ -16,7 +16,6 @@ import (
 
 	"lanmap/internal/config"
 	"lanmap/internal/db"
-	"lanmap/internal/kuma"
 	"lanmap/internal/monitor"
 	"lanmap/internal/notifier"
 	"lanmap/internal/scanner"
@@ -86,6 +85,7 @@ func printHelp() {
 USAGE:
   lanmap                     Start lanmap server in foreground (default)
   lanmap service <command>   Manage background service (install, start, stop, etc.)
+  lanmap update              Check and apply update from GitHub Releases
   lanmap version             Show version information
   lanmap help                Show this help message
 
@@ -95,23 +95,27 @@ SERVICE COMMANDS:
   start       Start background service
   stop        Stop background service
   restart     Restart background service
-  status      Show current service status
+  status      Check service status
 
 ENVIRONMENT VARIABLES:
-  LANMAP_DATA_DIR              Data directory path (default: same as binary)
-  LANMAP_PORT                  HTTPS Port (default: 3002)
-  LANMAP_SCAN_INTERVAL_MINUTES Scan interval minutes (default: 10)
-  LANMAP_SCAN_CONCURRENCY      Parallel ping concurrency (default: 20)
+  LANMAP_PORT                  HTTP/HTTPS server port (default: 3002)
+  LANMAP_DATA_DIR              Database and certificates directory (default: binary dir)
+  LANMAP_SCAN_INTERVAL_MINUTES Scan interval in minutes (default: 2)
+  LANMAP_SCAN_CONCURRENCY      Max concurrent ARP/ICMP probes (default: 30)
   LANMAP_LOG_LEVEL             Log level (DEBUG/INFO/WARN/ERROR)
 `, Version)
 }
 
 func runServer() {
-	log.Printf("[INFO] Starting lanmap %s...", Version)
-
 	cfg, err := config.LoadConfig()
 	if err != nil {
 		log.Fatalf("[FATAL] Failed to load configuration: %v", err)
+	}
+
+	log.Printf("[INFO] Starting lanmap %s...", Version)
+
+	if err := os.MkdirAll(cfg.DataDir, 0755); err != nil {
+		log.Fatalf("[FATAL] Failed to create data directory at %s: %v", cfg.DataDir, err)
 	}
 
 	database, err := db.Open(cfg.DBPath)
@@ -125,10 +129,8 @@ func runServer() {
 	_ = sc.EnsureLocalSegmentAutoRegistered()
 
 	notif := notifier.NewNotifier(database)
-	km := kuma.NewManager(database)
-	defer km.Close()
 
-	webHandler, err := web.NewHandler(database, cfg, sc, notif, km)
+	webHandler, err := web.NewHandler(database, cfg, sc, notif)
 	if err != nil {
 		log.Fatalf("[FATAL] Failed to initialize web handlers: %v", err)
 	}
@@ -138,18 +140,11 @@ func runServer() {
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 
-	// Initial Kuma connection & sync
-	go func() {
-		if err := km.Connect(ctx); err == nil {
-			_, _ = km.Sync(ctx)
-		}
-	}()
-
 	bm := monitor.NewBroadcastMonitor(database, notif)
 	bm.Start(ctx)
 
 	// Background Periodic Scanner & Retention Cleanup Task
-	go runBackgroundTasks(ctx, cfg, database, sc, notif, km)
+	go runBackgroundTasks(ctx, cfg, database, sc, notif)
 
 	// TLS Setup (Section 10.1)
 	settings, _ := database.GetAllSettings()
@@ -204,7 +199,7 @@ func runServer() {
 	log.Println("[INFO] lanmap exited cleanly.")
 }
 
-func runBackgroundTasks(ctx context.Context, cfg *config.Config, database *db.DB, sc *scanner.Scanner, notif *notifier.Notifier, km *kuma.Manager) {
+func runBackgroundTasks(ctx context.Context, cfg *config.Config, database *db.DB, sc *scanner.Scanner, notif *notifier.Notifier) {
 	scanTicker := time.NewTicker(cfg.ScanInterval)
 	defer scanTicker.Stop()
 
@@ -219,7 +214,7 @@ func runBackgroundTasks(ctx context.Context, cfg *config.Config, database *db.DB
 	// Initial scan in background immediately
 	go func() {
 		time.Sleep(1 * time.Second)
-		executeScanCycle(ctx, database, sc, notif, km)
+		executeScanCycle(ctx, database, sc, notif)
 	}()
 
 	for {
@@ -227,7 +222,7 @@ func runBackgroundTasks(ctx context.Context, cfg *config.Config, database *db.DB
 		case <-ctx.Done():
 			return
 		case <-scanTicker.C:
-			executeScanCycle(ctx, database, sc, notif, km)
+			executeScanCycle(ctx, database, sc, notif)
 		case <-cleanupTicker.C:
 			days, _ := database.GetRetentionDays()
 			if deleted, err := database.CleanupOldHosts(days); err == nil && deleted > 0 {
@@ -237,7 +232,7 @@ func runBackgroundTasks(ctx context.Context, cfg *config.Config, database *db.DB
 	}
 }
 
-func executeScanCycle(ctx context.Context, database *db.DB, sc *scanner.Scanner, notif *notifier.Notifier, km *kuma.Manager) {
+func executeScanCycle(ctx context.Context, database *db.DB, sc *scanner.Scanner, notif *notifier.Notifier) {
 	log.Println("[INFO] Running scheduled network scan...")
 	reports, err := sc.ScanAll(ctx)
 	if err != nil {
@@ -256,9 +251,6 @@ func executeScanCycle(ctx context.Context, database *db.DB, sc *scanner.Scanner,
 		log.Printf("[WARN] 🚨 %d unapproved host(s) detected during scan! Sending alerts...", len(unapprovedAlerts))
 		_ = notif.NotifyUnapprovedHosts(ctx, unapprovedAlerts)
 	}
-
-	_ = km.Connect(ctx)
-	_, _ = km.Sync(ctx)
 }
 
 // tlsLogFilter filters benign TLS handshake warnings from browsers rejecting self-signed certs

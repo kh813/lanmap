@@ -5,7 +5,7 @@ import (
 )
 
 // CleanupOldHosts deletes hosts that haven't been seen for retentionDays,
-// respecting the protection conditions: is_protected=1, is_monitored=1, is_static_ip=1, is_approved=1.
+// respecting the protection conditions: is_protected=1, is_static_ip=1, is_approved=1.
 // If retentionDays <= 0, cleanup is disabled.
 func (db *DB) CleanupOldHosts(retentionDays int) (int64, error) {
 	if retentionDays <= 0 {
@@ -19,7 +19,6 @@ func (db *DB) CleanupOldHosts(retentionDays int) (int64, error) {
 		OR (last_seen IS NULL AND first_seen < datetime('now', '-' || ? || ' days'))
 	)
 	AND is_protected = 0
-	AND is_monitored = 0
 	AND is_static_ip = 0
 	AND is_approved = 0
 	`

@@ -206,19 +206,16 @@ func TestHostCleanupProtection(t *testing.T) {
 	// 1. Unprotected old host -> should be deleted
 	insertOldHost("192.168.1.1", "11:11:11:11:11:11", false, false, false, false)
 
-	// 2. Protected host -> should NOT be deleted
+	// 2. Protected host (is_protected=1) -> should NOT be deleted
 	insertOldHost("192.168.1.2", "22:22:22:22:22:22", true, false, false, false)
 
-	// 3. Monitored host -> should NOT be deleted
-	insertOldHost("192.168.1.3", "33:33:33:33:33:33", false, true, false, false)
-
-	// 4. Static IP host -> should NOT be deleted
+	// 3. Static IP host (is_static_ip=1) -> should NOT be deleted
 	insertOldHost("192.168.1.4", "44:44:44:44:44:44", false, false, true, false)
 
-	// 5. Approved host -> should NOT be deleted
+	// 4. Approved host (is_approved=1) -> should NOT be deleted
 	insertOldHost("192.168.1.5", "55:55:55:55:55:55", false, false, false, true)
 
-	// 6. Multiple flags (protected + approved) -> should NOT be deleted
+	// 5. Multiple flags (protected + approved) -> should NOT be deleted
 	insertOldHost("192.168.1.6", "66:66:66:66:66:66", true, false, false, true)
 
 	// Run cleanup for > 180 days
@@ -238,7 +235,7 @@ func TestHostCleanupProtection(t *testing.T) {
 	}
 
 	// Verify protected hosts still exist
-	for _, ip := range []string{"192.168.1.2", "192.168.1.3", "192.168.1.4", "192.168.1.5", "192.168.1.6"} {
+	for _, ip := range []string{"192.168.1.2", "192.168.1.4", "192.168.1.5", "192.168.1.6"} {
 		h, _ := db.GetHost(ip)
 		if h == nil {
 			t.Errorf("protected host %s was unexpectedly deleted", ip)

@@ -24,7 +24,6 @@
   - [x] `go.mod` 初期化
   - [x] `modernc.org/sqlite` の追加
   - [x] `golang.org/x/net/icmp` の追加
-  - [x] `github.com/breml/go-uptime-kuma-client` の追加 (仕様 2.2、`graarh/golang-socketio`は不採用)
   - [x] `golang.org/x/sys` の追加 (Windowsサービス管理用、仕様 2.2)
 - [x] **1.2 設定管理 (`internal/config`)**
   - [x] ポート、スキャン間隔、並列数制限等の設定構造体定義 (`config.go`)
@@ -74,15 +73,14 @@
 
 ---
 
-### 🔹 Phase 4: Uptime Kuma Socket.IO 双方向連携
-- [x] **4.1 Socket.IO クライアント & 同期処理 (`internal/kuma`)**
-  - [x] `breml/go-uptime-kuma-client` を用いた Uptime Kuma Socket.IO 接続処理 (`client.go`)
-  - [x] 認証未設定/認証設定あり（ユーザー名・パスワードによる`login`イベント）両モードへの対応、認証失敗時のエラー状態表示 (仕様 9.3)
-  - [x] 切断時の指数バックオフによる再接続処理 (仕様 9.2)
-  - [x] モニター情報の取得・自動インポート・照合ロジック (`sync.go`)
-  - [x] 照合パターン（パターン A: 一致、パターン B: 表示名競合 ⚠️、パターン C: 新規インポート、パターン D: Kuma側削除によるリンク解除）の実装 (仕様 9.1)
-  - [x] 起動時同期・定期同期（バックグラウンドタイマー）・手動同期（UIトリガー）の実装 (仕様 9.2)
-  - [x] Kuma アクション連動 (`addMonitor`, `pauseMonitor`, `resumeMonitor`, `editMonitor`, `deleteMonitor`)
+### 🔹 Phase 4: 内蔵 Ping 死活監視・24hタイムライン & 7日間推移集計エンジン (完全自立化)
+- [x] **4.1 内蔵 Ping 履歴収集 & 統計エンジン (`internal/db/ping_history.go`)**
+  * [x] ICMP Echo 定期測定結果の `ping_history` テーブル保存 & 自動パージ（7日間保持）
+  * [x] 時間比例 24時間インライン SVG タイムライン生成（30分刻みスロット、未計測区間破線対応）
+  * [x] 過去7日間の遅延推移 SVG 折れ線グラフ（日付目盛り・Min/Max ガイド線）
+  * [x] 4時間毎×42ブロック稼働ヒートマップ & 稼働率(%)・ジッター(±ms)精密統計
+  * [x] オンデマンド「⚡ 今すぐ Ping 診断」機能
+  * [x] Uptime Kuma 外部依存の完全撤廃（単一バイナリ完全自己完結化）
 - [x] **Phase 4 検証 & コミット**
   - [x] ビルド & モジュールテスト実行
   - [x] Git コミット
@@ -93,16 +91,15 @@
 - [x] **5.1 テンプレート & 資材定義 (`web/`)**
   - [x] `web/embed.go` によるテンプレート・静的ファイルの `go:embed`
   - [x] 全体フレーム (`index.html`)
-  - [x] パーシャルテンプレート作成 (`sidebar.html`, `main_table.html`, `action_menu.html`, `conflict_modal.html`, `settings_modal.html`)
-  - [x] `settings_modal.html`: 保持日数選択、Webhook URL入力（Slack/Discord/Teams/LINE）、Uptime Kuma接続情報（URL / ユーザー名 / パスワード、いずれも未入力可＝認証未設定モード）入力欄 (仕様 9.3)
+  - [x] パーシャルテンプレート作成 (`sidebar.html`, `main_table.html`, `action_menu.html`, `settings_modal.html`)
+  - [x] `settings_modal.html`: 保持日数選択、Webhook URL入力（Google Chat/Slack/Discord/Teams/LINE）、TLS証明書パス入力欄
   - [x] `main_table.html`: 承認状態列の「NEW」バッジ算出表示（`is_approved=0` かつ `first_seen` 24時間以内）(仕様 6.1)
   - [x] ホスト手動追加フォーム（IP/セグメント/表示名入力、CIDR/IP形式バリデーション）(仕様 6.1)
   - [x] セグメント追加フォームのCIDR形式・重複バリデーション表示 (仕様 4.1.1)
-  - [x] `conflict_modal.html`: 表示名競合時の「lanmap側を採用」/「Kuma側を採用」選択・同調アクション
 - [x] **5.2 HTTP ハンドラー & HTMX ルーティング (`internal/web`)**
   - [x] HTTP ルーティング構築 (`router.go`)
   - [x] メイン画面・セグメント切替・オンラインフィルタリングハンドラー (`handler.go`)
-  - [x] 三点リーダー (`...`) メニューアクションハンドラー (承認トグル, 削除保護トグル, メーカー/モデル手動編集, 表示名変更, Kuma監視開始/一時停止/削除)
+  - [x] 三点リーダー (`...`) メニューアクションハンドラー (承認トグル, 削除保護トグル, メーカー/モデル手動編集, 表示名変更, ホスト削除)
   - [x] ホスト手動追加・セグメント追加/編集/削除ハンドラー（`is_default`セグメント削除拒否含む）
 - [x] **Phase 5 検証 & コミット**
   - [x] ビルド & UI/サーバー起動動作検証
@@ -126,13 +123,13 @@
   - [x] CLI 引数解析 (通常起動 / `service` サブコマンド / `version`)
   - [x] 定期スキャンタスク & クリーンアップタスクのバックグラウンド起動
   - [x] 構造化ロギング実装（`INFO`/`WARN`/`ERROR`、`LANMAP_LOG_LEVEL` 環境変数対応）(仕様 10.2)
-  - [x] `SIGINT`/`SIGTERM` 受信時のグレースフルシャットダウン（スキャン/Kuma接続/HTTPサーバーの安全停止）(仕様 10.2)
+  - [x] `SIGINT`/`SIGTERM` 受信時のグレースフルシャットダウン（スキャン/HTTPサーバーの安全停止）(仕様 10.2)
 - [x] **6.4 Makefile & ドキュメント**
   - [x] `Makefile` (ビルド・クロスコンパイル設定、Windows/macOS/Linux)
   - [x] `README.md` 更新
 - [x] **Phase 6 最終検証 & コミット**
   - [x] 全体ビルド & 総合テスト実行（Windows/macOS/Linux クロスコンパイル確認含む）
-  - [x] E2E統合シナリオ確認（スキャン検出→未承認DB登録→Webhook通知→UI表示→承認操作→Kuma監視開始の一連の流れ）
+  - [x] E2E統合シナリオ確認（スキャン検出→未承認DB登録→Webhook通知→UI表示→承認操作の一連の流れ）
   - [x] 最終 Git コミット
 
 ---

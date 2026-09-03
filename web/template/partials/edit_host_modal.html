@@ -10,7 +10,7 @@
 
         <form hx-post="/api/hosts/{{.Host.IP}}/update" hx-target="#main-content" hx-swap="outerHTML" onclick="if(event.submitter) closeModal()" class="space-y-4 text-xs">
             <div>
-                <label class="block font-medium text-slate-700 dark:text-slate-300">表示名 (Uptime Kuma 監視名)</label>
+                <label class="block font-medium text-slate-700 dark:text-slate-300">表示名 (カスタム別名)</label>
                 <input type="text" name="display_name" value="{{.Host.DisplayName}}" placeholder="{{.Host.Hostname}}"
                        class="w-full mt-1 bg-white dark:bg-slate-950 border border-slate-300 dark:border-slate-700 rounded px-3 py-2 text-slate-800 dark:text-slate-200 focus:outline-none focus:border-blue-500">
             </div>

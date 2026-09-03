@@ -16,28 +16,6 @@
         </button>
     </div>
 
-    <!-- Uptime Kuma Monitoring Actions -->
-    <div class="py-1">
-        {{if not .Host.IsMonitored}}
-        <button hx-post="/api/hosts/{{.Host.IP}}/kuma/start" hx-target="#main-content" hx-swap="outerHTML"
-                class="w-full text-left px-3 py-1.5 hover:bg-slate-100 dark:hover:bg-slate-800 flex items-center space-x-2 text-emerald-600 dark:text-emerald-400">
-            <span>▶ 監視開始 (Kuma)</span>
-        </button>
-        {{else}}
-            {{if .Host.IsPaused}}
-            <button hx-post="/api/hosts/{{.Host.IP}}/kuma/resume" hx-target="#main-content" hx-swap="outerHTML"
-                    class="w-full text-left px-3 py-1.5 hover:bg-slate-100 dark:hover:bg-slate-800 flex items-center space-x-2 text-emerald-600 dark:text-emerald-400">
-                <span>▶ 監視再開</span>
-            </button>
-            {{else}}
-            <button hx-post="/api/hosts/{{.Host.IP}}/kuma/pause" hx-target="#main-content" hx-swap="outerHTML"
-                    class="w-full text-left px-3 py-1.5 hover:bg-slate-100 dark:hover:bg-slate-800 flex items-center space-x-2 text-amber-600 dark:text-amber-400">
-                <span>⏸️ 監視を一時停止</span>
-            </button>
-            {{end}}
-        {{end}}
-    </div>
-
     <!-- Edit Details -->
     <div class="py-1">
         <button hx-get="/modals/edit_host?ip={{.Host.IP}}" hx-target="#modal-container" hx-swap="innerHTML"

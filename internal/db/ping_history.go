@@ -215,7 +215,7 @@ func RenderSparklineSVG(items []PingHistoryItem, width, height int) template.HTM
 	return RenderSparkline24hSVG(items, width, height)
 }
 
-// RenderUptimeBlocks24hSVG generates time-slotted Uptime Kuma health blocks for the 24-hour period.
+// RenderUptimeBlocks24hSVG generates time-slotted uptime health blocks for the 24-hour period.
 // Empty/unmonitored time slots appear as faded gray placeholders.
 func RenderUptimeBlocks24hSVG(items []PingHistoryItem, blockCount int) template.HTML {
 	if blockCount <= 0 {

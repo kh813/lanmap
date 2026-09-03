@@ -10,7 +10,6 @@ import (
 
 	"lanmap/internal/config"
 	"lanmap/internal/db"
-	"lanmap/internal/kuma"
 	"lanmap/internal/notifier"
 	"lanmap/internal/scanner"
 )
@@ -32,9 +31,8 @@ func setupTestWeb(t *testing.T) (*Handler, http.Handler, *db.DB) {
 
 	sc := scanner.NewScanner(database, cfg)
 	notif := notifier.NewNotifier(database)
-	km := kuma.NewManager(database)
 
-	h, err := NewHandler(database, cfg, sc, notif, km)
+	h, err := NewHandler(database, cfg, sc, notif)
 	if err != nil {
 		t.Fatalf("NewHandler failed: %v", err)
 	}
