@@ -64,8 +64,13 @@
         </div>
         {{end}}
 
+        <!-- Error Message Container -->
+        <div id="seg-error-container"></div>
+
         <form id="segment-form" hx-post="{{if .Segment.ID}}/api/segments/{{.Segment.ID}}{{else}}/api/segments{{end}}"
-              hx-target="#sidebar-container" hx-swap="outerHTML" onclick="if(event.submitter) closeModal()" class="space-y-4 text-xs">
+              hx-target="#sidebar-container" hx-swap="outerHTML"
+              hx-on::after-request="if(event.detail.successful) closeModal()"
+              class="space-y-4 text-xs">
             <div>
                 <label class="block font-medium text-slate-700 dark:text-slate-300">セグメント表示名 <span class="text-red-500">*</span></label>
                 <input type="text" id="seg_input_name" name="name" required value="{{.Segment.Name}}" placeholder="例: 本社LAN, 開発拠点VPN"

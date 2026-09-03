@@ -3,6 +3,7 @@ package web
 import (
 	"context"
 	"fmt"
+	"html"
 	"html/template"
 	"io/fs"
 	"log"
@@ -492,6 +493,19 @@ func (h *Handler) HandleCreateOrUpdateSegment(w http.ResponseWriter, r *http.Req
 	isEnabled := r.FormValue("is_enabled") == "true"
 	isDHCPManual := r.FormValue("is_dhcp_manual") == "true"
 
+	// Validate DHCP Range format and subnet containment
+	if err := db.ValidateDHCPRange(dhcpRange, cidr); err != nil {
+		w.Header().Set("HX-Retarget", "#seg-error-container")
+		w.Header().Set("HX-Reswap", "innerHTML")
+		w.WriteHeader(http.StatusBadRequest)
+		errMsg := fmt.Sprintf(`<div class="p-2.5 mb-3 rounded-lg bg-red-50 dark:bg-red-950/60 border border-red-200 dark:border-red-800 text-red-600 dark:text-red-400 text-xs font-medium flex items-center space-x-2 animate-fade-in">
+			<span>⚠️</span>
+			<span>%s</span>
+		</div>`, html.EscapeString(err.Error()))
+		_, _ = w.Write([]byte(errMsg))
+		return
+	}
+
 	if segID > 0 {
 		seg, _ := h.db.GetSegment(segID)
 		if seg != nil {
@@ -507,7 +521,7 @@ func (h *Handler) HandleCreateOrUpdateSegment(w http.ResponseWriter, r *http.Req
 		_, _ = h.db.CreateSegmentWithDHCP(name, cidr, iface, isEnabled, dhcpRange, isDHCPManual)
 	}
 
-	w.Header().Set("HX-Trigger", "refreshSidebar, refreshMainTable")
+	w.Header().Set("HX-Trigger", `{"refreshSidebar":true, "refreshMainTable":true, "closeModal":true}`)
 	h.HandleSidebarPartial(w, r)
 }
 

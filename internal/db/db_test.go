@@ -571,3 +571,49 @@ func TestDHCPRangeAndGuess(t *testing.T) {
 		t.Errorf("expected foundSeg to match seg.ID, got %+v, err=%v", foundSeg, err)
 	}
 }
+
+func TestValidateDHCPRange(t *testing.T) {
+	// 1. Valid cases
+	validTests := []struct {
+		rangeStr string
+		cidr     string
+	}{
+		{"", "192.168.1.0/24"},
+		{"100-200", "192.168.1.0/24"},
+		{"100~200", "192.168.1.0/24"},
+		{"100〜200", "192.168.1.0/24"},
+		{"50-100, 150-200", "192.168.1.0/24"},
+		{"50-100\n150-200;210-220", "192.168.1.0/24"},
+		{"192.168.1.50-192.168.1.150", "192.168.1.0/24"},
+		{"10.0.0.10-10.0.0.50, 10.0.0.60-10.0.0.100", "10.0.0.0/24"},
+	}
+
+	for _, tc := range validTests {
+		if err := ValidateDHCPRange(tc.rangeStr, tc.cidr); err != nil {
+			t.Errorf("expected valid for range %q and cidr %q, got error: %v", tc.rangeStr, tc.cidr, err)
+		}
+	}
+
+	// 2. Invalid cases
+	invalidTests := []struct {
+		rangeStr string
+		cidr     string
+		desc     string
+	}{
+		{"100", "192.168.1.0/24", "missing delimiter"},
+		{"200-100", "192.168.1.0/24", "start > end"},
+		{"0-100", "192.168.1.0/24", "host number 0 out of bounds"},
+		{"100-300", "192.168.1.0/24", "host number 300 out of bounds"},
+		{"abc-def", "192.168.1.0/24", "non-numeric"},
+		{"192.168.1.200-192.168.1.100", "192.168.1.0/24", "full IP start > end"},
+		{"192.168.2.100-192.168.2.200", "192.168.1.0/24", "full IP outside CIDR"},
+		{"100-200", "192.168.1.0/28", "octet outside narrow subnet (/28)"},
+		{"100-192.168.1.200", "192.168.1.0/24", "mismatched types"},
+	}
+
+	for _, tc := range invalidTests {
+		if err := ValidateDHCPRange(tc.rangeStr, tc.cidr); err == nil {
+			t.Errorf("expected error for %s (%q with %q), but got nil", tc.desc, tc.rangeStr, tc.cidr)
+		}
+	}
+}

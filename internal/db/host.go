@@ -822,6 +822,116 @@ func ipToUint32(ip net.IP) uint32 {
 	return uint32(ip[0])<<24 | uint32(ip[1])<<16 | uint32(ip[2])<<8 | uint32(ip[3])
 }
 
+// ValidateDHCPRange validates the format and CIDR subnet containment of dhcpRange.
+// Returns nil if valid or empty. Returns a user-friendly error if invalid.
+func ValidateDHCPRange(dhcpRange string, cidr string) error {
+	dhcpRange = strings.TrimSpace(dhcpRange)
+	if dhcpRange == "" {
+		return nil
+	}
+
+	var cidrNet *net.IPNet
+	var baseIP net.IP
+	if cidr != "" {
+		ip, netw, err := net.ParseCIDR(cidr)
+		if err != nil {
+			return fmt.Errorf("CIDR形式が不正です: %s", cidr)
+		}
+		cidrNet = netw
+		baseIP = ip.To4()
+	}
+
+	parts := strings.FieldsFunc(dhcpRange, func(r rune) bool {
+		return r == ',' || r == '\n' || r == '\r' || r == ';'
+	})
+	if len(parts) == 0 {
+		return nil
+	}
+
+	for _, p := range parts {
+		p = strings.TrimSpace(p)
+		if p == "" {
+			continue
+		}
+
+		delimiter := ""
+		if strings.Contains(p, "-") {
+			delimiter = "-"
+		} else if strings.Contains(p, "~") {
+			delimiter = "~"
+		} else if strings.Contains(p, "〜") {
+			delimiter = "〜"
+		} else {
+			return fmt.Errorf("DHCPレンジ「%s」に区切り記号 (- または ~) が含まれていません", p)
+		}
+
+		rangeParts := strings.SplitN(p, delimiter, 2)
+		if len(rangeParts) != 2 {
+			return fmt.Errorf("DHCPレンジ「%s」の形式が不正です", p)
+		}
+		startStr := strings.TrimSpace(rangeParts[0])
+		endStr := strings.TrimSpace(rangeParts[1])
+
+		if startStr == "" || endStr == "" {
+			return fmt.Errorf("DHCPレンジ「%s」の開始または終了値が空です", p)
+		}
+
+		startIP := net.ParseIP(startStr).To4()
+		endIP := net.ParseIP(endStr).To4()
+
+		if (startIP == nil && endIP != nil) || (startIP != nil && endIP == nil) {
+			return fmt.Errorf("DHCPレンジ「%s」は開始と終了を同じ形式（両方ホスト番号、または両方フルIP）で指定してください", p)
+		}
+
+		if startIP != nil && endIP != nil {
+			// Full IP mode
+			startVal := ipToUint32(startIP)
+			endVal := ipToUint32(endIP)
+			if startVal > endVal {
+				return fmt.Errorf("開始IP (%s) は終了IP (%s) 以下である必要があります", startStr, endStr)
+			}
+			if cidrNet != nil {
+				if !cidrNet.Contains(startIP) {
+					return fmt.Errorf("開始IP (%s) はセグメントのサブネット (%s) に含まれていません", startStr, cidr)
+				}
+				if !cidrNet.Contains(endIP) {
+					return fmt.Errorf("終了IP (%s) はセグメントのサブネット (%s) に含まれていません", endStr, cidr)
+				}
+			}
+			continue
+		}
+
+		// Octet mode (e.g. 100-200)
+		startNum, err1 := strconv.Atoi(startStr)
+		endNum, err2 := strconv.Atoi(endStr)
+		if err1 != nil || err2 != nil {
+			return fmt.Errorf("DHCPレンジ「%s」の数値が不正です", p)
+		}
+		if startNum < 1 || startNum > 254 {
+			return fmt.Errorf("開始ホスト番号 (%d) は 1〜254 の範囲で指定してください", startNum)
+		}
+		if endNum < 1 || endNum > 254 {
+			return fmt.Errorf("終了ホスト番号 (%d) は 1〜254 の範囲で指定してください", endNum)
+		}
+		if startNum > endNum {
+			return fmt.Errorf("開始ホスト番号 (%d) は終了ホスト番号 (%d) 以下である必要があります", startNum, endNum)
+		}
+
+		if cidrNet != nil && baseIP != nil {
+			checkStartIP := net.IPv4(baseIP[0], baseIP[1], baseIP[2], byte(startNum))
+			checkEndIP := net.IPv4(baseIP[0], baseIP[1], baseIP[2], byte(endNum))
+			if !cidrNet.Contains(checkStartIP) {
+				return fmt.Errorf("ホスト番号 (%d: %s) はセグメントのサブネット (%s) に含まれていません", startNum, checkStartIP.String(), cidr)
+			}
+			if !cidrNet.Contains(checkEndIP) {
+				return fmt.Errorf("ホスト番号 (%d: %s) はセグメントのサブネット (%s) に含まれていません", endNum, checkEndIP.String(), cidr)
+			}
+		}
+	}
+
+	return nil
+}
+
 // GuessDHCPRange estimates a probable DHCP pool range based on detected client/Wi-Fi host IPs
 func GuessDHCPRange(hosts []*Host, cidr string) string {
 	if len(hosts) == 0 {

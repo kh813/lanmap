@@ -275,18 +275,21 @@
   - [x] `GuessDHCPRange(hosts, cidr)` によるWi-Fi/クライアント端末のIP分布からのDHCP帯域自動推定
   - [x] `ToggleHostDHCP(ip)` および `AutoAdjustSegmentDHCPRange(segID)` 実装（`is_dhcp_manual` 時の自動調整スキップ対応）
   - [x] `IsInDHCPRange` の複数レンジ判定対応（カンマ、改行、セミコロン区切り）
+  - [x] `ValidateDHCPRange(dhcpRange, cidr)` によるDHCPレンジの記法・範囲・サブネット整合性検証
   - [x] `Segment` 構造体およびテーブルに `is_dhcp_manual BOOLEAN DEFAULT 0` カラム追加
   - [x] `Host` 構造体に `IsDHCP bool` フィールド追加
-  - [x] DB単体テスト作成 & 実行 (`TestDHCPRangeAndGuess`, `TestToggleHostDHCP` in `internal/db/db_test.go`)
+  - [x] DB単体テスト作成 & 実行 (`TestDHCPRangeAndGuess`, `TestToggleHostDHCP`, `TestValidateDHCPRange` in `internal/db/db_test.go`)
 - [x] **14.2 Web API & ハンドラー (`internal/web`)**
   - [x] `POST /api/hosts/{ip}/toggle_dhcp` API実装（DHCPフラグ反転＆セグメントDHCPレンジ自動調整）
   - [x] `HandleSegmentModal` で端末分布から推定された `SuggestedDHCP` をテンプレートに供給
+  - [x] `HandleCreateOrUpdateSegment` で `ValidateDHCPRange` による保存前バリデーション＆エラー表示処理実装
   - [x] `HandleCreateOrUpdateSegment` で `dhcp_range` および `is_dhcp_manual` の保存処理実装
   - [x] `HandleMainTablePartial` で CIDR フォールバック判定を導入し、`segment_id` が未設定の端末でも確実に `host.IsDHCP` を判定・付与
-  - [x] Web 単体テスト追加 & 実行 (`internal/web/web_test.go`)
+  - [x] Web 単体テスト追加 & 実行 (`TestSegmentDHCPValidation` in `internal/web/web_test.go`)
 - [x] **14.3 Web UI テンプレート (`web/template`)**
   - [x] `segment_menu.html` の編集ボタンの onclick 不具合（同期消滅によるリクエスト阻害）を修正し、セグメント編集モーダルが確実に表示されるように改善
   - [x] `segment_modal.html` に DHCP IPレンジ複数指定説明、手入力固定チェックボックス (`seg_is_dhcp_manual`) 設置
+  - [x] `segment_modal.html` にエラー表示コンテナ設置およびバリデーションエラー時の安全なモーダル開閉制御
   - [x] `action_menu.html` に「📶 DHCP動的端末としてマーク / 🔌 固定IPに変更」項目を追加
   - [x] `main_table.html` 改修：
     - [x] 行背景: DHCP動的端末は赤色ハイライトから除外（日常利用端末のアラート疲れ防止）
