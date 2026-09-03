@@ -111,6 +111,16 @@ func (db *DB) migrate() error {
 
 	CREATE INDEX IF NOT EXISTS idx_whitelist_hostname ON whitelist_entries(hostname);
 	CREATE INDEX IF NOT EXISTS idx_whitelist_mac ON whitelist_entries(mac_address);
+
+	CREATE TABLE IF NOT EXISTS ping_history (
+		id INTEGER PRIMARY KEY AUTOINCREMENT,
+		host_ip VARCHAR(45) NOT NULL,
+		rtt_ms REAL,
+		status VARCHAR(10) NOT NULL,
+		created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+	);
+
+	CREATE INDEX IF NOT EXISTS idx_ping_history_ip_time ON ping_history(host_ip, created_at);
 	`
 	if _, err := db.Exec(schema); err != nil {
 		return err

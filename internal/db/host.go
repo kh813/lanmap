@@ -3,6 +3,7 @@ package db
 import (
 	"database/sql"
 	"fmt"
+	"html/template"
 	"strconv"
 	"strings"
 	"time"
@@ -16,37 +17,40 @@ type PortInfo struct {
 
 // Host represents a discovered or monitored network host
 type Host struct {
-	IP                string     `json:"ip"`
-	SegmentID         *int64     `json:"segment_id"`
-	MACAddress        string     `json:"mac_address"`
-	Hostname          string     `json:"hostname"`
-	VendorModel       string     `json:"vendor_model"`
-	DisplayName       string     `json:"display_name"`
-	OSVendor          string     `json:"os_vendor"`
-	Status            string     `json:"status"`
-	PingRTTMs         *float64   `json:"ping_rtt_ms"`
-	PingJitterMs      *float64   `json:"ping_jitter_ms"`
-	UptimePct         float64    `json:"uptime_pct"`
-	OpenPorts         string     `json:"open_ports"`
-	HTTPTitle         string     `json:"http_title"`
-	UPnPName          string     `json:"upnp_name"`
-	UPnPModel         string     `json:"upnp_model"`
-	UPnPSerial        string     `json:"upnp_serial"`
-	TLSSubject        string     `json:"tls_subject"`
-	TLSExpiry         *time.Time `json:"tls_expiry"`
-	MDNSModel         string     `json:"mdns_model"`
-	BroadcastCount1m  int        `json:"broadcast_count_1m"`
-	IsStorming        bool       `json:"is_storming"`
-	IsApproved        bool       `json:"is_approved"`
-	IsProtected       bool       `json:"is_protected"`
-	IsStaticIP        bool       `json:"is_static_ip"`
-	IsMonitored       bool       `json:"is_monitored"`
-	IsPaused          bool       `json:"is_paused"`
-	HasConflict       bool       `json:"has_conflict"`
-	KumaName          string     `json:"kuma_name"`
-	UptimeKumaID      *int64     `json:"uptime_kuma_id"`
-	FirstSeen         time.Time  `json:"first_seen"`
-	LastSeen          *time.Time `json:"last_seen"`
+	IP                string        `json:"ip"`
+	SegmentID         *int64        `json:"segment_id"`
+	MACAddress        string        `json:"mac_address"`
+	Hostname          string        `json:"hostname"`
+	VendorModel       string        `json:"vendor_model"`
+	DisplayName       string        `json:"display_name"`
+	OSVendor          string        `json:"os_vendor"`
+	Status            string        `json:"status"`
+	PingRTTMs         *float64      `json:"ping_rtt_ms"`
+	PingJitterMs      *float64      `json:"ping_jitter_ms"`
+	UptimePct         float64       `json:"uptime_pct"`
+	OpenPorts         string        `json:"open_ports"`
+	HTTPTitle         string        `json:"http_title"`
+	UPnPName          string        `json:"upnp_name"`
+	UPnPModel         string        `json:"upnp_model"`
+	UPnPSerial        string        `json:"upnp_serial"`
+	TLSSubject        string        `json:"tls_subject"`
+	TLSExpiry         *time.Time    `json:"tls_expiry"`
+	MDNSModel         string        `json:"mdns_model"`
+	BroadcastCount1m  int           `json:"broadcast_count_1m"`
+	IsStorming        bool          `json:"is_storming"`
+	IsApproved        bool          `json:"is_approved"`
+	IsProtected       bool          `json:"is_protected"`
+	IsStaticIP        bool          `json:"is_static_ip"`
+	IsMonitored       bool          `json:"is_monitored"`
+	IsPaused          bool          `json:"is_paused"`
+	HasConflict       bool          `json:"has_conflict"`
+	KumaName          string        `json:"kuma_name"`
+	UptimeKumaID      *int64        `json:"uptime_kuma_id"`
+	FirstSeen         time.Time     `json:"first_seen"`
+	LastSeen          *time.Time    `json:"last_seen"`
+	PingChartSVG      template.HTML `json:"-"`
+	UptimeBlocksSVG   template.HTML `json:"-"`
+	PingStats7d       string        `json:"-"`
 }
 
 // IsNewHost returns true if host was first seen within the last 24 hours and is not yet approved
@@ -354,7 +358,26 @@ func (db *DB) ListHosts(segmentID *int64, onlineOnly bool) ([]*Host, error) {
 		hosts = append(hosts, h)
 	}
 
+	db.enrichHostsWithPingHistory(hosts)
+
 	return hosts, rows.Err()
+}
+
+func (db *DB) enrichHostsWithPingHistory(hosts []*Host) {
+	if len(hosts) == 0 {
+		return
+	}
+	historyMap, err := db.GetBatchPingHistory7d()
+	if err != nil {
+		return
+	}
+
+	for _, h := range hosts {
+		items := historyMap[h.IP]
+		h.PingChartSVG = RenderSparklineSVG(items, 280, 36)
+		h.UptimeBlocksSVG = RenderUptimeBlocksSVG(items, 35)
+		h.PingStats7d, _ = ComputePingStats7d(items)
+	}
 }
 
 // UpdateHostStatus updates the host status and last_seen if up

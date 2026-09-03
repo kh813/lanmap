@@ -313,3 +313,47 @@ func TestHostExtendedFields(t *testing.T) {
 		t.Errorf("unexpected days until expiry: %d", days)
 	}
 }
+
+func TestPingHistoryAndSVGRendering(t *testing.T) {
+	db := setupTestDB(t)
+
+	rtt1 := 1.5
+	rtt2 := 2.8
+	rtt3 := 1.2
+	_ = db.RecordPingHistory("192.168.1.100", &rtt1, "up")
+	_ = db.RecordPingHistory("192.168.1.100", &rtt2, "up")
+	_ = db.RecordPingHistory("192.168.1.100", nil, "down")
+	_ = db.RecordPingHistory("192.168.1.100", &rtt3, "up")
+
+	history, err := db.GetHostPingHistory("192.168.1.100", 7*24*time.Hour)
+	if err != nil {
+		t.Fatalf("GetHostPingHistory failed: %v", err)
+	}
+	if len(history) != 4 {
+		t.Fatalf("expected 4 history items, got %d", len(history))
+	}
+
+	svg := RenderSparklineSVG(history, 280, 36)
+	if len(svg) == 0 {
+		t.Error("expected non-empty SVG sparkline")
+	}
+
+	uptimeSVG := RenderUptimeBlocksSVG(history, 10)
+	if len(uptimeSVG) == 0 {
+		t.Error("expected non-empty Uptime blocks SVG")
+	}
+
+	stats, upPct := ComputePingStats7d(history)
+	if upPct != 75.0 {
+		t.Errorf("expected 75%% uptime, got %.1f%%", upPct)
+	}
+	if len(stats) == 0 {
+		t.Error("expected non-empty stats string")
+	}
+
+	// Test purge
+	err = db.PurgeOldPingHistory(7)
+	if err != nil {
+		t.Fatalf("PurgeOldPingHistory failed: %v", err)
+	}
+}

@@ -290,6 +290,8 @@ func (s *Scanner) scanSegmentInternal(ctx context.Context, seg *db.Segment) ([]*
 			_, _ = s.db.Exec("UPDATE hosts SET is_approved = 1 WHERE ip = ?", ipStr)
 		}
 
+		_ = s.db.RecordPingHistory(ipStr, rttPtr, "up")
+
 		savedHost, err := s.db.GetHost(ipStr)
 		if err != nil || savedHost == nil {
 			savedHost = hostObj
@@ -310,9 +312,13 @@ func (s *Scanner) scanSegmentInternal(ctx context.Context, seg *db.Segment) ([]*
 		for _, eh := range existingHosts {
 			if !respondedIPs[eh.IP] && eh.Status == "up" {
 				_ = s.db.UpdateHostStatus(eh.IP, "down")
+				_ = s.db.RecordPingHistory(eh.IP, nil, "down")
 			}
 		}
 	}
+
+	// Purge records older than 7 days
+	_ = s.db.PurgeOldPingHistory(7)
 
 	return reports, nil
 }

@@ -165,6 +165,31 @@
                                     {{end}}
                                 </div>
 
+                                <!-- 7-Day Ping Response & Uptime History Chart -->
+                                <div class="space-y-1.5 bg-slate-50 dark:bg-slate-950/60 p-2.5 rounded-lg border border-slate-200/80 dark:border-slate-800">
+                                    <div class="flex items-center justify-between text-[11px]">
+                                        <span class="font-bold text-slate-700 dark:text-slate-200 flex items-center space-x-1">
+                                            <span>📈</span>
+                                            <span>Ping レスポンス推移 (7日間)</span>
+                                        </span>
+                                    </div>
+                                    <!-- Sparkline Line Chart -->
+                                    <div class="h-8 w-full bg-white dark:bg-slate-900/80 rounded border border-slate-200/60 dark:border-slate-800 p-0.5 overflow-hidden">
+                                        {{.PingChartSVG}}
+                                    </div>
+                                    <!-- Uptime Status Blocks (Kuma Style) -->
+                                    <div class="space-y-0.5 pt-0.5">
+                                        <div class="flex items-center justify-between text-[9px] text-slate-400 dark:text-slate-500 font-mono">
+                                            <span>7日前</span>
+                                            <span class="text-slate-600 dark:text-slate-400 font-sans font-medium">{{.PingStats7d}}</span>
+                                            <span>現在</span>
+                                        </div>
+                                        <div class="w-full">
+                                            {{.UptimeBlocksSVG}}
+                                        </div>
+                                    </div>
+                                </div>
+
                                 <!-- Open Ports & Services -->
                                 <div class="space-y-1">
                                     <div class="text-[11px] font-bold text-slate-700 dark:text-slate-300 flex items-center justify-between">
