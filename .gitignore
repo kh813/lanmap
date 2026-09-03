@@ -1,6 +1,6 @@
 # Binaries
-lanmap
-lmap
+/lanmap
+/lmap
 dist/
 *.exe
 

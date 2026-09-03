@@ -6,6 +6,7 @@ import (
 	"html/template"
 	"io/fs"
 	"log"
+	"net"
 	"net/http"
 	"strconv"
 	"strings"
@@ -183,6 +184,73 @@ func (h *Handler) HandleEditHostModal(w http.ResponseWriter, r *http.Request) {
 	_ = h.tmpl.ExecuteTemplate(w, "edit_host_modal.html", map[string]interface{}{
 		"Host": host,
 	})
+}
+
+// HandleHostDetailModal renders host detail modal with 7-day ping metrics & graphs
+func (h *Handler) HandleHostDetailModal(w http.ResponseWriter, r *http.Request) {
+	ip := r.URL.Query().Get("ip")
+	host, err := h.db.GetHost(ip)
+	if err != nil || host == nil {
+		http.Error(w, "Host not found", http.StatusNotFound)
+		return
+	}
+
+	// Fetch 7-day ping history
+	history, _ := h.db.GetHostPingHistory(ip, 7*24*time.Hour)
+	stats7d := db.ComputePingStats7dDetails(history)
+	chart7dSVG := db.RenderSparkline7dSVG(history, 640, 130)
+	uptimeBlocks7dSVG := db.RenderUptimeBlocks7dSVG(history, 42)
+
+	_ = h.tmpl.ExecuteTemplate(w, "host_detail_modal.html", map[string]interface{}{
+		"Host":              host,
+		"History":           history,
+		"Stats7d":           stats7d,
+		"Chart7dSVG":        chart7dSVG,
+		"UptimeBlocks7dSVG": uptimeBlocks7dSVG,
+	})
+}
+
+// HandleHostPingTest sends an immediate on-demand ping probe and returns the result HTML
+func (h *Handler) HandleHostPingTest(w http.ResponseWriter, r *http.Request, ip string) {
+	if ip == "" {
+		http.Error(w, "IP required", http.StatusBadRequest)
+		return
+	}
+
+	targetIP := net.ParseIP(ip)
+	if targetIP == nil {
+		http.Error(w, "Invalid IP address", http.StatusBadRequest)
+		return
+	}
+
+	res := scanner.Ping(targetIP, 1200*time.Millisecond)
+
+	w.Header().Set("Content-Type", "text/html; charset=utf-8")
+	if !res.Alive {
+		_ = h.db.RecordPingHistory(ip, nil, "down")
+		_, _ = w.Write([]byte(`
+			<div class="inline-flex items-center space-x-1.5 px-3 py-1.5 rounded-lg bg-red-50 dark:bg-red-950/60 border border-red-200 dark:border-red-800 text-red-700 dark:text-red-300 font-mono text-xs font-semibold animate-fade-in">
+				<span>❌</span>
+				<span>応答なし (タイムアウト / 不到達)</span>
+			</div>
+		`))
+		return
+	}
+
+	rttVal := float64(res.RTT.Microseconds()) / 1000.0
+	_ = h.db.RecordPingHistory(ip, &rttVal, "up")
+
+	ttlText := ""
+	if res.TTL > 0 {
+		ttlText = fmt.Sprintf(" · TTL: %d", res.TTL)
+	}
+
+	_, _ = w.Write([]byte(fmt.Sprintf(`
+		<div class="inline-flex items-center space-x-1.5 px-3 py-1.5 rounded-lg bg-emerald-50 dark:bg-emerald-950/60 border border-emerald-200 dark:border-emerald-800 text-emerald-800 dark:text-emerald-200 font-mono text-xs font-bold animate-fade-in shadow-sm">
+			<span>⚡</span>
+			<span>疎通成功: %.1fms%s</span>
+		</div>
+	`, rttVal, ttlText)))
 }
 
 // HandleSegmentModal renders segment add/edit modal
@@ -506,7 +574,7 @@ func (h *Handler) HandleTestWebhook(w http.ResponseWriter, r *http.Request) {
 
 // HandleCheckUpdate queries GitHub Releases for updates
 func (h *Handler) HandleCheckUpdate(w http.ResponseWriter, r *http.Request) {
-	currentVer := "v0.0.4"
+	currentVer := "v0.0.5"
 	rel, err := updater.CheckLatestRelease(currentVer)
 	if err != nil {
 		w.Header().Set("Content-Type", "text/html; charset=utf-8")
