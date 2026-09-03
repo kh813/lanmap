@@ -95,17 +95,17 @@ func (n *Notifier) NotifyUnapprovedHosts(ctx context.Context, hosts []*db.Host) 
 		}
 	}
 
-	// Discord
-	if discordURL != "" {
-		if err := n.sendDiscord(ctx, discordURL, hosts); err != nil {
-			errs = append(errs, fmt.Sprintf("Discord: %v", err))
-		}
-	}
-
 	// Teams
 	if teamsURL != "" {
 		if err := n.sendTeams(ctx, teamsURL, hosts); err != nil {
 			errs = append(errs, fmt.Sprintf("Teams: %v", err))
+		}
+	}
+
+	// Discord
+	if discordURL != "" {
+		if err := n.sendDiscord(ctx, discordURL, hosts); err != nil {
+			errs = append(errs, fmt.Sprintf("Discord: %v", err))
 		}
 	}
 
@@ -394,12 +394,6 @@ func (n *Notifier) NotifyBroadcastStorm(ctx context.Context, host *db.Host, coun
 		})
 	}
 
-	if discordURL := settings["webhook_discord_url"]; discordURL != "" {
-		_ = n.postJSON(ctx, discordURL, map[string]interface{}{
-			"content": fmt.Sprintf("**%s**\n%s", title, body),
-		})
-	}
-
 	if teamsURL := settings["webhook_teams_url"]; teamsURL != "" {
 		_ = n.postJSON(ctx, teamsURL, map[string]interface{}{
 			"@type":      "MessageCard",
@@ -408,6 +402,12 @@ func (n *Notifier) NotifyBroadcastStorm(ctx context.Context, host *db.Host, coun
 			"themeColor": "DC2626",
 			"title":      title,
 			"text":       body,
+		})
+	}
+
+	if discordURL := settings["webhook_discord_url"]; discordURL != "" {
+		_ = n.postJSON(ctx, discordURL, map[string]interface{}{
+			"content": fmt.Sprintf("**%s**\n%s", title, body),
 		})
 	}
 
