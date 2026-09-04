@@ -531,5 +531,24 @@
   - [x] `lanmap_todo.md`: Phase 23 完了チェック
   - [x] `go test ./...` 100% PASS 確認 & `make build` 完了
 
+---
+
+### 🔹 Phase 24: 将来対応 - IPv6 デュアルスタック・パッシブ監視サポート計画
+- [ ] **24.1 データモデル拡張 (`internal/db`)**
+  - [ ] `hosts` テーブルに `ipv6_addresses TEXT`（または複数IP保持用リレーション）を追加
+  - [ ] MACアドレスをキーとして同一物理端末の IPv4 / IPv6 アドレスを単一行に集約するロジックの実装
+- [ ] **24.2 パッシブ監視エンジン (`internal/monitor`)**
+  - [ ] ICMPv6 NDP パッシブ傍受（Neighbor Solicitation / Neighbor Advertisement による0秒検知）
+  - [ ] DHCPv6 パッシブ傍受（UDP 546/547 マルチキャスト傍受、動的端末 🔵 自動判定）
+  - [ ] Rogue RA（不正ルーター広告）検知 & `⚠️` 警告アラート通知
+- [ ] **24.3 UI テンプレート & 国際化 (`web/template`, `internal/i18n`)**
+  - [ ] 基本ステータスアイコン継承（固定: 🟢/⚪, 動的/SLAAC/DHCPv6: 🔵/⚪, 未承認: 🟡/⚪, 警告: ⚠️）
+  - [ ] IPv6 アドレス種別バッジ (`[ 🌐 GUA ]`, `[ 🏠 ULA ]`, `[ 🔗 LLA ]`) 実装
+  - [ ] IPv6 自動生成方式バッジ (`[ 🪄 SLAAC ]`, `[ 📋 DHCPv6 ]`, `[ 🔒 Privacy ]`) 実装
+  - [ ] ポップオーバー / 詳細モーダルでの保持 IPv6 アドレス一覧表示
+- [ ] **24.4 単体テスト & 統合検証**
+  - [ ] IPv6 パケットパース・集約ロジックの単体テスト
+
+
 
 
