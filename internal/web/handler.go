@@ -1066,6 +1066,152 @@ func (h *Handler) HandleScanNow(w http.ResponseWriter, r *http.Request) {
 	h.HandleMainTablePartial(w, r)
 }
 
+// HandleCustomPortsPartial renders the custom ports table partial
+func (h *Handler) HandleCustomPortsPartial(w http.ResponseWriter, r *http.Request) {
+	profile := r.URL.Query().Get("profile")
+	if profile == "" || profile == "all_profiles" {
+		profile = ""
+	}
+
+	ports, err := h.db.ListCustomPorts(profile)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+
+	_ = h.tmpl.ExecuteTemplate(w, "custom_ports_table.html", map[string]interface{}{
+		"Ports": ports,
+		"Lang":  i18n.DetectLanguage(r),
+	})
+}
+
+// HandleCustomPortModal renders the add/edit custom port modal
+func (h *Handler) HandleCustomPortModal(w http.ResponseWriter, r *http.Request) {
+	var port *db.CustomPort
+	if idStr := r.URL.Query().Get("id"); idStr != "" {
+		if id, err := strconv.ParseInt(idStr, 10, 64); err == nil && id > 0 {
+			port, _ = h.db.GetCustomPort(id)
+		}
+	}
+	if port == nil {
+		port = &db.CustomPort{
+			ProfileID: "all",
+			Protocol:  "TCP",
+			IsEnabled: true,
+		}
+	}
+
+	_ = h.tmpl.ExecuteTemplate(w, "custom_port_modal.html", map[string]interface{}{
+		"Port": port,
+		"Lang": i18n.DetectLanguage(r),
+	})
+}
+
+// HandleCreateCustomPort handles creating a new monitored port rule
+func (h *Handler) HandleCreateCustomPort(w http.ResponseWriter, r *http.Request) {
+	_ = r.ParseForm()
+	portNum, _ := strconv.Atoi(r.FormValue("port"))
+	isEnabled := r.FormValue("is_enabled") == "1" || r.FormValue("is_enabled") == "true" || r.FormValue("is_enabled") == "on"
+
+	p := &db.CustomPort{
+		ProfileID:    r.FormValue("profile_id"),
+		Protocol:     r.FormValue("protocol"),
+		Port:         portNum,
+		ProtocolName: r.FormValue("protocol_name"),
+		Description:  r.FormValue("description"),
+		IsEnabled:    isEnabled,
+	}
+
+	if err := h.db.CreateCustomPort(p); err != nil {
+		http.Error(w, err.Error(), http.StatusBadRequest)
+		return
+	}
+
+	h.HandleCustomPortsPartial(w, r)
+}
+
+// HandleUpdateCustomPort handles updating an existing monitored port rule
+func (h *Handler) HandleUpdateCustomPort(w http.ResponseWriter, r *http.Request, id int64) {
+	_ = r.ParseForm()
+	portNum, _ := strconv.Atoi(r.FormValue("port"))
+	isEnabled := r.FormValue("is_enabled") == "1" || r.FormValue("is_enabled") == "true" || r.FormValue("is_enabled") == "on"
+
+	profileID := r.FormValue("profile_id")
+	protocol := r.FormValue("protocol")
+	name := r.FormValue("protocol_name")
+	desc := r.FormValue("description")
+
+	if err := h.db.UpdateCustomPort(id, profileID, protocol, portNum, name, desc, isEnabled); err != nil {
+		http.Error(w, err.Error(), http.StatusBadRequest)
+		return
+	}
+
+	h.HandleCustomPortsPartial(w, r)
+}
+
+// HandleToggleCustomPort flips the is_enabled state of a port rule
+func (h *Handler) HandleToggleCustomPort(w http.ResponseWriter, r *http.Request, id int64) {
+	if _, err := h.db.ToggleCustomPort(id); err != nil {
+		http.Error(w, err.Error(), http.StatusBadRequest)
+		return
+	}
+	h.HandleCustomPortsPartial(w, r)
+}
+
+// HandleDeleteCustomPort deletes a port rule
+func (h *Handler) HandleDeleteCustomPort(w http.ResponseWriter, r *http.Request, id int64) {
+	if err := h.db.DeleteCustomPort(id); err != nil {
+		http.Error(w, err.Error(), http.StatusBadRequest)
+		return
+	}
+	h.HandleCustomPortsPartial(w, r)
+}
+
+// HandleResetCustomPorts resets all port rules to built-in presets
+func (h *Handler) HandleResetCustomPorts(w http.ResponseWriter, r *http.Request) {
+	if err := h.db.ResetCustomPortsToDefault(); err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+	h.HandleCustomPortsPartial(w, r)
+}
+
+// HandleExportCustomPortsCSV exports custom ports as CSV file download
+func (h *Handler) HandleExportCustomPortsCSV(w http.ResponseWriter, r *http.Request) {
+	csvData, err := h.db.ExportCustomPortsCSV()
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+
+	w.Header().Set("Content-Type", "text/csv; charset=utf-8")
+	w.Header().Set("Content-Disposition", `attachment; filename="lanmap_ports.csv"`)
+	w.WriteHeader(http.StatusOK)
+	_, _ = w.Write([]byte(csvData))
+}
+
+// HandleCustomPortsImportModal renders the CSV import modal
+func (h *Handler) HandleCustomPortsImportModal(w http.ResponseWriter, r *http.Request) {
+	_ = h.tmpl.ExecuteTemplate(w, "custom_ports_import_modal.html", map[string]interface{}{
+		"Lang": i18n.DetectLanguage(r),
+	})
+}
+
+// HandleImportCustomPortsCSV imports CSV into custom ports table
+func (h *Handler) HandleImportCustomPortsCSV(w http.ResponseWriter, r *http.Request) {
+	_ = r.ParseForm()
+	csvData := r.FormValue("csv_data")
+	replace := r.FormValue("replace") == "true" || r.FormValue("replace") == "1"
+
+	if strings.TrimSpace(csvData) != "" {
+		if _, err := h.db.ImportCustomPortsCSV(csvData, replace); err != nil {
+			http.Error(w, err.Error(), http.StatusBadRequest)
+			return
+		}
+	}
+	h.HandleCustomPortsPartial(w, r)
+}
+
 // StaticFS returns http.FileSystem for embedded static assets
 func StaticFS() http.FileSystem {
 	sub, err := fs.Sub(web.WebFS, "static")

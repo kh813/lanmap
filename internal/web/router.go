@@ -25,6 +25,7 @@ func NewRouter(h *Handler) http.Handler {
 	mux.HandleFunc("GET /partials/main_table", h.HandleMainTablePartial)
 	mux.HandleFunc("GET /partials/action_menu", h.HandleActionMenuPartial)
 	mux.HandleFunc("GET /partials/segment_menu", h.HandleSegmentMenuPartial)
+	mux.HandleFunc("GET /partials/custom_ports", h.HandleCustomPortsPartial)
 
 	// Modals
 	mux.HandleFunc("GET /modals/settings", h.HandleSettingsModal)
@@ -33,6 +34,8 @@ func NewRouter(h *Handler) http.Handler {
 	mux.HandleFunc("GET /modals/edit_host", h.HandleEditHostModal)
 	mux.HandleFunc("GET /modals/host_detail", h.HandleHostDetailModal)
 	mux.HandleFunc("GET /modals/whitelist", h.HandleWhitelistModal)
+	mux.HandleFunc("GET /modals/custom_port", h.HandleCustomPortModal)
+	mux.HandleFunc("GET /modals/custom_ports_import", h.HandleCustomPortsImportModal)
 
 	// Whitelist API
 	mux.HandleFunc("POST /api/whitelist/import", h.HandleImportWhitelist)
@@ -41,6 +44,24 @@ func NewRouter(h *Handler) http.Handler {
 		id, _ := strconv.ParseInt(r.PathValue("id"), 10, 64)
 		h.HandleDeleteWhitelistEntry(w, r, id)
 	})
+
+	// Custom Ports API
+	mux.HandleFunc("POST /api/ports", h.HandleCreateCustomPort)
+	mux.HandleFunc("POST /api/ports/{id}/update", func(w http.ResponseWriter, r *http.Request) {
+		id, _ := strconv.ParseInt(r.PathValue("id"), 10, 64)
+		h.HandleUpdateCustomPort(w, r, id)
+	})
+	mux.HandleFunc("POST /api/ports/{id}/toggle", func(w http.ResponseWriter, r *http.Request) {
+		id, _ := strconv.ParseInt(r.PathValue("id"), 10, 64)
+		h.HandleToggleCustomPort(w, r, id)
+	})
+	mux.HandleFunc("DELETE /api/ports/{id}", func(w http.ResponseWriter, r *http.Request) {
+		id, _ := strconv.ParseInt(r.PathValue("id"), 10, 64)
+		h.HandleDeleteCustomPort(w, r, id)
+	})
+	mux.HandleFunc("POST /api/ports/reset", h.HandleResetCustomPorts)
+	mux.HandleFunc("GET /api/ports/export", h.HandleExportCustomPortsCSV)
+	mux.HandleFunc("POST /api/ports/import", h.HandleImportCustomPortsCSV)
 
 	// Host API
 	mux.HandleFunc("POST /api/hosts", h.HandleCreateHost)

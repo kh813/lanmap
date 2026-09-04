@@ -31,10 +31,16 @@ type Scanner struct {
 
 // NewScanner creates a new Scanner instance
 func NewScanner(database *db.DB, cfg *config.Config) *Scanner {
-	return &Scanner{
+	sc := &Scanner{
 		db:     database,
 		config: cfg,
 	}
+	if database != nil {
+		SetCustomPortResolver(func(profile DeviceProfile) (map[int]string, error) {
+			return database.GetActiveTargetPortsForProfile(string(profile))
+		})
+	}
+	return sc
 }
 
 // EnsureLocalSegmentAutoRegistered discovers local network interfaces and auto-registers them.

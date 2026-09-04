@@ -549,6 +549,37 @@
 - [ ] **24.4 単体テスト & 統合検証**
   - [ ] IPv6 パケットパース・集約ロジックの単体テスト
 
+---
 
-
-
+### 🔹 Phase 25: OS別 監視ポートカスタマイズ & CSVインポート/エクスポート機能 (完了)
+- [x] **25.1 データベース層 (`internal/db`)**
+  - [x] `custom_profile_ports` テーブル及びインデックス `idx_profile_port_proto`, `idx_profile_ports_lookup` スキーマ定義
+  - [x] 初期シード (`SeedDefaultCustomPorts`): 組み込みポート（TeamViewer 5938, AnyDesk 7070, SSH 22, RDP 3389等）の自動投入
+  - [x] `ListCustomPorts`, `GetCustomPort`, `CreateCustomPort`, `UpdateCustomPort`, `DeleteCustomPort`, `ToggleCustomPort` 実装
+  - [x] `ResetCustomPortsToDefault`: いつでも初期プリセットにワンクリック復元
+  - [x] `ExportCustomPortsCSV`: CSV形式（TargetOS, Protocol, Port, ProtocolName, Description, Enabled）での出力
+  - [x] `ImportCustomPortsCSV`: CSV一括取り込み（マージモード / 全置換モード）
+  - [x] `GetActiveTargetPortsForProfile`: 指定プロファイルの有効ポート ＋ 全共通 `all` の有効ポートを結合返却
+  - [x] 単体テスト (`TestCustomPortsOperations`)
+- [x] **25.2 スキャナー連動 (`internal/scanner`)**
+  - [x] `SetCustomPortResolver` 機構の実装
+  - [x] `GetTargetPortsForProfile` で動的カスタムリゾルバー（DB）を最優先で呼び出し
+  - [x] `NewScanner` 時に DB の `GetActiveTargetPortsForProfile` を自動バインド
+  - [x] 単体テスト (`TestAdaptiveTargetPorts_CustomResolver`)
+- [x] **25.3 国際化辞書 (`internal/i18n`)**
+  - [x] 日英辞書キー追加（タブ名、全OSプロファイル名、カラム名、ボタン名、確認ダイアログ、メッセージ）
+- [x] **25.4 UI テンプレート (`web/template/partials`)**
+  - [x] `settings_modal.html`: 上部タブ切替ナビゲーション（`[ ⚙️ システム設定 ]` / `[ 🎯 監視ポート設定 ]`）
+  - [x] `custom_ports_table.html`: プロファイル別ポート一覧テーブル、ON/OFFトグル、編集・削除
+  - [x] `custom_port_modal.html`: ポート追加・編集モーダル
+  - [x] `custom_ports_import_modal.html`: CSVファイル選択 / テキスト貼り付け一括インポートモーダル
+- [x] **25.5 Web ハンドラー & ルーティング (`internal/web`)**
+  - [x] `GET /partials/custom_ports`: プロファイルフィルター連携
+  - [x] `GET /modals/custom_port`, `POST /api/ports`, `POST /api/ports/{id}/update`
+  - [x] `POST /api/ports/{id}/toggle`, `DELETE /api/ports/{id}`, `POST /api/ports/reset`
+  - [x] `GET /api/ports/export`: CSVダウンロード
+  - [x] `GET /modals/custom_ports_import`, `POST /api/ports/import`: CSVインポート
+  - [x] 単体テスト (`TestCustomPortsWebRoutes`)
+- [x] **25.6 検証 & ビルド**
+  - [x] `go test -count=1 ./...` 全パッケージテスト PASS
+  - [x] `make build` 成功確認

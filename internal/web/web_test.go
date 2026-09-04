@@ -524,3 +524,163 @@ func TestWebFiltersAndPreviousHost(t *testing.T) {
 	}
 }
 
+func TestCustomPortsWebRoutes(t *testing.T) {
+	_, router, database := setupTestWeb(t)
+
+	// 1. GET /partials/custom_ports
+	req := httptest.NewRequest("GET", "/partials/custom_ports?profile=all_profiles", nil)
+	rec := httptest.NewRecorder()
+	router.ServeHTTP(rec, req)
+	if rec.Code != http.StatusOK {
+		t.Fatalf("expected 200 for /partials/custom_ports, got %d", rec.Code)
+	}
+	body := rec.Body.String()
+	if !strings.Contains(body, "TeamViewer") || !strings.Contains(body, "5938") {
+		t.Errorf("expected TeamViewer / 5938 in custom_ports table")
+	}
+
+	// 2. GET /modals/custom_port (add new)
+	reqAdd := httptest.NewRequest("GET", "/modals/custom_port", nil)
+	recAdd := httptest.NewRecorder()
+	router.ServeHTTP(recAdd, reqAdd)
+	if recAdd.Code != http.StatusOK {
+		t.Errorf("expected 200 for /modals/custom_port, got %d", recAdd.Code)
+	}
+
+	// 3. POST /api/ports (create)
+	form := url.Values{
+		"profile_id":    {"apple_mac"},
+		"protocol":      {"TCP"},
+		"port":          {"9090"},
+		"protocol_name": {"Test App"},
+		"description":   {"Test Description"},
+		"is_enabled":    {"1"},
+	}
+	reqCreate := httptest.NewRequest("POST", "/api/ports", strings.NewReader(form.Encode()))
+	reqCreate.Header.Set("Content-Type", "application/x-www-form-urlencoded")
+	recCreate := httptest.NewRecorder()
+	router.ServeHTTP(recCreate, reqCreate)
+	if recCreate.Code != http.StatusOK {
+		t.Fatalf("expected 200 for POST /api/ports, got %d", recCreate.Code)
+	}
+	if !strings.Contains(recCreate.Body.String(), "9090") || !strings.Contains(recCreate.Body.String(), "Test App") {
+		t.Errorf("expected created port 9090 in response table")
+	}
+
+	// Fetch created port ID from DB
+	macPorts, _ := database.ListCustomPorts("apple_mac")
+	var targetPort *db.CustomPort
+	for _, p := range macPorts {
+		if p.Port == 9090 {
+			targetPort = p
+			break
+		}
+	}
+	if targetPort == nil {
+		t.Fatalf("created port 9090 not found in database")
+	}
+
+	// 4. GET /modals/custom_port?id=... (edit modal)
+	reqEditModal := httptest.NewRequest("GET", fmt.Sprintf("/modals/custom_port?id=%d", targetPort.ID), nil)
+	recEditModal := httptest.NewRecorder()
+	router.ServeHTTP(recEditModal, reqEditModal)
+	if recEditModal.Code != http.StatusOK {
+		t.Errorf("expected 200 for edit modal, got %d", recEditModal.Code)
+	}
+	if !strings.Contains(recEditModal.Body.String(), "9090") {
+		t.Errorf("expected edit modal to contain port 9090")
+	}
+
+	// 5. POST /api/ports/{id}/toggle
+	reqToggle := httptest.NewRequest("POST", fmt.Sprintf("/api/ports/%d/toggle", targetPort.ID), nil)
+	recToggle := httptest.NewRecorder()
+	router.ServeHTTP(recToggle, reqToggle)
+	if recToggle.Code != http.StatusOK {
+		t.Fatalf("expected 200 for toggle, got %d", recToggle.Code)
+	}
+	pAfterToggle, _ := database.GetCustomPort(targetPort.ID)
+	if pAfterToggle.IsEnabled {
+		t.Errorf("expected port to be disabled after toggle")
+	}
+
+	// 6. POST /api/ports/{id}/update
+	updateForm := url.Values{
+		"profile_id":    {"windows"},
+		"protocol":      {"TCP"},
+		"port":          {"9091"},
+		"protocol_name": {"Updated App"},
+		"description":   {"Updated Description"},
+		"is_enabled":    {"1"},
+	}
+	reqUpdate := httptest.NewRequest("POST", fmt.Sprintf("/api/ports/%d/update", targetPort.ID), strings.NewReader(updateForm.Encode()))
+	reqUpdate.Header.Set("Content-Type", "application/x-www-form-urlencoded")
+	recUpdate := httptest.NewRecorder()
+	router.ServeHTTP(recUpdate, reqUpdate)
+	if recUpdate.Code != http.StatusOK {
+		t.Fatalf("expected 200 for update, got %d", recUpdate.Code)
+	}
+	pAfterUpdate, _ := database.GetCustomPort(targetPort.ID)
+	if pAfterUpdate.Port != 9091 || pAfterUpdate.ProfileID != "windows" {
+		t.Errorf("unexpected updated port: %+v", pAfterUpdate)
+	}
+
+	// 7. DELETE /api/ports/{id}
+	reqDel := httptest.NewRequest("DELETE", fmt.Sprintf("/api/ports/%d", targetPort.ID), nil)
+	recDel := httptest.NewRecorder()
+	router.ServeHTTP(recDel, reqDel)
+	if recDel.Code != http.StatusOK {
+		t.Fatalf("expected 200 for delete, got %d", recDel.Code)
+	}
+	_, err := database.GetCustomPort(targetPort.ID)
+	if err == nil {
+		t.Errorf("expected deleted port to not exist in DB")
+	}
+
+	// 8. GET /api/ports/export
+	reqExp := httptest.NewRequest("GET", "/api/ports/export", nil)
+	recExp := httptest.NewRecorder()
+	router.ServeHTTP(recExp, reqExp)
+	if recExp.Code != http.StatusOK {
+		t.Fatalf("expected 200 for CSV export, got %d", recExp.Code)
+	}
+	if !strings.Contains(recExp.Body.String(), "TargetOS,Protocol,Port") {
+		t.Errorf("expected CSV header in export output")
+	}
+
+	// 9. GET /modals/custom_ports_import
+	reqImpModal := httptest.NewRequest("GET", "/modals/custom_ports_import", nil)
+	recImpModal := httptest.NewRecorder()
+	router.ServeHTTP(recImpModal, reqImpModal)
+	if recImpModal.Code != http.StatusOK {
+		t.Errorf("expected 200 for CSV import modal, got %d", recImpModal.Code)
+	}
+
+	// 10. POST /api/ports/import
+	impForm := url.Values{
+		"csv_data": {"TargetOS,Protocol,Port,ProtocolName,Description,Enabled\napple_mac,TCP,18080,ImportedWeb,Imported Note,true\n"},
+		"replace":  {"false"},
+	}
+	reqImp := httptest.NewRequest("POST", "/api/ports/import", strings.NewReader(impForm.Encode()))
+	reqImp.Header.Set("Content-Type", "application/x-www-form-urlencoded")
+	recImp := httptest.NewRecorder()
+	router.ServeHTTP(recImp, reqImp)
+	if recImp.Code != http.StatusOK {
+		t.Fatalf("expected 200 for import, got %d", recImp.Code)
+	}
+	if !strings.Contains(recImp.Body.String(), "18080") || !strings.Contains(recImp.Body.String(), "ImportedWeb") {
+		t.Errorf("expected imported port 18080 in response table")
+	}
+
+	// 11. POST /api/ports/reset
+	reqReset := httptest.NewRequest("POST", "/api/ports/reset", nil)
+	recReset := httptest.NewRecorder()
+	router.ServeHTTP(recReset, reqReset)
+	if recReset.Code != http.StatusOK {
+		t.Fatalf("expected 200 for reset, got %d", recReset.Code)
+	}
+	allAfterReset, _ := database.ListCustomPorts("")
+	if len(allAfterReset) != len(db.BuiltinDefaultPorts) {
+		t.Errorf("expected %d default ports after reset, got %d", len(db.BuiltinDefaultPorts), len(allAfterReset))
+	}
+}
+

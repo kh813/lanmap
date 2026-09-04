@@ -311,6 +311,66 @@ var translations = map[string]map[string]string{
 		"settings_whitelist_btn":     "Device Whitelist Ledger",
 		"settings_btn_save":          "💾 Save Settings",
 
+		// Settings Tabs
+		"settings_tab_system": "⚙️ System Settings",
+		"settings_tab_ports":  "🎯 Monitored Ports",
+
+		// Device Profiles
+		"profile_all":          "🌐 All Devices (Common)",
+		"profile_apple_mac":    "🍎 Mac / Apple",
+		"profile_windows":      "🪟 Windows PC/Server",
+		"profile_nas_linux":    "🐧 Linux / NAS",
+		"profile_printer":      "🖨️ Printer",
+		"profile_network":      "🌐 Network / Router",
+		"profile_media_iot":    "📺 IoT / Smart Devices",
+		"profile_generic":      "💻 Generic / Other",
+		"profile_filter_all":   "All Profiles",
+
+		// Custom Ports Table & Actions
+		"ports_col_profile":      "Target OS",
+		"ports_col_protocol":     "Protocol",
+		"ports_col_port":         "Port",
+		"ports_col_service":      "Service / Name",
+		"ports_col_desc":         "Description",
+		"ports_col_status":       "Status",
+		"ports_col_actions":      "Actions",
+		"ports_btn_add":          "➕ Add Port",
+		"ports_btn_export":       "📤 Export CSV",
+		"ports_btn_import":       "📥 Import CSV",
+		"ports_btn_reset":        "↺ Reset to Built-in",
+		"ports_confirm_reset":    "Are you sure you want to reset all port definitions to built-in presets? Custom configurations will be replaced.",
+		"ports_confirm_delete":   "Are you sure you want to delete this monitored port rule?",
+		"ports_empty":            "No monitored port rules found for this profile.",
+		"ports_builtin_badge":    "Built-in",
+		"ports_custom_badge":     "Custom",
+
+		// Port Add/Edit Modal
+		"ports_modal_add_title":      "➕ Add Monitored Port Rule",
+		"ports_modal_edit_title":     "✏️ Edit Monitored Port Rule",
+		"ports_modal_profile_label":  "Target OS Profile",
+		"ports_modal_proto_label":    "Protocol",
+		"ports_modal_port_label":     "Port Number (1-65535)",
+		"ports_modal_name_label":     "Service / Protocol Name",
+		"ports_modal_name_ph":        "e.g. In-house API, AnyDesk, VNC",
+		"ports_modal_desc_label":     "Description / Monitoring Notes",
+		"ports_modal_desc_ph":        "e.g. Critical internal server management port",
+		"ports_modal_enabled_chk":    "Enable monitoring probe for this port",
+		"ports_modal_save_btn":       "Save Port Rule",
+
+		// Port Import Modal
+		"ports_import_modal_title":   "📥 Import Monitored Ports CSV",
+		"ports_import_format_hint":   "Format: TargetOS, Protocol, Port, ProtocolName, Description, Enabled",
+		"ports_import_note":          "CSV file upload or direct text paste supported. Header is auto-detected.",
+		"ports_import_mode_merge":    "Merge (Add/Update matching ports, keep others)",
+		"ports_import_mode_replace":  "Replace (Delete all and replace with CSV)",
+		"ports_import_btn":           "Execute CSV Import",
+
+		// Port Messages
+		"ports_msg_saved":         "Port rule saved successfully.",
+		"ports_msg_deleted":       "Port rule deleted.",
+		"ports_msg_reset_success": "Monitored ports successfully reset to built-in presets.",
+		"ports_msg_import_success": "Imported %d port rules successfully.",
+
 		// Host Detail Modal
 		"detail_title":                  "📊 Host Detail Analytics",
 		"detail_static_badge":           "Static IP",
@@ -594,6 +654,66 @@ var translations = map[string]map[string]string{
 		"settings_update_checking":   "⏳ GitHub Releases を照会中...",
 		"settings_whitelist_btn":     "社内端末台帳 (ホワイトリスト)",
 		"settings_btn_save":          "💾 設定を保存",
+
+		// Settings Tabs
+		"settings_tab_system": "⚙️ システム設定",
+		"settings_tab_ports":  "🎯 監視ポート設定",
+
+		// Device Profiles
+		"profile_all":          "🌐 全デバイス共通",
+		"profile_apple_mac":    "🍎 Mac / Apple",
+		"profile_windows":      "🪟 Windows PC/サーバー",
+		"profile_nas_linux":    "🐧 Linux / NAS",
+		"profile_printer":      "🖨️ プリンター",
+		"profile_network":      "🌐 ネットワーク / ルーター",
+		"profile_media_iot":    "📺 IoT / スマート機器",
+		"profile_generic":      "💻 汎用 / その他",
+		"profile_filter_all":   "全プロファイル",
+
+		// Custom Ports Table & Actions
+		"ports_col_profile":      "対象OS",
+		"ports_col_protocol":     "通信方式",
+		"ports_col_port":         "ポート",
+		"ports_col_service":      "サービス名",
+		"ports_col_desc":         "説明 / 備考",
+		"ports_col_status":       "状態",
+		"ports_col_actions":      "操作",
+		"ports_btn_add":          "➕ ポート追加",
+		"ports_btn_export":       "📤 CSVエクスポート",
+		"ports_btn_import":       "📥 CSVインポート",
+		"ports_btn_reset":        "↺ 初期値にリセット",
+		"ports_confirm_reset":    "監視ポート設定を初期プリセットに戻しますか？追加・編集した内容はリセットされます。",
+		"ports_confirm_delete":   "この監視ポート設定を削除しますか？",
+		"ports_empty":            "該当する監視ポート設定はありません。",
+		"ports_builtin_badge":    "組み込み",
+		"ports_custom_badge":     "カスタム",
+
+		// Port Add/Edit Modal
+		"ports_modal_add_title":      "➕ 監視ポートルールの追加",
+		"ports_modal_edit_title":     "✏️ 監視ポートルールの編集",
+		"ports_modal_profile_label":  "対象OSプロファイル",
+		"ports_modal_proto_label":    "プロトコル",
+		"ports_modal_port_label":     "ポート番号 (1-65535)",
+		"ports_modal_name_label":     "サービス / プロトコル名",
+		"ports_modal_name_ph":        "例: 社内管理API, AnyDesk, VNC",
+		"ports_modal_desc_label":     "説明 / 監視目的",
+		"ports_modal_desc_ph":        "例: 社内業務サーバーの待受ポート",
+		"ports_modal_enabled_chk":    "このポートの監視を有効にする",
+		"ports_modal_save_btn":       "設定を保存",
+
+		// Port Import Modal
+		"ports_import_modal_title":   "📥 監視ポート設定 CSVインポート",
+		"ports_import_format_hint":   "形式: TargetOS, Protocol, Port, ProtocolName, Description, Enabled",
+		"ports_import_note":          "※ CSVファイル選択またはテキスト貼り付けに対応。ヘッダー行は自動判別されます。",
+		"ports_import_mode_merge":    "追加・マージ (既存ポートを維持し差分を追加・更新)",
+		"ports_import_mode_replace":  "全置換 (既存を全削除しCSVの内容で上書き)",
+		"ports_import_btn":           "インポートを実行",
+
+		// Port Messages
+		"ports_msg_saved":         "ポート設定を保存しました。",
+		"ports_msg_deleted":       "ポート設定を削除しました。",
+		"ports_msg_reset_success": "初期プリセットポート設定に復元しました。",
+		"ports_msg_import_success": "%d 件のポート設定をインポートしました。",
 
 		// Host Detail Modal
 		"detail_title":                  "📊 ホスト詳細分析",

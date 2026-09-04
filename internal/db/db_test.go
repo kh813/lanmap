@@ -1068,3 +1068,158 @@ func TestTogglePortIgnored(t *testing.T) {
 	}
 }
 
+func TestCustomPortsOperations(t *testing.T) {
+	db := setupTestDB(t)
+
+	// 1. Check seeded default ports
+	allPorts, err := db.ListCustomPorts("")
+	if err != nil {
+		t.Fatalf("ListCustomPorts failed: %v", err)
+	}
+	if len(allPorts) != len(BuiltinDefaultPorts) {
+		t.Fatalf("expected %d default ports, got %d", len(BuiltinDefaultPorts), len(allPorts))
+	}
+
+	// 2. Filter by profile
+	macPorts, err := db.ListCustomPorts("apple_mac")
+	if err != nil {
+		t.Fatalf("ListCustomPorts(apple_mac) failed: %v", err)
+	}
+	if len(macPorts) == 0 {
+		t.Errorf("expected apple_mac ports, got 0")
+	}
+	for _, p := range macPorts {
+		if p.ProfileID != "apple_mac" {
+			t.Errorf("expected profile apple_mac, got %s", p.ProfileID)
+		}
+	}
+
+	// 3. Create a custom port
+	newPort := &CustomPort{
+		ProfileID:    "apple_mac",
+		Protocol:     "TCP",
+		Port:         8088,
+		ProtocolName: "Custom App",
+		Description:  "Internal test app",
+		IsEnabled:    true,
+	}
+	if err := db.CreateCustomPort(newPort); err != nil {
+		t.Fatalf("CreateCustomPort failed: %v", err)
+	}
+	if newPort.ID == 0 {
+		t.Errorf("expected ID to be set")
+	}
+
+	// 4. Get the custom port
+	fetched, err := db.GetCustomPort(newPort.ID)
+	if err != nil {
+		t.Fatalf("GetCustomPort failed: %v", err)
+	}
+	if fetched.Port != 8088 || fetched.ProtocolName != "Custom App" || !fetched.IsEnabled {
+		t.Errorf("unexpected fetched custom port: %+v", fetched)
+	}
+
+	// 5. Update custom port
+	if err := db.UpdateCustomPort(newPort.ID, "all", "TCP", 8088, "Global App", "Updated desc", true); err != nil {
+		t.Fatalf("UpdateCustomPort failed: %v", err)
+	}
+	updated, _ := db.GetCustomPort(newPort.ID)
+	if updated.ProfileID != "all" || updated.ProtocolName != "Global App" {
+		t.Errorf("update failed, got: %+v", updated)
+	}
+
+	// 6. Toggle custom port
+	newStatus, err := db.ToggleCustomPort(newPort.ID)
+	if err != nil {
+		t.Fatalf("ToggleCustomPort failed: %v", err)
+	}
+	if newStatus != false {
+		t.Errorf("expected toggled status false, got %v", newStatus)
+	}
+
+	// 7. GetActiveTargetPortsForProfile
+	// Since newPort is currently disabled, 8088 shouldn't be present
+	activeWindows, err := db.GetActiveTargetPortsForProfile("windows")
+	if err != nil {
+		t.Fatalf("GetActiveTargetPortsForProfile failed: %v", err)
+	}
+	if _, ok := activeWindows[8088]; ok {
+		t.Errorf("expected disabled 8088 to not be in active ports")
+	}
+	// Re-enable it
+	_, _ = db.ToggleCustomPort(newPort.ID)
+	activeWindows2, err := db.GetActiveTargetPortsForProfile("windows")
+	if err != nil {
+		t.Fatalf("GetActiveTargetPortsForProfile failed: %v", err)
+	}
+	if name, ok := activeWindows2[8088]; !ok || name != "Global App" {
+		t.Errorf("expected enabled 8088 (profile=all) to be in windows active ports, got %s (exists=%v)", name, ok)
+	}
+
+	// 8. Delete custom port
+	if err := db.DeleteCustomPort(newPort.ID); err != nil {
+		t.Fatalf("DeleteCustomPort failed: %v", err)
+	}
+	_, err = db.GetCustomPort(newPort.ID)
+	if err == nil {
+		t.Errorf("expected error getting deleted custom port, got nil")
+	}
+
+	// 9. Export CSV
+	csvStr, err := db.ExportCustomPortsCSV()
+	if err != nil {
+		t.Fatalf("ExportCustomPortsCSV failed: %v", err)
+	}
+	if len(csvStr) == 0 {
+		t.Errorf("exported CSV is empty")
+	}
+
+	// 10. Import CSV (merge mode)
+	csvData := `TargetOS,Protocol,Port,ProtocolName,Description,Enabled
+windows,TCP,9999,TestPort,Test Description,true
+`
+	count, err := db.ImportCustomPortsCSV(csvData, false)
+	if err != nil {
+		t.Fatalf("ImportCustomPortsCSV merge failed: %v", err)
+	}
+	if count != 1 {
+		t.Errorf("expected 1 imported port, got %d", count)
+	}
+	winPorts, _ := db.ListCustomPorts("windows")
+	found9999 := false
+	for _, p := range winPorts {
+		if p.Port == 9999 && p.ProtocolName == "TestPort" {
+			found9999 = true
+			break
+		}
+	}
+	if !found9999 {
+		t.Errorf("expected imported port 9999 to be present in windows profile")
+	}
+
+	// 11. Import CSV (replace mode)
+	csvReplaceData := `TargetOS,Protocol,Port,ProtocolName,Description,Enabled
+generic,TCP,12345,OnlyOne,Only port,true
+`
+	count, err = db.ImportCustomPortsCSV(csvReplaceData, true)
+	if err != nil {
+		t.Fatalf("ImportCustomPortsCSV replace failed: %v", err)
+	}
+	if count != 1 {
+		t.Errorf("expected 1 imported port, got %d", count)
+	}
+	allAfterReplace, _ := db.ListCustomPorts("")
+	if len(allAfterReplace) != 1 || allAfterReplace[0].Port != 12345 {
+		t.Errorf("expected only 1 port after replace, got %d", len(allAfterReplace))
+	}
+
+	// 12. Reset to default
+	if err := db.ResetCustomPortsToDefault(); err != nil {
+		t.Fatalf("ResetCustomPortsToDefault failed: %v", err)
+	}
+	restoredPorts, _ := db.ListCustomPorts("")
+	if len(restoredPorts) != len(BuiltinDefaultPorts) {
+		t.Errorf("expected restored ports %d, got %d", len(BuiltinDefaultPorts), len(restoredPorts))
+	}
+}
+

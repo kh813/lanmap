@@ -184,8 +184,30 @@ func DetermineDeviceProfile(vendor, osVendor, hostname string, ttl int) DevicePr
 	return ProfileGeneric
 }
 
+var (
+	customPortResolverMu sync.RWMutex
+	customPortResolver   func(profile DeviceProfile) (map[int]string, error)
+)
+
+// SetCustomPortResolver registers a dynamic custom port resolver (e.g. from database)
+func SetCustomPortResolver(fn func(profile DeviceProfile) (map[int]string, error)) {
+	customPortResolverMu.Lock()
+	defer customPortResolverMu.Unlock()
+	customPortResolver = fn
+}
+
 // GetTargetPortsForProfile returns specific relevant ports for the device profile
 func GetTargetPortsForProfile(profile DeviceProfile) map[int]string {
+	customPortResolverMu.RLock()
+	resolver := customPortResolver
+	customPortResolverMu.RUnlock()
+
+	if resolver != nil {
+		if ports, err := resolver(profile); err == nil && len(ports) > 0 {
+			return ports
+		}
+	}
+
 	if ports, ok := profilePortMaps[profile]; ok {
 		return ports
 	}

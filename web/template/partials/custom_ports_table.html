@@ -1,0 +1,92 @@
+<div class="overflow-x-auto rounded-lg border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900/60 max-h-[480px]">
+    <table class="w-full text-left text-xs text-slate-700 dark:text-slate-300">
+        <thead class="bg-slate-50 dark:bg-slate-950/80 sticky top-0 z-10 border-b border-slate-200 dark:border-slate-800 text-[11px] font-semibold text-slate-600 dark:text-slate-400">
+            <tr>
+                <th class="py-2 px-3">{{t .Lang "ports_col_profile"}}</th>
+                <th class="py-2 px-2.5">{{t .Lang "ports_col_protocol"}}</th>
+                <th class="py-2 px-3">{{t .Lang "ports_col_port"}}</th>
+                <th class="py-2 px-3">{{t .Lang "ports_col_service"}}</th>
+                <th class="py-2 px-3">{{t .Lang "ports_col_desc"}}</th>
+                <th class="py-2 px-3 text-center">{{t .Lang "ports_col_status"}}</th>
+                <th class="py-2 px-3 text-right">{{t .Lang "ports_col_actions"}}</th>
+            </tr>
+        </thead>
+        <tbody class="divide-y divide-slate-100 dark:divide-slate-800/60">
+            {{if not .Ports}}
+            <tr>
+                <td colspan="7" class="py-8 text-center text-slate-400 dark:text-slate-500">
+                    {{t .Lang "ports_empty"}}
+                </td>
+            </tr>
+            {{end}}
+            {{range .Ports}}
+            <tr id="port-row-{{.ID}}" class="hover:bg-slate-50/70 dark:hover:bg-slate-800/40 transition">
+                <td class="py-2 px-3 whitespace-nowrap">
+                    <span class="inline-flex items-center px-2 py-0.5 rounded text-[10.5px] font-medium 
+                        {{if eq .ProfileID "all"}}bg-indigo-50 text-indigo-700 border border-indigo-200 dark:bg-indigo-950/60 dark:text-indigo-300 dark:border-indigo-800
+                        {{else if eq .ProfileID "apple_mac"}}bg-slate-100 text-slate-800 border border-slate-300 dark:bg-slate-800 dark:text-slate-200 dark:border-slate-700
+                        {{else if eq .ProfileID "windows"}}bg-sky-50 text-sky-700 border border-sky-200 dark:bg-sky-950/60 dark:text-sky-300 dark:border-sky-800
+                        {{else if eq .ProfileID "nas_linux"}}bg-emerald-50 text-emerald-700 border border-emerald-200 dark:bg-emerald-950/60 dark:text-emerald-300 dark:border-emerald-800
+                        {{else if eq .ProfileID "printer"}}bg-amber-50 text-amber-700 border border-amber-200 dark:bg-amber-950/60 dark:text-amber-300 dark:border-amber-800
+                        {{else if eq .ProfileID "network"}}bg-purple-50 text-purple-700 border border-purple-200 dark:bg-purple-950/60 dark:text-purple-300 dark:border-purple-800
+                        {{else if eq .ProfileID "media_iot"}}bg-pink-50 text-pink-700 border border-pink-200 dark:bg-pink-950/60 dark:text-pink-300 dark:border-pink-800
+                        {{else}}bg-slate-100 text-slate-700 border border-slate-200 dark:bg-slate-800 dark:text-slate-300 dark:border-slate-700{{end}}">
+                        {{if eq .ProfileID "all"}}🌐 {{t $.Lang "profile_all"}}
+                        {{else if eq .ProfileID "apple_mac"}}🍎 {{t $.Lang "profile_apple_mac"}}
+                        {{else if eq .ProfileID "windows"}}🪟 {{t $.Lang "profile_windows"}}
+                        {{else if eq .ProfileID "nas_linux"}}🐧 {{t $.Lang "profile_nas_linux"}}
+                        {{else if eq .ProfileID "printer"}}🖨️ {{t $.Lang "profile_printer"}}
+                        {{else if eq .ProfileID "network"}}🌐 {{t $.Lang "profile_network"}}
+                        {{else if eq .ProfileID "media_iot"}}📺 {{t $.Lang "profile_media_iot"}}
+                        {{else}}💻 {{t $.Lang "profile_generic"}}{{end}}
+                    </span>
+                </td>
+                <td class="py-2 px-2.5 whitespace-nowrap">
+                    <span class="text-[10px] font-mono px-1.5 py-0.5 rounded {{if eq .Protocol "UDP"}}bg-amber-100 text-amber-800 dark:bg-amber-950/60 dark:text-amber-300 border border-amber-200 dark:border-amber-800{{else}}bg-blue-50 text-blue-700 dark:bg-blue-950/60 dark:text-blue-300 border border-blue-200 dark:border-blue-800{{end}}">
+                        {{.Protocol}}
+                    </span>
+                </td>
+                <td class="py-2 px-3 font-mono font-bold text-slate-800 dark:text-slate-200 whitespace-nowrap">
+                    {{.Port}}
+                </td>
+                <td class="py-2 px-3 font-medium text-slate-800 dark:text-slate-200 whitespace-nowrap">
+                    {{.ProtocolName}}
+                    {{if .IsBuiltin}}
+                    <span class="ml-1 text-[9px] px-1 py-0.2 rounded bg-slate-100 text-slate-500 dark:bg-slate-800 dark:text-slate-400" title="{{t $.Lang "ports_builtin_badge"}}">
+                        {{t $.Lang "ports_builtin_badge"}}
+                    </span>
+                    {{end}}
+                </td>
+                <td class="py-2 px-3 text-slate-500 dark:text-slate-400 text-[11px] max-w-xs truncate" title="{{.Description}}">
+                    {{.Description}}
+                </td>
+                <td class="py-2 px-3 text-center whitespace-nowrap">
+                    <button type="button"
+                            hx-post="/api/ports/{{.ID}}/toggle"
+                            hx-target="#custom-ports-container"
+                            class="px-2 py-0.5 rounded text-[10.5px] font-semibold transition cursor-pointer
+                                {{if .IsEnabled}}bg-emerald-100 text-emerald-800 border border-emerald-300 dark:bg-emerald-950/70 dark:text-emerald-300 dark:border-emerald-800 hover:bg-emerald-200
+                                {{else}}bg-slate-100 text-slate-400 border border-slate-200 dark:bg-slate-800 dark:text-slate-500 dark:border-slate-700 hover:bg-slate-200 dark:hover:bg-slate-700{{end}}">
+                        {{if .IsEnabled}}🟢 ON{{else}}⚪ OFF{{end}}
+                    </button>
+                </td>
+                <td class="py-2 px-3 text-right space-x-1.5 whitespace-nowrap">
+                    <button type="button"
+                            hx-get="/modals/custom_port?id={{.ID}}"
+                            hx-target="#modal-container"
+                            class="text-blue-600 dark:text-blue-400 hover:underline text-[11px] font-medium cursor-pointer">
+                        ✏️
+                    </button>
+                    <button type="button"
+                            hx-delete="/api/ports/{{.ID}}"
+                            hx-confirm="{{t $.Lang "ports_confirm_delete"}}"
+                            hx-target="#custom-ports-container"
+                            class="text-rose-600 dark:text-rose-400 hover:underline text-[11px] font-medium cursor-pointer">
+                        🗑️
+                    </button>
+                </td>
+            </tr>
+            {{end}}
+        </tbody>
+    </table>
+</div>

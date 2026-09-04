@@ -408,6 +408,31 @@ func TestAdaptiveTargetPorts(t *testing.T) {
 	}
 }
 
+func TestAdaptiveTargetPorts_CustomResolver(t *testing.T) {
+	// Register custom resolver
+	SetCustomPortResolver(func(profile DeviceProfile) (map[int]string, error) {
+		if profile == ProfileAppleMac {
+			return map[int]string{
+				9999: "Custom Service",
+			}, nil
+		}
+		return nil, nil // Fallback for others
+	})
+	defer SetCustomPortResolver(nil)
+
+	// Apple Mac should use custom ports
+	macPorts := GetTargetPortsForProfile(ProfileAppleMac)
+	if len(macPorts) != 1 || macPorts[9999] != "Custom Service" {
+		t.Errorf("expected only custom port 9999 for mac, got %+v", macPorts)
+	}
+
+	// Windows should fall back to built-in ports
+	winPorts := GetTargetPortsForProfile(ProfileWindows)
+	if _, ok := winPorts[3389]; !ok {
+		t.Errorf("expected built-in RDP(3389) in Windows profile")
+	}
+}
+
 func TestScanOpenPortsLowNoise(t *testing.T) {
 	// Scan loopback on mobile profile (should be empty immediately)
 	resMobile := ScanOpenPortsLowNoise("127.0.0.1", ProfileAppleMobile, 10*time.Millisecond, 5*time.Millisecond)

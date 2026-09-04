@@ -130,6 +130,22 @@ func (db *DB) migrate() error {
 	);
 
 	CREATE INDEX IF NOT EXISTS idx_ping_history_ip_time ON ping_history(host_ip, created_at);
+
+	CREATE TABLE IF NOT EXISTS custom_profile_ports (
+		id INTEGER PRIMARY KEY AUTOINCREMENT,
+		profile_id VARCHAR(50) NOT NULL,
+		protocol VARCHAR(10) NOT NULL DEFAULT 'TCP',
+		port INTEGER NOT NULL,
+		protocol_name VARCHAR(100) NOT NULL,
+		description TEXT DEFAULT '',
+		is_enabled BOOLEAN DEFAULT 1,
+		is_builtin BOOLEAN DEFAULT 0,
+		created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+		updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
+	);
+
+	CREATE UNIQUE INDEX IF NOT EXISTS idx_profile_port_proto ON custom_profile_ports(profile_id, protocol, port);
+	CREATE INDEX IF NOT EXISTS idx_profile_ports_lookup ON custom_profile_ports(profile_id, is_enabled);
 	`
 	if _, err := db.Exec(schema); err != nil {
 		return err
@@ -278,6 +294,10 @@ func (db *DB) seed() error {
 				_, _ = db.Exec("UPDATE settings SET value = '3' WHERE key = 'retention_days'")
 			}
 		}
+	}
+
+	if err := db.SeedDefaultCustomPorts(); err != nil {
+		return fmt.Errorf("failed to seed default custom ports: %w", err)
 	}
 
 	return nil

@@ -1,6 +1,6 @@
 <div class="fixed inset-0 bg-black/60 dark:bg-black/80 backdrop-blur-sm flex items-center justify-center p-4 z-50 overflow-y-auto animate-fade-in" onclick="if(event.target===this) closeModal()">
     <div class="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl max-w-4xl w-full p-6 shadow-2xl space-y-4 my-6 text-slate-800 dark:text-slate-100">
-        <div class="flex items-center justify-between pb-3 border-b border-slate-200 dark:border-slate-800">
+        <div class="flex items-center justify-between pb-2 border-b border-slate-200 dark:border-slate-800">
             <div class="flex items-center space-x-2">
                 <span class="text-lg">⚙️</span>
                 <h2 class="text-base font-bold text-slate-900 dark:text-white">{{t .Lang "settings_title"}}</h2>
@@ -8,10 +8,24 @@
             <button onclick="closeModal()" class="text-slate-400 hover:text-slate-700 dark:hover:text-white text-lg">&times;</button>
         </div>
 
-        <!-- Global Save Feedback / Toast -->
-        <div id="settings-feedback"></div>
+        <!-- Settings Tabs Navigation -->
+        <div class="flex items-center space-x-2 border-b border-slate-200 dark:border-slate-800">
+            <button type="button" id="tab-btn-system" onclick="switchSettingsTab('system')"
+                    class="px-4 py-2 border-b-2 font-bold text-xs transition border-blue-600 text-blue-600 dark:text-blue-400 cursor-pointer">
+                {{t .Lang "settings_tab_system"}}
+            </button>
+            <button type="button" id="tab-btn-ports" onclick="switchSettingsTab('ports')"
+                    class="px-4 py-2 border-b-2 font-medium text-xs transition border-transparent text-slate-500 hover:text-slate-700 dark:text-slate-400 dark:hover:text-slate-200 cursor-pointer">
+                {{t .Lang "settings_tab_ports"}}
+            </button>
+        </div>
 
-        <form id="settings-form" hx-post="/api/settings" hx-target="#settings-feedback" hx-swap="innerHTML" class="space-y-4 text-xs">
+        <!-- TAB 1: System Settings Form -->
+        <div id="tab-content-system">
+            <!-- Global Save Feedback / Toast -->
+            <div id="settings-feedback"></div>
+
+            <form id="settings-form" hx-post="/api/settings" hx-target="#settings-feedback" hx-swap="innerHTML" class="space-y-4 text-xs">
             <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <!-- LEFT COLUMN: Scanning, Retention, Theme, System Update -->
                 <div class="space-y-4">
@@ -268,5 +282,101 @@
                 </button>
             </div>
         </form>
+        </div>
+
+        <!-- TAB 2: Monitored Ports Settings -->
+        <div id="tab-content-ports" class="hidden space-y-3 text-xs">
+            <!-- Toolbar -->
+            <div class="flex flex-wrap items-center justify-between gap-2 p-2.5 rounded-lg bg-slate-50 dark:bg-slate-950/60 border border-slate-200 dark:border-slate-800">
+                <!-- Profile Filter -->
+                <div class="flex items-center space-x-2">
+                    <span class="font-semibold text-slate-700 dark:text-slate-300">{{t .Lang "ports_col_profile"}}:</span>
+                    <select id="profile-filter" onchange="filterCustomPorts(this.value)"
+                            class="bg-white dark:bg-slate-900 border border-slate-300 dark:border-slate-700 rounded px-2.5 py-1 text-slate-800 dark:text-slate-200 focus:outline-none focus:border-blue-500 text-xs font-medium">
+                        <option value="all_profiles">{{t .Lang "profile_filter_all"}}</option>
+                        <option value="all">🌐 {{t .Lang "profile_all"}}</option>
+                        <option value="apple_mac">🍎 {{t .Lang "profile_apple_mac"}}</option>
+                        <option value="windows">🪟 {{t .Lang "profile_windows"}}</option>
+                        <option value="nas_linux">🐧 {{t .Lang "profile_nas_linux"}}</option>
+                        <option value="printer">🖨️ {{t .Lang "profile_printer"}}</option>
+                        <option value="network">🌐 {{t .Lang "profile_network"}}</option>
+                        <option value="media_iot">📺 {{t .Lang "profile_media_iot"}}</option>
+                        <option value="generic">💻 {{t .Lang "profile_generic"}}</option>
+                    </select>
+                </div>
+
+                <!-- Action Buttons -->
+                <div class="flex items-center space-x-1.5">
+                    <button type="button"
+                            hx-get="/modals/custom_port"
+                            hx-target="#modal-container"
+                            class="px-2.5 py-1 rounded bg-blue-600 hover:bg-blue-500 text-white font-medium text-[11px] shadow transition cursor-pointer flex items-center space-x-1">
+                        <span>{{t .Lang "ports_btn_add"}}</span>
+                    </button>
+                    <a href="/api/ports/export" download="lanmap_ports.csv"
+                       class="px-2.5 py-1 rounded bg-white dark:bg-slate-900 border border-slate-300 dark:border-slate-700 hover:border-blue-500 text-slate-700 dark:text-slate-300 font-medium text-[11px] shadow-sm transition inline-flex items-center space-x-1 cursor-pointer">
+                        <span>{{t .Lang "ports_btn_export"}}</span>
+                    </a>
+                    <button type="button"
+                            hx-get="/modals/custom_ports_import"
+                            hx-target="#modal-container"
+                            class="px-2.5 py-1 rounded bg-white dark:bg-slate-900 border border-slate-300 dark:border-slate-700 hover:border-blue-500 text-slate-700 dark:text-slate-300 font-medium text-[11px] shadow-sm transition cursor-pointer flex items-center space-x-1">
+                        <span>{{t .Lang "ports_btn_import"}}</span>
+                    </button>
+                    <button type="button"
+                            hx-post="/api/ports/reset"
+                            hx-confirm="{{t .Lang "ports_confirm_reset"}}"
+                            hx-target="#custom-ports-container"
+                            class="px-2.5 py-1 rounded bg-slate-100 dark:bg-slate-800 hover:bg-rose-50 hover:text-rose-600 dark:hover:bg-rose-950/60 dark:hover:text-rose-400 border border-slate-300 dark:border-slate-700 text-slate-600 dark:text-slate-400 font-medium text-[11px] shadow-sm transition cursor-pointer flex items-center space-x-1">
+                        <span>{{t .Lang "ports_btn_reset"}}</span>
+                    </button>
+                </div>
+            </div>
+
+            <!-- Port Table Container -->
+            <div id="custom-ports-container">
+                <!-- Will be populated by switchSettingsTab or direct hx-get -->
+            </div>
+
+            <!-- Close button footer -->
+            <div class="flex items-center justify-end space-x-2 pt-2 border-t border-slate-200 dark:border-slate-800">
+                <button type="button" onclick="closeModal()"
+                        class="px-4 py-1.5 rounded-lg bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-300 font-medium transition text-xs">
+                    {{t .Lang "close"}}
+                </button>
+            </div>
+        </div>
     </div>
 </div>
+
+<script>
+function switchSettingsTab(tab) {
+    const sysBtn = document.getElementById('tab-btn-system');
+    const portsBtn = document.getElementById('tab-btn-ports');
+    const sysContent = document.getElementById('tab-content-system');
+    const portsContent = document.getElementById('tab-content-ports');
+
+    if (tab === 'system') {
+        sysBtn.className = "px-4 py-2 border-b-2 font-bold text-xs transition border-blue-600 text-blue-600 dark:text-blue-400 cursor-pointer";
+        portsBtn.className = "px-4 py-2 border-b-2 font-medium text-xs transition border-transparent text-slate-500 hover:text-slate-700 dark:text-slate-400 dark:hover:text-slate-200 cursor-pointer";
+        sysContent.classList.remove('hidden');
+        portsContent.classList.add('hidden');
+    } else {
+        portsBtn.className = "px-4 py-2 border-b-2 font-bold text-xs transition border-blue-600 text-blue-600 dark:text-blue-400 cursor-pointer";
+        sysBtn.className = "px-4 py-2 border-b-2 font-medium text-xs transition border-transparent text-slate-500 hover:text-slate-700 dark:text-slate-400 dark:hover:text-slate-200 cursor-pointer";
+        sysContent.classList.add('hidden');
+        portsContent.classList.remove('hidden');
+        // Load ports table on tab switch
+        const filter = document.getElementById('profile-filter');
+        const profile = filter ? filter.value : 'all_profiles';
+        filterCustomPorts(profile);
+    }
+}
+
+function filterCustomPorts(profile) {
+    htmx.ajax('GET', '/partials/custom_ports?profile=' + encodeURIComponent(profile), {
+        target: '#custom-ports-container',
+        swap: 'innerHTML'
+    });
+}
+</script>
