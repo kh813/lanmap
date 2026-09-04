@@ -19,25 +19,6 @@
         </div>
 
         <div class="flex items-center space-x-2 flex-wrap gap-2">
-            <!-- Keyword Search Input -->
-            <div class="relative w-48 sm:w-60 md:w-72">
-                <span class="absolute inset-y-0 left-0 flex items-center pl-2.5 pointer-events-none text-slate-400 text-xs">
-                    🔍
-                </span>
-                <input type="text"
-                       id="host-search-input"
-                       placeholder="{{t .Lang "search_placeholder"}}"
-                       oninput="filterTableRows(this.value)"
-                       class="w-full pl-8 pr-7 py-1.5 bg-slate-100 dark:bg-slate-900 border border-slate-300 dark:border-slate-700 rounded-lg text-xs text-slate-900 dark:text-slate-100 placeholder-slate-400 focus:outline-none focus:border-blue-500 font-sans transition">
-                <button type="button"
-                        id="host-search-clear"
-                        onclick="clearTableFilter()"
-                        style="display: none;"
-                        class="absolute inset-y-0 right-0 flex items-center pr-2 text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 text-xs">
-                    ✕
-                </button>
-            </div>
-
             <!-- Filter Switch (Online, 3 Days [Default], 7 Days, All) -->
             <div class="bg-slate-200/80 dark:bg-slate-800/80 p-0.5 rounded-lg flex text-xs border border-slate-300 dark:border-slate-700">
                 <button hx-get="/partials/main_table?segment_id={{.CurrentSegmentID}}&filter=online"
@@ -117,6 +98,91 @@
                         <th class="py-3 px-3 text-center">{{t .Lang "col_static_ip"}}</th>
                         <th class="py-3 px-3 text-right">{{t .Lang "col_actions"}}</th>
                     </tr>
+                    <!-- Column Filter Row -->
+                    <tr class="border-b border-slate-200 dark:border-slate-800 bg-slate-50/90 dark:bg-slate-950/70 text-slate-700 dark:text-slate-300">
+                        <th class="py-1.5 px-2">
+                            <input type="text" id="col-filter-ip"
+                                   placeholder="{{t .Lang "filter_ip_ph"}}"
+                                   oninput="applyColumnFilters()"
+                                   class="w-full py-1 px-2 text-[11px] bg-white dark:bg-slate-900 border border-slate-300 dark:border-slate-700 rounded text-slate-800 dark:text-slate-200 placeholder-slate-400 focus:outline-none focus:border-blue-500 font-mono font-normal">
+                        </th>
+                        <th class="py-1.5 px-2">
+                            <input type="text" id="col-filter-hostname"
+                                   placeholder="{{t .Lang "filter_hostname_ph"}}"
+                                   oninput="applyColumnFilters()"
+                                   class="w-full py-1 px-2 text-[11px] bg-white dark:bg-slate-900 border border-slate-300 dark:border-slate-700 rounded text-slate-800 dark:text-slate-200 placeholder-slate-400 focus:outline-none focus:border-blue-500 font-normal">
+                        </th>
+                        <th class="py-1.5 px-2">
+                            <input type="text" id="col-filter-display"
+                                   placeholder="{{t .Lang "filter_display_ph"}}"
+                                   oninput="applyColumnFilters()"
+                                   class="w-full py-1 px-2 text-[11px] bg-white dark:bg-slate-900 border border-slate-300 dark:border-slate-700 rounded text-slate-800 dark:text-slate-200 placeholder-slate-400 focus:outline-none focus:border-blue-500 font-normal">
+                        </th>
+                        <th class="py-1.5 px-2">
+                            <input type="text" id="col-filter-vendor"
+                                   placeholder="{{t .Lang "filter_vendor_ph"}}"
+                                   oninput="applyColumnFilters()"
+                                   class="w-full py-1 px-2 text-[11px] bg-white dark:bg-slate-900 border border-slate-300 dark:border-slate-700 rounded text-slate-800 dark:text-slate-200 placeholder-slate-400 focus:outline-none focus:border-blue-500 font-normal">
+                        </th>
+                        <th class="py-1.5 px-2">
+                            <select id="col-filter-os"
+                                    onchange="applyColumnFilters()"
+                                    class="w-full py-1 px-1.5 text-[11px] bg-white dark:bg-slate-900 border border-slate-300 dark:border-slate-700 rounded text-slate-800 dark:text-slate-200 focus:outline-none focus:border-blue-500 cursor-pointer font-normal">
+                                <option value="">{{t .Lang "filter_all"}}</option>
+                                <option value="apple">{{t .Lang "filter_os_apple"}}</option>
+                                <option value="windows">{{t .Lang "filter_os_windows"}}</option>
+                                <option value="linux">{{t .Lang "filter_os_linux"}}</option>
+                                <option value="unknown">{{t .Lang "filter_os_unknown"}}</option>
+                            </select>
+                        </th>
+                        <th class="py-1.5 px-2 text-center">
+                            <select id="col-filter-conn"
+                                    onchange="applyColumnFilters()"
+                                    class="w-full py-1 px-1 text-[11px] bg-white dark:bg-slate-900 border border-slate-300 dark:border-slate-700 rounded text-slate-800 dark:text-slate-200 focus:outline-none focus:border-blue-500 cursor-pointer font-normal">
+                                <option value="">{{t .Lang "filter_all"}}</option>
+                                <option value="wired">{{t .Lang "filter_conn_wired"}}</option>
+                                <option value="wifi">{{t .Lang "filter_conn_wifi"}}</option>
+                            </select>
+                        </th>
+                        <th class="py-1.5 px-2 text-center">
+                            <select id="col-filter-approval"
+                                    onchange="applyColumnFilters()"
+                                    class="w-full py-1 px-1 text-[11px] bg-white dark:bg-slate-900 border border-slate-300 dark:border-slate-700 rounded text-slate-800 dark:text-slate-200 focus:outline-none focus:border-blue-500 cursor-pointer font-normal">
+                                <option value="">{{t .Lang "filter_all"}}</option>
+                                <option value="approved">{{t .Lang "filter_approval_approved"}}</option>
+                                <option value="unapproved">{{t .Lang "filter_approval_unapproved"}}</option>
+                                <option value="dhcp">{{t .Lang "filter_approval_dhcp"}}</option>
+                            </select>
+                        </th>
+                        <th class="py-1.5 px-2 text-center">
+                            <select id="col-filter-status"
+                                    onchange="applyColumnFilters()"
+                                    class="w-full py-1 px-1 text-[11px] bg-white dark:bg-slate-900 border border-slate-300 dark:border-slate-700 rounded text-slate-800 dark:text-slate-200 focus:outline-none focus:border-blue-500 cursor-pointer font-normal">
+                                <option value="">{{t .Lang "filter_all"}}</option>
+                                <option value="up">{{t .Lang "filter_status_up"}}</option>
+                                <option value="down">{{t .Lang "filter_status_down"}}</option>
+                            </select>
+                        </th>
+                        <th class="py-1.5 px-2 text-center text-slate-400 font-mono text-[10px] font-normal">-</th>
+                        <th class="py-1.5 px-2 text-center">
+                            <select id="col-filter-static"
+                                    onchange="applyColumnFilters()"
+                                    class="w-full py-1 px-1 text-[11px] bg-white dark:bg-slate-900 border border-slate-300 dark:border-slate-700 rounded text-slate-800 dark:text-slate-200 focus:outline-none focus:border-blue-500 cursor-pointer font-normal">
+                                <option value="">{{t .Lang "filter_all"}}</option>
+                                <option value="static">{{t .Lang "filter_static_yes"}}</option>
+                                <option value="dhcp">{{t .Lang "filter_static_dhcp"}}</option>
+                            </select>
+                        </th>
+                        <th class="py-1.5 px-2 text-right">
+                            <button type="button"
+                                    onclick="clearAllColumnFilters()"
+                                    title="{{t .Lang "filter_clear_btn_title"}}"
+                                    class="inline-flex items-center px-2 py-1 text-[11px] font-medium text-slate-600 dark:text-slate-300 bg-white dark:bg-slate-900 border border-slate-300 dark:border-slate-700 hover:border-red-400 hover:text-red-600 dark:hover:text-red-400 rounded transition shadow-sm">
+                                <span>↺</span>
+                                <span class="ml-1 hidden xl:inline">{{t .Lang "filter_clear_btn"}}</span>
+                            </button>
+                        </th>
+                    </tr>
                 </thead>
                 <tbody id="host-table-body" class="divide-y divide-slate-100 dark:divide-slate-800/60">
                     {{if eq (len .Hosts) 0}}
@@ -139,7 +205,15 @@
                         hx-target="#modal-container"
                         hx-swap="innerHTML"
                         class="host-row hover:bg-blue-50/50 dark:hover:bg-slate-800/80 transition cursor-pointer {{if .IsStorming}}bg-amber-100/70 border-2 border-amber-500 dark:bg-amber-950/40 dark:border-amber-600{{else if and (not .IsApproved) (not .IsDHCP)}}bg-amber-50/30 dark:bg-amber-950/10{{end}} {{if .IsPreviousHost}}opacity-75 bg-slate-50/60 dark:bg-slate-900/40{{end}}"
-                        data-search="{{.SearchKeywords}}">
+                        data-ip="{{.IP}} {{if .MACAddress}}{{.MACAddress}}{{end}}"
+                        data-hostname="{{if .Hostname}}{{.Hostname}}{{end}}"
+                        data-display="{{if .DisplayName}}{{.DisplayName}}{{end}}"
+                        data-vendor="{{if .VendorModel}}{{.VendorModel}}{{end}}"
+                        data-os="{{if .OSVendor}}{{.OSVendor}}{{end}}"
+                        data-conn="{{.ConnectionType}}"
+                        data-approval="{{if .IsApproved}}approved{{else if .IsDHCP}}dhcp{{else}}unapproved{{end}}"
+                        data-status="{{.Status}}"
+                        data-static="{{if .IsStaticIP}}static{{else}}dhcp{{end}}">
                         <!-- IP & MAC with Smart Hover Popover -->
                         <td class="py-3 px-3 cursor-pointer group/ip"
                             onmouseenter="showHostPopover(this, 'popover-{{.IPID}}')"
@@ -489,29 +563,89 @@
         </div>
     </div>
 
-    <!-- Client-Side Realtime Search / Filter Script -->
+    <!-- Client-Side Realtime Column Filter Script -->
     <script>
-        function filterTableRows(query) {
-            const q = (query || '').toLowerCase().trim();
-            const clearBtn = document.getElementById('host-search-clear');
-            if (clearBtn) {
-                clearBtn.style.display = q ? 'flex' : 'none';
-            }
-            window.currentHostFilter = q;
+        window.colFilterState = window.colFilterState || {
+            ip: '',
+            hostname: '',
+            display: '',
+            vendor: '',
+            os: '',
+            conn: '',
+            approval: '',
+            status: '',
+            static: ''
+        };
 
+        function applyColumnFilters() {
+            const ipVal = (document.getElementById('col-filter-ip')?.value || '').toLowerCase().trim();
+            const hostVal = (document.getElementById('col-filter-hostname')?.value || '').toLowerCase().trim();
+            const dispVal = (document.getElementById('col-filter-display')?.value || '').toLowerCase().trim();
+            const vendVal = (document.getElementById('col-filter-vendor')?.value || '').toLowerCase().trim();
+            const osVal = document.getElementById('col-filter-os')?.value || '';
+            const connVal = document.getElementById('col-filter-conn')?.value || '';
+            const appVal = document.getElementById('col-filter-approval')?.value || '';
+            const statVal = document.getElementById('col-filter-status')?.value || '';
+            const staticVal = document.getElementById('col-filter-static')?.value || '';
+
+            // Save state for HTMX refreshes
+            window.colFilterState = {
+                ip: ipVal,
+                hostname: hostVal,
+                display: dispVal,
+                vendor: vendVal,
+                os: osVal,
+                conn: connVal,
+                approval: appVal,
+                status: statVal,
+                static: staticVal
+            };
+
+            const isFiltering = !!(ipVal || hostVal || dispVal || vendVal || osVal || connVal || appVal || statVal || staticVal);
             const rows = document.querySelectorAll('#host-table-body tr.host-row');
             let visibleCount = 0;
 
             rows.forEach(row => {
-                const text = (row.getAttribute('data-search') || row.innerText || '').toLowerCase();
-                const matches = !q || text.includes(q);
-                row.style.display = matches ? '' : 'none';
-                if (matches) visibleCount++;
+                const rowIP = (row.getAttribute('data-ip') || '').toLowerCase();
+                const rowHost = (row.getAttribute('data-hostname') || '').toLowerCase();
+                const rowDisp = (row.getAttribute('data-display') || '').toLowerCase();
+                const rowVend = (row.getAttribute('data-vendor') || '').toLowerCase();
+                const rowOS = (row.getAttribute('data-os') || '').toLowerCase();
+                const rowConn = row.getAttribute('data-conn') || '';
+                const rowApp = row.getAttribute('data-approval') || '';
+                const rowStat = row.getAttribute('data-status') || '';
+                const rowStatic = row.getAttribute('data-static') || '';
+
+                let match = true;
+                if (ipVal && !rowIP.includes(ipVal)) match = false;
+                if (match && hostVal && !rowHost.includes(hostVal)) match = false;
+                if (match && dispVal && !rowDisp.includes(dispVal)) match = false;
+                if (match && vendVal && !rowVend.includes(vendVal)) match = false;
+
+                if (match && osVal) {
+                    if (osVal === 'apple') {
+                        if (!rowOS.includes('apple') && !rowOS.includes('mac') && !rowOS.includes('ios') && !rowOS.includes('darwin')) match = false;
+                    } else if (osVal === 'windows') {
+                        if (!rowOS.includes('win')) match = false;
+                    } else if (osVal === 'linux') {
+                        if (!rowOS.includes('linux') && !rowOS.includes('android') && !rowOS.includes('nas') && !rowOS.includes('synology') && !rowOS.includes('qnap')) match = false;
+                    } else if (osVal === 'unknown') {
+                        if (rowOS && rowOS !== '-' && rowOS !== 'unknown') match = false;
+                    }
+                }
+
+                if (match && connVal && rowConn !== connVal) match = false;
+                if (match && appVal && rowApp !== appVal) match = false;
+                if (match && statVal && rowStat !== statVal) match = false;
+                if (match && staticVal && rowStatic !== staticVal) match = false;
+
+                row.style.display = match ? '' : 'none';
+                if (match) visibleCount++;
             });
 
             const noMatchRow = document.getElementById('no-match-row');
             if (noMatchRow) {
-                if (visibleCount === 0 && rows.length > 0 && q) {
+                if (visibleCount === 0 && rows.length > 0 && isFiltering) {
                     noMatchRow.classList.remove('hidden');
                 } else {
                     noMatchRow.classList.add('hidden');
@@ -521,7 +655,7 @@
             const countBadge = document.getElementById('host-count-badge');
             if (countBadge) {
                 const isJa = '{{.Lang}}' === 'ja';
-                if (q) {
+                if (isFiltering) {
                     if (isJa) {
                         countBadge.innerHTML = `<span class="text-blue-600 dark:text-blue-400 font-bold">🔍 絞り込み中:</span> ${visibleCount} / 全 ${rows.length} 台を表示`;
                     } else {
@@ -537,23 +671,41 @@
             }
         }
 
-        function clearTableFilter() {
-            const input = document.getElementById('host-search-input');
-            if (input) {
-                input.value = '';
-                filterTableRows('');
-                input.focus();
-            }
+        function clearAllColumnFilters() {
+            const ids = [
+                'col-filter-ip', 'col-filter-hostname', 'col-filter-display', 'col-filter-vendor',
+                'col-filter-os', 'col-filter-conn', 'col-filter-approval', 'col-filter-status', 'col-filter-static'
+            ];
+            ids.forEach(id => {
+                const el = document.getElementById(id);
+                if (el) el.value = '';
+            });
+            window.colFilterState = {
+                ip: '', hostname: '', display: '', vendor: '',
+                os: '', conn: '', approval: '', status: '', static: ''
+            };
+            applyColumnFilters();
         }
 
-        // Auto-restore active search keyword when HTMX re-renders table
+        // Auto-restore active column filter inputs when HTMX re-renders table
         (function() {
-            if (window.currentHostFilter) {
-                const input = document.getElementById('host-search-input');
-                if (input && !input.value) {
-                    input.value = window.currentHostFilter;
-                }
-                filterTableRows(window.currentHostFilter);
+            if (window.colFilterState) {
+                const s = window.colFilterState;
+                const setVal = (id, val) => {
+                    const el = document.getElementById(id);
+                    if (el && val) el.value = val;
+                };
+                setVal('col-filter-ip', s.ip);
+                setVal('col-filter-hostname', s.hostname);
+                setVal('col-filter-display', s.display);
+                setVal('col-filter-vendor', s.vendor);
+                setVal('col-filter-os', s.os);
+                setVal('col-filter-conn', s.conn);
+                setVal('col-filter-approval', s.approval);
+                setVal('col-filter-status', s.status);
+                setVal('col-filter-static', s.static);
+
+                applyColumnFilters();
             }
         })();
     </script>
