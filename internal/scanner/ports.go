@@ -259,15 +259,18 @@ var FullScanPortMap = map[int]string{
 	25:    "SMTP",
 	53:    "DNS",
 	80:    "HTTP",
+	88:    "Kerberos",
 	110:   "POP3",
 	135:   "MSRPC",
 	139:   "NetBIOS-SSN",
 	143:   "IMAP",
+	389:   "LDAP",
 	443:   "HTTPS",
 	445:   "SMB (ファイル共有)",
 	548:   "AFP (Mac共有)",
 	554:   "RTSP (カメラ)",
 	631:   "IPP (プリンタ)",
+	636:   "LDAPS",
 	993:   "IMAPS",
 	995:   "POP3S",
 	1194:  "OpenVPN",
@@ -275,10 +278,12 @@ var FullScanPortMap = map[int]string{
 	1521:  "Oracle DB",
 	1723:  "PPTP VPN",
 	3000:  "Node/Dev",
+	3268:  "AD-GC",
 	3306:  "MySQL",
 	3389:  "RDP (リモートデスクトップ)",
 	5000:  "Synology DSM / UPnP",
 	5001:  "Synology DSM (HTTPS)",
+	5173:  "Vite/Dev",
 	5432:  "PostgreSQL",
 	5555:  "SoftEther VPN",
 	5900:  "VNC (画面共有)",
@@ -431,14 +436,23 @@ func EvaluatePortRisk(port int, service string) PortRiskInfo {
 			BadgeClass:  "bg-amber-100 text-amber-800 border-amber-300 dark:bg-amber-950/70 dark:text-amber-300 dark:border-amber-800",
 			Description: "⚠️ リモートアクセス待受",
 		}
-	case 22, 23:
+	case 23:
 		return PortRiskInfo{
 			Port:        port,
 			Service:     service,
 			Level:       RiskWarning,
 			Category:    "RemoteLogin",
 			BadgeClass:  "bg-orange-100 text-orange-800 border-orange-300 dark:bg-orange-950/70 dark:text-orange-300 dark:border-orange-800",
-			Description: "⚠️ リモートログイン待受",
+			Description: "⚠️ 平文リモートログイン待受 (Telnet)",
+		}
+	case 22:
+		return PortRiskInfo{
+			Port:        port,
+			Service:     service,
+			Level:       RiskInfo,
+			Category:    "SSH",
+			BadgeClass:  "bg-sky-50 text-sky-700 border-sky-200 dark:bg-sky-950/60 dark:text-sky-300 dark:border-sky-800",
+			Description: "🔑 SSH (リモート保守管理)",
 		}
 	default:
 		return PortRiskInfo{

@@ -864,5 +864,34 @@ func TestSecurityRiskBadges(t *testing.T) {
 	if !hasVPN || !hasRDP {
 		t.Errorf("missing expected badges: hasVPN=%v, hasRDP=%v", hasVPN, hasRDP)
 	}
+
+	// Host with SSH and Web should NOT be flagged as security risk
+	devHost := &Host{
+		IP:        "192.168.1.30",
+		OpenPorts: "22:SSH,80:HTTP,3000:Node/Dev,389:LDAP",
+	}
+	if devHost.HasSecurityRisk() {
+		t.Errorf("host with SSH, Web, Dev, and LDAP should not have security risks, but got %v", devHost.SecurityRiskBadges())
+	}
+	if !devHost.HasServiceInfo() {
+		t.Errorf("host with SSH/Web/Dev/LDAP should have service info badges")
+	}
+	infoBadges := devHost.ServiceInfoBadges()
+	if len(infoBadges) < 4 {
+		t.Errorf("expected at least 4 info badges (SSH, Web, Dev, LDAP), got %d", len(infoBadges))
+	}
+
+	// Host with Telnet SHOULD be flagged as warning security risk
+	telnetHost := &Host{
+		IP:        "192.168.1.40",
+		OpenPorts: "23:Telnet",
+	}
+	if !telnetHost.HasSecurityRisk() {
+		t.Errorf("host with Telnet should have security risk")
+	}
+	telnetBadges := telnetHost.SecurityRiskBadges()
+	if len(telnetBadges) != 1 || telnetBadges[0].Port != 23 {
+		t.Errorf("expected 1 telnet risk badge, got %v", telnetBadges)
+	}
 }
 

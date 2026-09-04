@@ -430,8 +430,18 @@ func TestScanOpenPortsLowNoise(t *testing.T) {
 	}
 
 	sshRisk := EvaluatePortRisk(22, "SSH")
-	if sshRisk.Level != RiskWarning {
-		t.Errorf("expected warning for SSH 22, got %s", sshRisk.Level)
+	if sshRisk.Level != RiskInfo {
+		t.Errorf("expected info for SSH 22, got %s", sshRisk.Level)
+	}
+
+	telnetRisk := EvaluatePortRisk(23, "Telnet")
+	if telnetRisk.Level != RiskWarning {
+		t.Errorf("expected warning for Telnet 23, got %s", telnetRisk.Level)
+	}
+
+	ldapRisk := EvaluatePortRisk(389, "LDAP")
+	if ldapRisk.Level != RiskInfo {
+		t.Errorf("expected info for LDAP 389, got %s", ldapRisk.Level)
 	}
 
 	webRisk := EvaluatePortRisk(80, "HTTP")

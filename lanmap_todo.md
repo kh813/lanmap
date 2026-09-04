@@ -471,3 +471,24 @@
   - [ ] ペアリングフロー、トークン認証、レポート受信、バージョン照合、UI表示のテスト
   - [ ] `make test` & コミット
 
+---
+
+### 🔹 Phase 22: ポート分類再編 & サービス情報バッジ（Info）体系
+- [x] **22.1 ポートリスク度とサービス情報の分離設計**
+  - [x] SSH (`22`) をセキュリティ警告（`RiskWarning`）から除外し、Info サービス（`🔑 SSH`）に移行
+  - [x] 平文リモートログイン Telnet (`23`) を明確な警告（`⚠️ Telnet`）として維持
+  - [x] 企業認証ポート（Kerberos `88`, LDAP `389`, LDAPS `636`, AD-GC `3268`）をスキャン定義に追加
+- [x] **22.2 ポートスキャン & 評価エンジン実装 (`internal/scanner/ports.go`)**
+  - [x] `EvaluatePortRisk`: Port 22 を `RiskInfo`、Port 23 を `RiskWarning` に更新
+  - [x] `FullScanPortMap` に企業認証ポート (`88`, `389`, `636`, `3268`)、開発ポート (`5173`) を追加
+- [x] **22.3 データモデル & バッジ生成 (`internal/db/host.go`)**
+  - [x] `SecurityRiskBadges()`: Port 22 を除外、Port 23 を `⚠️ Telnet` として処理
+  - [x] `ServiceInfoBadges()`: 開放ポートから役割に応じた Info バッジ（`🔑 SSH`, `🌐 Web`, `⚡ Dev`, `🪪 認証/AD`, `📁 共有`, `🖨️ プリンタ`, `🗄️ DB` 等）を自動生成
+- [x] **22.4 UI テンプレート反映 (`web/template/partials`)**
+  - [x] `host_detail_modal.html`: サービス情報バッジの表示、Port 22/23 のスタイリング適正化
+  - [x] `main_table.html`: ポップオーバーでのサービス情報バッジ表示、IP横アイコン判定の適正化
+- [x] **22.5 単体テスト & ビルド検証**
+  - [x] `internal/scanner/scanner_test.go` & `internal/db/db_test.go` のテスト更新
+  - [x] `make test` & `make build`
+
+

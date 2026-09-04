@@ -68,6 +68,14 @@ type RiskBadge struct {
 	BadgeClass string
 }
 
+// ServiceBadge represents a visual informational badge for recognized services
+type ServiceBadge struct {
+	Label      string
+	Port       int
+	Service    string
+	BadgeClass string
+}
+
 // SecurityRiskBadges returns any security risk badges identified on open ports
 func (h *Host) SecurityRiskBadges() []RiskBadge {
 	var badges []RiskBadge
@@ -89,10 +97,10 @@ func (h *Host) SecurityRiskBadges() []RiskBadge {
 				Service:    p.Service,
 				BadgeClass: "bg-amber-100 text-amber-800 border-amber-300 dark:bg-amber-950/70 dark:text-amber-300 dark:border-amber-800",
 			})
-		case 22, 23:
+		case 23:
 			badges = append(badges, RiskBadge{
 				Level:      "warning",
-				Label:      "⚠️ " + p.Service,
+				Label:      "⚠️ Telnet",
 				Port:       p.Port,
 				Service:    p.Service,
 				BadgeClass: "bg-orange-100 text-orange-800 border-orange-300 dark:bg-orange-950/70 dark:text-orange-300 dark:border-orange-800",
@@ -105,6 +113,133 @@ func (h *Host) SecurityRiskBadges() []RiskBadge {
 // HasSecurityRisk returns true if the host has critical or warning open ports
 func (h *Host) HasSecurityRisk() bool {
 	return len(h.SecurityRiskBadges()) > 0
+}
+
+// ServiceInfoBadges returns high-value informational service badges for recognized normal ports
+func (h *Host) ServiceInfoBadges() []ServiceBadge {
+	var badges []ServiceBadge
+	seenCategories := make(map[string]bool)
+
+	for _, p := range h.OpenPortsList() {
+		switch p.Port {
+		case 22:
+			if !seenCategories["ssh"] {
+				seenCategories["ssh"] = true
+				badges = append(badges, ServiceBadge{
+					Label:      "🔑 SSH",
+					Port:       p.Port,
+					Service:    "SSH",
+					BadgeClass: "bg-sky-100 text-sky-800 border-sky-300 dark:bg-sky-950/70 dark:text-sky-300 dark:border-sky-800",
+				})
+			}
+		case 80, 443:
+			if !seenCategories["web"] {
+				seenCategories["web"] = true
+				badges = append(badges, ServiceBadge{
+					Label:      "🌐 Web",
+					Port:       p.Port,
+					Service:    p.Service,
+					BadgeClass: "bg-blue-100 text-blue-800 border-blue-300 dark:bg-blue-950/70 dark:text-blue-300 dark:border-blue-800",
+				})
+			}
+		case 8080, 8443:
+			if !seenCategories["web_alt"] {
+				seenCategories["web_alt"] = true
+				badges = append(badges, ServiceBadge{
+					Label:      "🌐 Web-Alt",
+					Port:       p.Port,
+					Service:    p.Service,
+					BadgeClass: "bg-indigo-100 text-indigo-800 border-indigo-300 dark:bg-indigo-950/70 dark:text-indigo-300 dark:border-indigo-800",
+				})
+			}
+		case 3000, 5000, 5173, 8000, 8888:
+			if !seenCategories["dev"] {
+				seenCategories["dev"] = true
+				badges = append(badges, ServiceBadge{
+					Label:      "⚡ Dev",
+					Port:       p.Port,
+					Service:    p.Service,
+					BadgeClass: "bg-violet-100 text-violet-800 border-violet-300 dark:bg-violet-950/70 dark:text-violet-300 dark:border-violet-800",
+				})
+			}
+		case 88, 389, 636, 3268, 1812, 1813:
+			if !seenCategories["auth"] {
+				seenCategories["auth"] = true
+				badges = append(badges, ServiceBadge{
+					Label:      "🪪 認証/AD",
+					Port:       p.Port,
+					Service:    p.Service,
+					BadgeClass: "bg-emerald-100 text-emerald-800 border-emerald-300 dark:bg-emerald-950/70 dark:text-emerald-300 dark:border-emerald-800",
+				})
+			}
+		case 445, 548:
+			if !seenCategories["smb"] {
+				seenCategories["smb"] = true
+				badges = append(badges, ServiceBadge{
+					Label:      "📁 ファイル共有",
+					Port:       p.Port,
+					Service:    p.Service,
+					BadgeClass: "bg-teal-100 text-teal-800 border-teal-300 dark:bg-teal-950/70 dark:text-teal-300 dark:border-teal-800",
+				})
+			}
+		case 631, 9100:
+			if !seenCategories["printer"] {
+				seenCategories["printer"] = true
+				badges = append(badges, ServiceBadge{
+					Label:      "🖨️ プリンタ",
+					Port:       p.Port,
+					Service:    p.Service,
+					BadgeClass: "bg-cyan-100 text-cyan-800 border-cyan-300 dark:bg-cyan-950/70 dark:text-cyan-300 dark:border-cyan-800",
+				})
+			}
+		case 3306, 5432, 6379, 27017, 9200, 1433, 1521:
+			if !seenCategories["db"] {
+				seenCategories["db"] = true
+				badges = append(badges, ServiceBadge{
+					Label:      "🗄️ DB",
+					Port:       p.Port,
+					Service:    p.Service,
+					BadgeClass: "bg-slate-100 text-slate-800 border-slate-300 dark:bg-slate-800 dark:text-slate-200 dark:border-slate-700",
+				})
+			}
+		case 53:
+			if !seenCategories["dns"] {
+				seenCategories["dns"] = true
+				badges = append(badges, ServiceBadge{
+					Label:      "📡 DNS",
+					Port:       p.Port,
+					Service:    "DNS",
+					BadgeClass: "bg-slate-100 text-slate-800 border-slate-300 dark:bg-slate-800 dark:text-slate-200 dark:border-slate-700",
+				})
+			}
+		case 554:
+			if !seenCategories["camera"] {
+				seenCategories["camera"] = true
+				badges = append(badges, ServiceBadge{
+					Label:      "📹 RTSP",
+					Port:       p.Port,
+					Service:    "RTSP",
+					BadgeClass: "bg-purple-100 text-purple-800 border-purple-300 dark:bg-purple-950/70 dark:text-purple-300 dark:border-purple-800",
+				})
+			}
+		case 8008:
+			if !seenCategories["cast"] {
+				seenCategories["cast"] = true
+				badges = append(badges, ServiceBadge{
+					Label:      "📺 Cast",
+					Port:       p.Port,
+					Service:    "Google Cast",
+					BadgeClass: "bg-amber-100 text-amber-800 border-amber-300 dark:bg-amber-950/70 dark:text-amber-300 dark:border-amber-800",
+				})
+			}
+		}
+	}
+	return badges
+}
+
+// HasServiceInfo returns true if host has any recognized service info badges
+func (h *Host) HasServiceInfo() bool {
+	return len(h.ServiceInfoBadges()) > 0
 }
 
 // IPID returns sanitized IP string for HTML element IDs (e.g. "192-168-1-1")
