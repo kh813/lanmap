@@ -338,6 +338,41 @@ func TestSettingsCRUD(t *testing.T) {
 		t.Errorf("expected IsPortScanEnabled to be false after set, got %v", isPortScan)
 	}
 
+	// Test 3-Tier ScanMode
+	mode, err := db.GetScanMode()
+	if err != nil {
+		t.Fatalf("GetScanMode failed: %v", err)
+	}
+	if mode != ScanModeStealth {
+		t.Errorf("expected default ScanMode to be stealth, got %s", mode)
+	}
+
+	_ = db.SetScanMode(ScanModeSafe)
+	mode, _ = db.GetScanMode()
+	if mode != ScanModeSafe {
+		t.Errorf("expected ScanMode to be safe, got %s", mode)
+	}
+
+	_ = db.SetScanMode(ScanModeFull)
+	mode, _ = db.GetScanMode()
+	if mode != ScanModeFull {
+		t.Errorf("expected ScanMode to be full, got %s", mode)
+	}
+	isPS, _ := db.IsPortScanEnabled()
+	if !isPS {
+		t.Errorf("expected IsPortScanEnabled to be true when mode is full")
+	}
+
+	_ = db.SetScanMode(ScanModeStealth)
+	mode, _ = db.GetScanMode()
+	if mode != ScanModeStealth {
+		t.Errorf("expected ScanMode to be stealth, got %s", mode)
+	}
+	isPS, _ = db.IsPortScanEnabled()
+	if isPS {
+		t.Errorf("expected IsPortScanEnabled to be false when mode is stealth")
+	}
+
 	// Test UpdateHostExtendedProbes
 	hTest := &Host{IP: "192.168.1.150", MACAddress: "aa:bb:cc:11:22:33", Hostname: "test-box"}
 	_, _, err = db.UpsertHostOnScan(hTest)

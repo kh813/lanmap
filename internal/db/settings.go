@@ -2,6 +2,7 @@ package db
 
 import (
 	"database/sql"
+	"fmt"
 	"strconv"
 )
 
@@ -65,22 +66,62 @@ func (db *DB) SetRetentionDays(days int) error {
 	return db.SetSetting("retention_days", strconv.Itoa(days))
 }
 
-// IsPortScanEnabled returns whether active TCP port scanning is enabled during background scans.
-// Defaults to false (Safe Mode) to avoid triggering IDS / firewalls (port scan warnings).
+const (
+	ScanModeStealth = "stealth" // Default: passive broadcast (DHCP/mDNS/SSDP) + Ping + ARP, zero active port probing
+	ScanModeSafe    = "safe"    // Stealth + OS-tailored key ports
+	ScanModeFull    = "full"    // Safe + broader range of 40+ ports
+)
+
+// GetScanMode returns the configured scan mode: "stealth", "safe", or "full".
+// Defaults to "stealth".
+func (db *DB) GetScanMode() (string, error) {
+	val, err := db.GetSetting("scan_mode")
+	if err == nil && val != "" {
+		switch val {
+		case ScanModeStealth, ScanModeSafe, ScanModeFull:
+			return val, nil
+		}
+	}
+	// Fallback to legacy port_scan_enabled if present
+	legacy, err := db.GetSetting("port_scan_enabled")
+	if err == nil && (legacy == "true" || legacy == "1") {
+		return ScanModeFull, nil
+	}
+	return ScanModeStealth, nil
+}
+
+// SetScanMode updates the scan_mode setting and synchronizes port_scan_enabled for backwards compatibility.
+func (db *DB) SetScanMode(mode string) error {
+	switch mode {
+	case ScanModeStealth, ScanModeSafe, ScanModeFull:
+		if err := db.SetSetting("scan_mode", mode); err != nil {
+			return err
+		}
+		legacyVal := "false"
+		if mode == ScanModeFull {
+			legacyVal = "true"
+		}
+		return db.SetSetting("port_scan_enabled", legacyVal)
+	default:
+		return fmt.Errorf("invalid scan mode: %s", mode)
+	}
+}
+
+// IsPortScanEnabled returns whether active full TCP port scanning is enabled.
+// Maintained for backwards compatibility.
 func (db *DB) IsPortScanEnabled() (bool, error) {
-	val, err := db.GetSetting("port_scan_enabled")
+	mode, err := db.GetScanMode()
 	if err != nil {
 		return false, err
 	}
-	return val == "true" || val == "1", nil
+	return mode == ScanModeFull, nil
 }
 
-// SetPortScanEnabled updates the port_scan_enabled setting
+// SetPortScanEnabled updates port_scan_enabled and scan_mode for backwards compatibility
 func (db *DB) SetPortScanEnabled(enabled bool) error {
-	val := "false"
 	if enabled {
-		val = "true"
+		return db.SetScanMode(ScanModeFull)
 	}
-	return db.SetSetting("port_scan_enabled", val)
+	return db.SetScanMode(ScanModeStealth)
 }
 

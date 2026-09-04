@@ -226,6 +226,11 @@ func (h *Handler) HandleSettingsModal(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	if _, ok := settings["scan_mode"]; !ok || settings["scan_mode"] == "" {
+		mode, _ := h.db.GetScanMode()
+		settings["scan_mode"] = mode
+	}
+
 	_ = h.tmpl.ExecuteTemplate(w, "settings_modal.html", map[string]interface{}{
 		"Settings":       settings,
 		"CurrentVersion": h.cfg.Version,
@@ -269,7 +274,7 @@ func (h *Handler) HandleHostDetailModal(w http.ResponseWriter, r *http.Request) 
 	// Fetch 7-day ping history
 	history, _ := h.db.GetHostPingHistory(ip, 7*24*time.Hour)
 	stats7d := db.ComputePingStats7dDetails(history)
-	chart7dSVG := db.RenderSparkline7dSVG(history, 640, 130)
+	chart7dSVG := db.RenderSparkline7dSVG(history, 920, 200)
 	uptimeBlocks7dSVG := db.RenderUptimeBlocks7dSVG(history, 42)
 
 	_ = h.tmpl.ExecuteTemplate(w, "host_detail_modal.html", map[string]interface{}{
@@ -361,6 +366,58 @@ func (h *Handler) HandleHostProbePorts(w http.ResponseWriter, r *http.Request, i
 		updatedHost = &db.Host{IP: ip, OpenPorts: openPorts, HTTPTitle: httpTitle}
 	}
 
+	_ = h.tmpl.ExecuteTemplate(w, "ports_container", map[string]interface{}{
+		"Host": updatedHost,
+		"Lang": lang,
+	})
+}
+
+// HandleHostFullScan runs an exhaustive full port scan and extended probe on a single host
+func (h *Handler) HandleHostFullScan(w http.ResponseWriter, r *http.Request, ip string) {
+	if ip == "" {
+		http.Error(w, "IP required", http.StatusBadRequest)
+		return
+	}
+
+	targetIP := net.ParseIP(ip)
+	if targetIP == nil {
+		http.Error(w, "Invalid IP address", http.StatusBadRequest)
+		return
+	}
+
+	currentHost, _ := h.db.GetHost(ip)
+	vendor := ""
+	osVendor := ""
+	hostname := ""
+	if currentHost != nil {
+		vendor = currentHost.VendorModel
+		osVendor = currentHost.OSVendor
+		hostname = currentHost.Hostname
+	}
+
+	openPorts, httpTitle, upnpName, upnpModel, upnpSerial, tlsSubj, tlsExp := scanner.ProbeHostPortsFull(ip, vendor, osVendor, hostname, 0)
+
+	_ = h.db.UpdateHostExtendedProbes(ip, openPorts, httpTitle, upnpName, upnpModel, upnpSerial, tlsSubj, tlsExp)
+	now := time.Now()
+	nextScan := db.CalculateNextPortScanWithJitter(now)
+	_ = h.db.UpdateHostPortScanSchedule(ip, openPorts, nextScan)
+
+	lang := i18n.DetectLanguage(r)
+	w.Header().Set("Content-Type", "text/html; charset=utf-8")
+	w.Header().Set("HX-Trigger", "refreshMainTable")
+
+	updatedHost, _ := h.db.GetHost(ip)
+	if updatedHost == nil {
+		updatedHost = &db.Host{IP: ip, OpenPorts: openPorts, HTTPTitle: httpTitle}
+	}
+
+	// If invoked from action menu targeting main-content, render updated main table
+	if r.Header.Get("HX-Target") == "main-content" {
+		h.HandleMainTablePartial(w, r)
+		return
+	}
+
+	// Default: return updated ports container for the detail modal
 	_ = h.tmpl.ExecuteTemplate(w, "ports_container", map[string]interface{}{
 		"Host": updatedHost,
 		"Lang": lang,
@@ -672,6 +729,7 @@ func (h *Handler) HandleSaveSettings(w http.ResponseWriter, r *http.Request) {
 
 	fields := []string{
 		"retention_days",
+		"scan_mode",
 		"port_scan_enabled",
 		"webhook_gchat_url",
 		"webhook_slack_url",
@@ -684,7 +742,14 @@ func (h *Handler) HandleSaveSettings(w http.ResponseWriter, r *http.Request) {
 
 	for _, f := range fields {
 		val := strings.TrimSpace(r.FormValue(f))
-		_ = h.db.SetSetting(f, val)
+		if val != "" || f != "scan_mode" {
+			_ = h.db.SetSetting(f, val)
+		}
+	}
+
+	scanModeVal := strings.TrimSpace(r.FormValue("scan_mode"))
+	if scanModeVal != "" {
+		_ = h.db.SetScanMode(scanModeVal)
 	}
 
 	// Trigger sidebar and main table refresh on body

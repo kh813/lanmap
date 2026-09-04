@@ -438,10 +438,10 @@ func ComputePingStats7d(items []PingHistoryItem) (statsStr string, upPct float64
 // RenderSparkline7dSVG generates a detailed 7-day time-proportional SVG chart with date axis grid
 func RenderSparkline7dSVG(items []PingHistoryItem, width, height int) template.HTML {
 	if width <= 0 {
-		width = 620
+		width = 920
 	}
 	if height <= 0 {
-		height = 130
+		height = 200
 	}
 
 	now := time.Now().UTC()
@@ -455,18 +455,18 @@ func RenderSparkline7dSVG(items []PingHistoryItem, width, height int) template.H
 		}
 	}
 
-	padTop := 16.0
-	padBottom := 22.0
-	padLeft := 10.0
-	padRight := 10.0
+	padTop := 20.0
+	padBottom := 28.0
+	padLeft := 16.0
+	padRight := 16.0
 	plotWidth := float64(width) - padLeft - padRight
 	plotHeight := float64(height) - padTop - padBottom
 	baselineY := float64(height) - padBottom
 
 	if len(items7d) == 0 {
-		svg := fmt.Sprintf(`<svg viewBox="0 0 %d %d" class="w-full h-32 overflow-visible">
+		svg := fmt.Sprintf(`<svg viewBox="0 0 %d %d" class="w-full h-48 md:h-56 overflow-visible">
 			<line x1="%.1f" y1="%.1f" x2="%.1f" y2="%.1f" stroke="#94A3B8" stroke-dasharray="4,4" stroke-width="1.5" opacity="0.3" />
-			<text x="%d" y="%.1f" fill="#94A3B8" font-size="11" text-anchor="middle">過去7日間: 計測データ収集中 (自動スキャン継続中)</text>
+			<text x="%d" y="%.1f" fill="#94A3B8" font-size="12" text-anchor="middle">過去7日間: 計測データ収集中 (自動スキャン継続中)</text>
 		</svg>`, width, height, padLeft, baselineY, float64(width)-padRight, baselineY, width/2, float64(height)/2.0)
 		return template.HTML(svg)
 	}
@@ -507,8 +507,8 @@ func RenderSparkline7dSVG(items []PingHistoryItem, width, height int) template.H
 		gridLines.WriteString(fmt.Sprintf(`<line x1="%.1f" y1="%.1f" x2="%.1f" y2="%.1f" stroke="#94A3B8" stroke-dasharray="2,3" stroke-width="0.8" opacity="0.25" />`,
 			x, padTop, x, baselineY))
 		// Date label
-		gridLines.WriteString(fmt.Sprintf(`<text x="%.1f" y="%.1f" fill="#94A3B8" font-size="9.5" text-anchor="middle" font-family="monospace">%s</text>`,
-			x, baselineY+15.0, label))
+		gridLines.WriteString(fmt.Sprintf(`<text x="%.1f" y="%.1f" fill="#94A3B8" font-size="11" font-weight="600" text-anchor="middle" font-family="monospace">%s</text>`,
+			x, baselineY+18.0, label))
 	}
 
 	// Horizontal grid lines (Max RTT and Mid RTT)
@@ -518,16 +518,16 @@ func RenderSparkline7dSVG(items []PingHistoryItem, width, height int) template.H
 
 	gridLines.WriteString(fmt.Sprintf(`<line x1="%.1f" y1="%.1f" x2="%.1f" y2="%.1f" stroke="#94A3B8" stroke-dasharray="2,3" stroke-width="0.8" opacity="0.2" />`,
 		padLeft, midY, padLeft+plotWidth, midY))
-	gridLines.WriteString(fmt.Sprintf(`<text x="%.1f" y="%.1f" fill="#94A3B8" font-size="9" text-anchor="start" font-family="monospace" opacity="0.7">%.1fms</text>`,
-		padLeft+4, midY-3, midRTT))
+	gridLines.WriteString(fmt.Sprintf(`<text x="%.1f" y="%.1f" fill="#94A3B8" font-size="10.5" font-weight="500" text-anchor="start" font-family="monospace" opacity="0.85">%.1fms</text>`,
+		padLeft+6, midY-4, midRTT))
 
 	gridLines.WriteString(fmt.Sprintf(`<line x1="%.1f" y1="%.1f" x2="%.1f" y2="%.1f" stroke="#94A3B8" stroke-dasharray="2,3" stroke-width="0.8" opacity="0.2" />`,
 		padLeft, topY, padLeft+plotWidth, topY))
-	gridLines.WriteString(fmt.Sprintf(`<text x="%.1f" y="%.1f" fill="#94A3B8" font-size="9" text-anchor="start" font-family="monospace" opacity="0.7">%.1fms</text>`,
-		padLeft+4, topY+10, maxRTT))
+	gridLines.WriteString(fmt.Sprintf(`<text x="%.1f" y="%.1f" fill="#94A3B8" font-size="10.5" font-weight="500" text-anchor="start" font-family="monospace" opacity="0.85">%.1fms</text>`,
+		padLeft+6, topY+12, maxRTT))
 
 	// Baseline
-	gridLines.WriteString(fmt.Sprintf(`<line x1="%.1f" y1="%.1f" x2="%.1f" y2="%.1f" stroke="#94A3B8" stroke-width="1.0" opacity="0.4" />`,
+	gridLines.WriteString(fmt.Sprintf(`<line x1="%.1f" y1="%.1f" x2="%.1f" y2="%.1f" stroke="#94A3B8" stroke-width="1.2" opacity="0.4" />`,
 		padLeft, baselineY, padLeft+plotWidth, baselineY))
 
 	// 2. Data points
@@ -583,17 +583,17 @@ func RenderSparkline7dSVG(items []PingHistoryItem, width, height int) template.H
 			padLeft, baselineY, firstX, baselineY)
 	}
 
-	svg := fmt.Sprintf(`<svg viewBox="0 0 %d %d" class="w-full h-36 overflow-visible" preserveAspectRatio="none">
+	svg := fmt.Sprintf(`<svg viewBox="0 0 %d %d" class="w-full h-48 md:h-56 overflow-visible" preserveAspectRatio="none">
 		<defs>
 			<linearGradient id="chartGrad7d" x1="0" y1="0" x2="0" y2="1">
-				<stop offset="0%%" stop-color="#3B82F6" stop-opacity="0.3" />
+				<stop offset="0%%" stop-color="#3B82F6" stop-opacity="0.35" />
 				<stop offset="100%%" stop-color="#3B82F6" stop-opacity="0.0" />
 			</linearGradient>
 		</defs>
 		%s
 		%s
 		<polygon points="%s" fill="url(#chartGrad7d)" />
-		<polyline fill="none" stroke="#3B82F6" stroke-width="2.0" stroke-linecap="round" stroke-linejoin="round" points="%s" />
+		<polyline fill="none" stroke="#3B82F6" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" points="%s" />
 	</svg>`, width, height, gridLines.String(), noDataLine, areaStr, pointsStr)
 
 	return template.HTML(svg)

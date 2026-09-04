@@ -142,7 +142,7 @@ func (s *Scanner) scanSegmentInternal(ctx context.Context, seg *db.Segment) ([]*
 		return nil, fmt.Errorf("failed to parse CIDR %s: %w", seg.CIDR, err)
 	}
 
-	isPortScan, _ := s.db.IsPortScanEnabled()
+	scanMode, _ := s.db.GetScanMode()
 
 	concurrency := s.config.ScanConcurrency
 	if concurrency <= 0 {
@@ -252,13 +252,17 @@ func (s *Scanner) scanSegmentInternal(ctx context.Context, seg *db.Segment) ([]*
 		var tlsSubj string
 		var tlsExp *time.Time
 
-		// Only perform active TCP port probing and HTTP/TLS inspection if Port Scan is explicitly enabled (Full Mode).
-		// By default (Safe Mode), skip to prevent triggering IDS/firewalls (port scan attack warnings).
-		if isPortScan {
+		// Port probing based on 3-tier scanMode:
+		// - "stealth": completely skip active TCP port probing
+		// - "safe": probe OS-tailored key ports (ProbeHostPortsWithContext)
+		// - "full": probe comprehensive 40+ common ports (ProbeHostPortsFull)
+		switch scanMode {
+		case db.ScanModeSafe:
 			openPorts, httpTitle, upnpName, upnpModel, upnpSerial, tlsSubj, tlsExp = ProbeHostPortsWithContext(ipStr, vendor, osVendor, hostname, ttl)
-			if vendor == "" && upnpName != "" {
-				// UPnP might reveal vendor
-			}
+		case db.ScanModeFull:
+			openPorts, httpTitle, upnpName, upnpModel, upnpSerial, tlsSubj, tlsExp = ProbeHostPortsFull(ipStr, vendor, osVendor, hostname, ttl)
+		case db.ScanModeStealth:
+			// No active port probing in stealth mode
 		}
 
 		// 4. mDNS Model (Query target port 5353 for verified model signature)
@@ -413,9 +417,40 @@ func ProbeHostPorts(ipStr, vendor, osVendor string) (openPorts, httpTitle, upnpN
 	return ProbeHostPortsWithContext(ipStr, vendor, osVendor, "", 0)
 }
 
+// ProbeHostPortsFull performs active comprehensive port scan across 40+ common services
+func ProbeHostPortsFull(ipStr, vendor, osVendor, hostname string, ttl int) (openPorts, httpTitle, upnpName, upnpModel, upnpSerial, tlsSubj string, tlsExp *time.Time) {
+	openPorts = ScanOpenPortsFull(ipStr, 70*time.Millisecond)
+
+	// 1. Web Title
+	httpTitle = ExtractWebTitle(ipStr, openPorts)
+
+	// 2. UPnP / SSDP info
+	if upnp := FetchUPnPInfo(ipStr); upnp != nil {
+		upnpName = upnp.FriendlyName
+		upnpModel = upnp.ModelName
+		upnpSerial = upnp.SerialNumber
+	}
+
+	// 3. TLS Certificate (only inspect if HTTPS ports were confirmed open)
+	if strings.Contains(openPorts, "443") || strings.Contains(openPorts, "8443") || strings.Contains(openPorts, "5001") {
+		if tlsInfo := InspectTLSCert(ipStr); tlsInfo != nil {
+			tlsSubj = tlsInfo.Subject
+			tlsExp = &tlsInfo.Expiry
+		}
+	}
+
+	return openPorts, httpTitle, upnpName, upnpModel, upnpSerial, tlsSubj, tlsExp
+}
+
 // performDailyLowNoisePatrol sequentially inspects one due online host per scan cycle
 // using low-noise adaptive scanning and randomized jitter to prevent IDS/UTM alerts.
 func (s *Scanner) performDailyLowNoisePatrol(ctx context.Context) {
+	scanMode, _ := s.db.GetScanMode()
+	if scanMode == db.ScanModeStealth {
+		// In stealth mode, do not perform active port patrol
+		return
+	}
+
 	dueHost, err := s.db.GetDuePortScanHost()
 	if err != nil || dueHost == nil {
 		return

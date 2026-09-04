@@ -251,6 +251,104 @@ func ScanOpenPortsForProfile(ip string, profile DeviceProfile, timeout time.Dura
 	return strings.Join(parts, ",")
 }
 
+// FullScanPortMap defines an extensive list of well-known and common ports for Full Scan Mode
+var FullScanPortMap = map[int]string{
+	21:    "FTP",
+	22:    "SSH",
+	23:    "Telnet",
+	25:    "SMTP",
+	53:    "DNS",
+	80:    "HTTP",
+	110:   "POP3",
+	135:   "MSRPC",
+	139:   "NetBIOS-SSN",
+	143:   "IMAP",
+	443:   "HTTPS",
+	445:   "SMB (ファイル共有)",
+	548:   "AFP (Mac共有)",
+	554:   "RTSP (カメラ)",
+	631:   "IPP (プリンタ)",
+	993:   "IMAPS",
+	995:   "POP3S",
+	1194:  "OpenVPN",
+	1433:  "MSSQL",
+	1521:  "Oracle DB",
+	1723:  "PPTP VPN",
+	3000:  "Node/Dev",
+	3306:  "MySQL",
+	3389:  "RDP (リモートデスクトップ)",
+	5000:  "Synology DSM / UPnP",
+	5001:  "Synology DSM (HTTPS)",
+	5432:  "PostgreSQL",
+	5555:  "SoftEther VPN",
+	5900:  "VNC (画面共有)",
+	5938:  "TeamViewer",
+	6379:  "Redis",
+	7070:  "AnyDesk",
+	8000:  "HTTP-Dev",
+	8008:  "Google Cast",
+	8080:  "HTTP-Alt",
+	8081:  "HTTP-Alt",
+	8443:  "HTTPS-Alt",
+	8888:  "HTTP-Alt",
+	9000:  "PHP-FPM/Sonar",
+	9100:  "RAW プリンタ",
+	9200:  "Elasticsearch",
+	27017: "MongoDB",
+}
+
+// ScanOpenPortsFull scans all ports in FullScanPortMap
+func ScanOpenPortsFull(ip string, timeout time.Duration) string {
+	if timeout <= 0 {
+		timeout = 70 * time.Millisecond
+	}
+
+	type portResult struct {
+		port    int
+		service string
+		open    bool
+	}
+
+	resChan := make(chan portResult, len(FullScanPortMap))
+	var wg sync.WaitGroup
+
+	for port, service := range FullScanPortMap {
+		wg.Add(1)
+		go func(p int, s string) {
+			defer wg.Done()
+			addr := net.JoinHostPort(ip, fmt.Sprintf("%d", p))
+			conn, err := net.DialTimeout("tcp", addr, timeout)
+			if err == nil {
+				conn.Close()
+				resChan <- portResult{port: p, service: s, open: true}
+			} else {
+				resChan <- portResult{port: p, service: s, open: false}
+			}
+		}(port, service)
+	}
+
+	wg.Wait()
+	close(resChan)
+
+	var openPorts []portResult
+	for r := range resChan {
+		if r.open {
+			openPorts = append(openPorts, r)
+		}
+	}
+
+	sort.Slice(openPorts, func(i, j int) bool {
+		return openPorts[i].port < openPorts[j].port
+	})
+
+	var parts []string
+	for _, op := range openPorts {
+		parts = append(parts, fmt.Sprintf("%d:%s", op.port, op.service))
+	}
+
+	return strings.Join(parts, ",")
+}
+
 // ScanOpenPorts probes ports using generic profile for backwards compatibility
 func ScanOpenPorts(ip string, timeout time.Duration) string {
 	return ScanOpenPortsForProfile(ip, ProfileGeneric, timeout)

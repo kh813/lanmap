@@ -50,6 +50,9 @@ func NewRouter(h *Handler) http.Handler {
 	mux.HandleFunc("POST /api/hosts/{ip}/probe_ports", func(w http.ResponseWriter, r *http.Request) {
 		h.HandleHostProbePorts(w, r, r.PathValue("ip"))
 	})
+	mux.HandleFunc("POST /api/hosts/{ip}/full_scan", func(w http.ResponseWriter, r *http.Request) {
+		h.HandleHostFullScan(w, r, r.PathValue("ip"))
+	})
 	mux.HandleFunc("POST /api/hosts/{ip}/toggle_approval", func(w http.ResponseWriter, r *http.Request) {
 		h.HandleToggleApproval(w, r, r.PathValue("ip"))
 	})
