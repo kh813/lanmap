@@ -335,7 +335,7 @@ func TestDetermineDeviceProfile(t *testing.T) {
 }
 
 func TestAdaptiveTargetPorts(t *testing.T) {
-	// 1. Apple Mac must have SSH(22), SMB(445), but NOT AirPlay(5000), Windows RDP(3389) or Printer(9100)
+	// 1. Apple Mac must have SSH(22), SMB(445), VNC(5900), TeamViewer(5938), AnyDesk(7070), but NOT Windows RDP(3389) or Printer(9100)
 	macPorts := GetTargetPortsForProfile(ProfileAppleMac)
 	if _, ok := macPorts[22]; !ok {
 		t.Errorf("expected SSH(22) in Apple Mac profile")
@@ -343,8 +343,14 @@ func TestAdaptiveTargetPorts(t *testing.T) {
 	if _, ok := macPorts[445]; !ok {
 		t.Errorf("expected SMB(445) in Apple Mac profile")
 	}
-	if _, ok := macPorts[5000]; ok {
-		t.Errorf("unexpected AirPlay(5000) in Apple Mac profile")
+	if _, ok := macPorts[5900]; !ok {
+		t.Errorf("expected VNC(5900) in Apple Mac profile")
+	}
+	if _, ok := macPorts[5938]; !ok {
+		t.Errorf("expected TeamViewer(5938) in Apple Mac profile")
+	}
+	if _, ok := macPorts[7070]; !ok {
+		t.Errorf("expected AnyDesk(7070) in Apple Mac profile")
 	}
 	if _, ok := macPorts[3389]; ok {
 		t.Errorf("unexpected Windows RDP(3389) in Apple Mac profile")
@@ -353,7 +359,7 @@ func TestAdaptiveTargetPorts(t *testing.T) {
 		t.Errorf("unexpected RAW Printer(9100) in Apple Mac profile")
 	}
 
-	// 2. Windows must have SMB(445) and RDP(3389), but NOT Apple AFP(548) or AirPlay(5000/7000)
+	// 2. Windows must have SMB(445), RDP(3389), PPTP(1723), SoftEther(5555), VNC(5900), TeamViewer(5938), AnyDesk(7070), but NOT Apple AFP(548)
 	winPorts := GetTargetPortsForProfile(ProfileWindows)
 	if _, ok := winPorts[445]; !ok {
 		t.Errorf("expected SMB(445) in Windows profile")
@@ -361,11 +367,23 @@ func TestAdaptiveTargetPorts(t *testing.T) {
 	if _, ok := winPorts[3389]; !ok {
 		t.Errorf("expected RDP(3389) in Windows profile")
 	}
+	if _, ok := winPorts[1723]; !ok {
+		t.Errorf("expected PPTP(1723) in Windows profile")
+	}
+	if _, ok := winPorts[5555]; !ok {
+		t.Errorf("expected SoftEther(5555) in Windows profile")
+	}
+	if _, ok := winPorts[5900]; !ok {
+		t.Errorf("expected VNC(5900) in Windows profile")
+	}
+	if _, ok := winPorts[5938]; !ok {
+		t.Errorf("expected TeamViewer(5938) in Windows profile")
+	}
+	if _, ok := winPorts[7070]; !ok {
+		t.Errorf("expected AnyDesk(7070) in Windows profile")
+	}
 	if _, ok := winPorts[548]; ok {
 		t.Errorf("unexpected AFP(548) in Windows profile")
-	}
-	if _, ok := winPorts[5000]; ok {
-		t.Errorf("unexpected AirPlay(5000) in Windows profile")
 	}
 
 	// 3. Printer must have IPP(631) and RAW(9100), but NOT SSH(22) or RDP(3389)
@@ -387,6 +405,38 @@ func TestAdaptiveTargetPorts(t *testing.T) {
 	mobilePorts := GetTargetPortsForProfile(ProfileAppleMobile)
 	if len(mobilePorts) != 0 {
 		t.Errorf("expected 0 ports for Apple Mobile, got %d", len(mobilePorts))
+	}
+}
+
+func TestScanOpenPortsLowNoise(t *testing.T) {
+	// Scan loopback on mobile profile (should be empty immediately)
+	resMobile := ScanOpenPortsLowNoise("127.0.0.1", ProfileAppleMobile, 10*time.Millisecond, 5*time.Millisecond)
+	if resMobile != "" {
+		t.Errorf("expected empty string for mobile profile, got %s", resMobile)
+	}
+
+	// Scan loopback on generic profile with very small timeout/delay
+	_ = ScanOpenPortsLowNoise("127.0.0.1", ProfileGeneric, 10*time.Millisecond, 5*time.Millisecond)
+
+	// Risk evaluation check
+	vpnRisk := EvaluatePortRisk(5555, "SoftEther VPN")
+	if vpnRisk.Level != RiskCritical {
+		t.Errorf("expected critical for SoftEther 5555, got %s", vpnRisk.Level)
+	}
+
+	rdpRisk := EvaluatePortRisk(3389, "RDP")
+	if rdpRisk.Level != RiskWarning {
+		t.Errorf("expected warning for RDP 3389, got %s", rdpRisk.Level)
+	}
+
+	sshRisk := EvaluatePortRisk(22, "SSH")
+	if sshRisk.Level != RiskWarning {
+		t.Errorf("expected warning for SSH 22, got %s", sshRisk.Level)
+	}
+
+	webRisk := EvaluatePortRisk(80, "HTTP")
+	if webRisk.Level != RiskInfo {
+		t.Errorf("expected info for HTTP 80, got %s", webRisk.Level)
 	}
 }
 

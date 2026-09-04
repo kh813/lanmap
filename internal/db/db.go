@@ -89,6 +89,8 @@ func (db *DB) migrate() error {
 		uptime_kuma_id INTEGER DEFAULT NULL,
 		first_seen DATETIME DEFAULT CURRENT_TIMESTAMP,
 		last_seen DATETIME,
+		last_port_scan DATETIME,
+		next_port_scan DATETIME,
 		FOREIGN KEY (segment_id) REFERENCES segments(id) ON DELETE SET NULL
 	);
 
@@ -96,6 +98,7 @@ func (db *DB) migrate() error {
 	CREATE INDEX IF NOT EXISTS idx_hosts_status ON hosts(status);
 	CREATE INDEX IF NOT EXISTS idx_hosts_mac ON hosts(mac_address);
 	CREATE INDEX IF NOT EXISTS idx_hosts_hostname ON hosts(hostname);
+	CREATE INDEX IF NOT EXISTS idx_hosts_next_port_scan ON hosts(next_port_scan);
 
 	CREATE TABLE IF NOT EXISTS settings (
 		key VARCHAR(50) PRIMARY KEY,
@@ -144,6 +147,8 @@ func (db *DB) migrate() error {
 	_, _ = db.Exec("ALTER TABLE hosts ADD COLUMN broadcast_count_1m INTEGER DEFAULT 0;")
 	_, _ = db.Exec("ALTER TABLE hosts ADD COLUMN is_storming BOOLEAN DEFAULT 0;")
 	_, _ = db.Exec("ALTER TABLE hosts ADD COLUMN is_dhcp BOOLEAN DEFAULT 0;")
+	_, _ = db.Exec("ALTER TABLE hosts ADD COLUMN last_port_scan DATETIME;")
+	_, _ = db.Exec("ALTER TABLE hosts ADD COLUMN next_port_scan DATETIME;")
 	_, _ = db.Exec("ALTER TABLE segments ADD COLUMN dhcp_range VARCHAR(100) DEFAULT '';")
 	_, _ = db.Exec("ALTER TABLE segments ADD COLUMN is_dhcp_manual BOOLEAN DEFAULT 0;")
 

@@ -122,6 +122,9 @@ func (s *Scanner) ScanAll(ctx context.Context) ([]*ScanReport, error) {
 		allReports = append(allReports, reports...)
 	}
 
+	// Perform daily low-noise security patrol for 1 due online host (sequential & randomized)
+	s.performDailyLowNoisePatrol(ctx)
+
 	return allReports, nil
 }
 
@@ -408,6 +411,40 @@ func ProbeHostPortsWithContext(ipStr, vendor, osVendor, hostname string, ttl int
 // ProbeHostPorts performs on-demand active port scan using adaptive profiling
 func ProbeHostPorts(ipStr, vendor, osVendor string) (openPorts, httpTitle, upnpName, upnpModel, upnpSerial, tlsSubj string, tlsExp *time.Time) {
 	return ProbeHostPortsWithContext(ipStr, vendor, osVendor, "", 0)
+}
+
+// performDailyLowNoisePatrol sequentially inspects one due online host per scan cycle
+// using low-noise adaptive scanning and randomized jitter to prevent IDS/UTM alerts.
+func (s *Scanner) performDailyLowNoisePatrol(ctx context.Context) {
+	dueHost, err := s.db.GetDuePortScanHost()
+	if err != nil || dueHost == nil {
+		return
+	}
+
+	select {
+	case <-ctx.Done():
+		return
+	default:
+	}
+
+	ttlVal := 0
+	profile := DetermineDeviceProfile(dueHost.VendorModel, dueHost.OSVendor, dueHost.Hostname, ttlVal)
+	if profile == ProfileAppleMobile {
+		// Keep mobile devices in stealth, just push schedule into future
+		nextScan := db.CalculateNextPortScanWithJitter(time.Now())
+		_ = s.db.UpdateHostPortScanSchedule(dueHost.IP, "", nextScan)
+		return
+	}
+
+	// Probe ports serially with 100ms delay between ports
+	openPorts := ScanOpenPortsLowNoise(dueHost.IP, profile, 60*time.Millisecond, 100*time.Millisecond)
+
+	nextScan := db.CalculateNextPortScanWithJitter(time.Now())
+	err = s.db.UpdateHostPortScanSchedule(dueHost.IP, openPorts, nextScan)
+	if err == nil {
+		log.Printf("[INFO] Daily Security Patrol: checked %s (profile: %s, open ports: [%s]), next scan: %s",
+			dueHost.IP, profile, openPorts, nextScan.Format("2006-01-02 15:04"))
+	}
 }
 
 

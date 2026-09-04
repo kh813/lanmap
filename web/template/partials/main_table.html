@@ -137,6 +137,14 @@
                             <div class="flex items-center space-x-1.5">
                                 {{if .IsStorming}}
                                 <span title="{{t $.Lang "badge_storm_alert"}}" class="text-red-600 font-bold text-base animate-bounce">💥</span>
+                                {{else if .HasSecurityRisk}}
+                                    {{range .SecurityRiskBadges}}
+                                        {{if eq .Level "critical"}}
+                                        <span title="{{.Label}}" class="text-rose-600 font-bold text-xs animate-pulse">🚨</span>
+                                        {{else}}
+                                        <span title="{{.Label}}" class="text-amber-500 font-bold text-xs">⚠️</span>
+                                        {{end}}
+                                    {{end}}
                                 {{else if .IsDHCP}}
                                 <span title="DHCP" class="text-emerald-500 font-bold text-xs">🟢</span>
                                 {{else if not .IsApproved}}
@@ -271,8 +279,8 @@
                                     {{if .HasOpenPorts}}
                                     <div class="flex flex-wrap gap-1.5 pt-0.5">
                                         {{range .OpenPortsList}}
-                                        <span class="inline-flex items-center px-2 py-0.5 rounded bg-blue-50 dark:bg-blue-950/60 text-blue-700 dark:text-blue-300 border border-blue-200 dark:border-blue-800/60 font-mono text-[10px]">
-                                            <span class="w-1.5 h-1.5 rounded-full bg-emerald-500 mr-1.5"></span>
+                                        <span class="inline-flex items-center px-2 py-0.5 rounded {{if or (eq .Port 1194) (eq .Port 1723) (eq .Port 5555)}}bg-rose-50 dark:bg-rose-950/60 text-rose-700 dark:text-rose-300 border border-rose-300 dark:border-rose-800 font-bold{{else if or (eq .Port 3389) (eq .Port 5900) (eq .Port 5938) (eq .Port 7070)}}bg-amber-50 dark:bg-amber-950/60 text-amber-800 dark:text-amber-300 border border-amber-300 dark:border-amber-800 font-semibold{{else if eq .Port 22}}bg-orange-50 dark:bg-orange-950/60 text-orange-800 dark:text-orange-300 border border-orange-300 dark:border-orange-800 font-semibold{{else}}bg-blue-50 dark:bg-blue-950/60 text-blue-700 dark:text-blue-300 border border-blue-200 dark:border-blue-800/60 font-mono{{end}} text-[10px]">
+                                            <span class="w-1.5 h-1.5 rounded-full {{if or (eq .Port 1194) (eq .Port 1723) (eq .Port 5555)}}bg-rose-500{{else if or (eq .Port 3389) (eq .Port 5900) (eq .Port 5938) (eq .Port 7070)}}bg-amber-500{{else if eq .Port 22}}bg-orange-500{{else}}bg-emerald-500{{end}} mr-1.5"></span>
                                             <strong>{{.Port}}</strong>/tcp ({{.Service}})
                                         </span>
                                         {{end}}

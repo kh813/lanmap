@@ -4,6 +4,7 @@ import (
 	"database/sql"
 	"fmt"
 	"html/template"
+	"math/rand"
 	"net"
 	"sort"
 	"strconv"
@@ -51,9 +52,59 @@ type Host struct {
 	UptimeKumaID      *int64        `json:"uptime_kuma_id"`
 	FirstSeen         time.Time     `json:"first_seen"`
 	LastSeen          *time.Time    `json:"last_seen"`
+	LastPortScan      *time.Time    `json:"last_port_scan"`
+	NextPortScan      *time.Time    `json:"next_port_scan"`
 	PingChartSVG      template.HTML `json:"-"`
 	UptimeBlocksSVG   template.HTML `json:"-"`
 	PingStats7d       string        `json:"-"`
+}
+
+// RiskBadge represents a visual security risk indicator for ports
+type RiskBadge struct {
+	Level      string // "critical", "warning", "info"
+	Label      string
+	Port       int
+	Service    string
+	BadgeClass string
+}
+
+// SecurityRiskBadges returns any security risk badges identified on open ports
+func (h *Host) SecurityRiskBadges() []RiskBadge {
+	var badges []RiskBadge
+	for _, p := range h.OpenPortsList() {
+		switch p.Port {
+		case 1194, 1723, 5555:
+			badges = append(badges, RiskBadge{
+				Level:      "critical",
+				Label:      "🚨 VPN (" + p.Service + ")",
+				Port:       p.Port,
+				Service:    p.Service,
+				BadgeClass: "bg-rose-100 text-rose-800 border-rose-300 dark:bg-rose-950/70 dark:text-rose-300 dark:border-rose-800",
+			})
+		case 3389, 5900, 5938, 7070:
+			badges = append(badges, RiskBadge{
+				Level:      "warning",
+				Label:      "⚠️ " + p.Service,
+				Port:       p.Port,
+				Service:    p.Service,
+				BadgeClass: "bg-amber-100 text-amber-800 border-amber-300 dark:bg-amber-950/70 dark:text-amber-300 dark:border-amber-800",
+			})
+		case 22, 23:
+			badges = append(badges, RiskBadge{
+				Level:      "warning",
+				Label:      "⚠️ " + p.Service,
+				Port:       p.Port,
+				Service:    p.Service,
+				BadgeClass: "bg-orange-100 text-orange-800 border-orange-300 dark:bg-orange-950/70 dark:text-orange-300 dark:border-orange-800",
+			})
+		}
+	}
+	return badges
+}
+
+// HasSecurityRisk returns true if the host has critical or warning open ports
+func (h *Host) HasSecurityRisk() bool {
+	return len(h.SecurityRiskBadges()) > 0
 }
 
 // IPID returns sanitized IP string for HTML element IDs (e.g. "192-168-1-1")
@@ -463,7 +514,7 @@ func (db *DB) GetHost(ip string) (*Host, error) {
 		tls_subject, tls_expiry, mdns_model, broadcast_count_1m, is_storming,
 		is_approved, is_protected, is_static_ip, is_dhcp,
 		is_monitored, is_paused, has_conflict, kuma_name, uptime_kuma_id,
-		first_seen, last_seen
+		first_seen, last_seen, last_port_scan, next_port_scan
 	FROM hosts
 	WHERE ip = ?
 	`
@@ -484,7 +535,7 @@ func (db *DB) ListHosts(segmentID *int64, onlineOnly bool) ([]*Host, error) {
 		tls_subject, tls_expiry, mdns_model, broadcast_count_1m, is_storming,
 		is_approved, is_protected, is_static_ip, is_dhcp,
 		is_monitored, is_paused, has_conflict, kuma_name, uptime_kuma_id,
-		first_seen, last_seen
+		first_seen, last_seen, last_port_scan, next_port_scan
 	FROM hosts
 	WHERE 1=1
 	`)
@@ -663,7 +714,7 @@ func scanHost(s scannable) (*Host, error) {
 	var mac, host, vendor, disp, osVend, kumaName, openPorts sql.NullString
 	var httpTitle, upnpName, upnpModel, upnpSerial, tlsSubj, mdnsModel sql.NullString
 	var kumaID sql.NullInt64
-	var lastSeen, tlsExp sql.NullTime
+	var lastSeen, tlsExp, lastPortScan, nextPortScan sql.NullTime
 	var rtt, jitter, uptime sql.NullFloat64
 
 	err := s.Scan(
@@ -699,6 +750,8 @@ func scanHost(s scannable) (*Host, error) {
 		&kumaID,
 		&h.FirstSeen,
 		&lastSeen,
+		&lastPortScan,
+		&nextPortScan,
 	)
 	if err != nil {
 		if err == sql.ErrNoRows {
@@ -747,8 +800,57 @@ func scanHost(s scannable) (*Host, error) {
 	if lastSeen.Valid {
 		h.LastSeen = &lastSeen.Time
 	}
+	if lastPortScan.Valid {
+		h.LastPortScan = &lastPortScan.Time
+	}
+	if nextPortScan.Valid {
+		h.NextPortScan = &nextPortScan.Time
+	}
 
 	return &h, nil
+}
+
+// GetDuePortScanHost returns an online host that is due for its daily port scan (next_port_scan IS NULL OR next_port_scan <= now)
+// Returns at most 1 host so that background scanning is performed sequentially without traffic spikes.
+func (db *DB) GetDuePortScanHost() (*Host, error) {
+	query := `
+	SELECT
+		ip, segment_id, mac_address, hostname, vendor_model, display_name,
+		os_vendor, status, ping_rtt_ms, ping_jitter_ms, uptime_pct,
+		open_ports, http_title, upnp_name, upnp_model, upnp_serial,
+		tls_subject, tls_expiry, mdns_model, broadcast_count_1m, is_storming,
+		is_approved, is_protected, is_static_ip, is_dhcp,
+		is_monitored, is_paused, has_conflict, kuma_name, uptime_kuma_id,
+		first_seen, last_seen, last_port_scan, next_port_scan
+	FROM hosts
+	WHERE status = 'up' AND is_paused = 0 AND (next_port_scan IS NULL OR next_port_scan <= ?)
+	ORDER BY (CASE WHEN next_port_scan IS NULL THEN 0 ELSE 1 END), next_port_scan ASC
+	LIMIT 1
+	`
+	row := db.QueryRow(query, time.Now())
+	return scanHost(row)
+}
+
+// UpdateHostPortScanSchedule updates a host's scan result and schedules the next daily port scan
+// with a random jitter (e.g. 20 to 28 hours from now) to prevent periodic beacon detection by UTMs/IDS.
+func (db *DB) UpdateHostPortScanSchedule(ip string, openPorts string, nextScan time.Time) error {
+	now := time.Now()
+	query := `
+	UPDATE hosts
+	SET open_ports = ?,
+	    last_port_scan = ?,
+	    next_port_scan = ?
+	WHERE ip = ?
+	`
+	_, err := db.Exec(query, openPorts, now, nextScan, ip)
+	return err
+}
+
+// CalculateNextPortScanWithJitter computes next daily scan time: base + 24h + random jitter (-4h to +4h)
+// Resulting interval is between 20h (72,000s) and 28h (100,800s).
+func CalculateNextPortScanWithJitter(base time.Time) time.Time {
+	jitterSeconds := 72000 + rand.Intn(28801) // 72000s (20h) to 100800s (28h)
+	return base.Add(time.Duration(jitterSeconds) * time.Second)
 }
 
 // IsInDHCPRange checks if the given IP address falls within the specified DHCP range.

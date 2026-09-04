@@ -673,3 +673,86 @@ func TestValidateDHCPRange(t *testing.T) {
 		}
 	}
 }
+
+func TestHostPortScanSchedule(t *testing.T) {
+	db := setupTestDB(t)
+
+	h1 := &Host{IP: "192.168.1.10", Status: "up", Hostname: "active-host"}
+	_, _, err := db.UpsertHostOnScan(h1)
+	if err != nil {
+		t.Fatalf("UpsertHostOnScan failed: %v", err)
+	}
+
+	// 1. Initially, next_port_scan is NULL so GetDuePortScanHost should return it
+	dueHost, err := db.GetDuePortScanHost()
+	if err != nil {
+		t.Fatalf("GetDuePortScanHost failed: %v", err)
+	}
+	if dueHost == nil || dueHost.IP != "192.168.1.10" {
+		t.Fatalf("expected 192.168.1.10 to be due, got %v", dueHost)
+	}
+
+	// 2. Schedule next scan with jitter (20-28h in future)
+	nextScan := CalculateNextPortScanWithJitter(time.Now())
+	if nextScan.Before(time.Now().Add(19 * time.Hour)) || nextScan.After(time.Now().Add(29 * time.Hour)) {
+		t.Errorf("unexpected jitter range: %v", nextScan)
+	}
+
+	err = db.UpdateHostPortScanSchedule("192.168.1.10", "22:SSH,5900:VNC", nextScan)
+	if err != nil {
+		t.Fatalf("UpdateHostPortScanSchedule failed: %v", err)
+	}
+
+	// 3. Now it should NOT be due
+	dueHostAfter, err := db.GetDuePortScanHost()
+	if err != nil {
+		t.Fatalf("GetDuePortScanHost after schedule failed: %v", err)
+	}
+	if dueHostAfter != nil {
+		t.Errorf("expected no due hosts, but got: %v", dueHostAfter.IP)
+	}
+
+	// 4. Verify retrieved host has open ports and dates
+	hFetched, err := db.GetHost("192.168.1.10")
+	if err != nil || hFetched == nil {
+		t.Fatalf("GetHost failed: %v", err)
+	}
+	if hFetched.OpenPorts != "22:SSH,5900:VNC" {
+		t.Errorf("unexpected open ports: %s", hFetched.OpenPorts)
+	}
+	if hFetched.LastPortScan == nil || hFetched.NextPortScan == nil {
+		t.Errorf("expected non-nil last_port_scan and next_port_scan")
+	}
+}
+
+func TestSecurityRiskBadges(t *testing.T) {
+	h := &Host{
+		IP:        "192.168.1.20",
+		OpenPorts: "80:HTTP,445:SMB,3389:RDP,5555:SoftEther VPN",
+	}
+
+	if !h.HasSecurityRisk() {
+		t.Errorf("expected host with RDP and SoftEther to have security risks")
+	}
+
+	badges := h.SecurityRiskBadges()
+	if len(badges) != 2 {
+		t.Fatalf("expected 2 risk badges (RDP and VPN), got %d", len(badges))
+	}
+
+	hasVPN := false
+	hasRDP := false
+	for _, b := range badges {
+		if b.Port == 5555 && b.Level == "critical" {
+			hasVPN = true
+		}
+		if b.Port == 3389 && b.Level == "warning" {
+			hasRDP = true
+		}
+	}
+
+	if !hasVPN || !hasRDP {
+		t.Errorf("missing expected badges: hasVPN=%v, hasRDP=%v", hasVPN, hasRDP)
+	}
+}
+

@@ -191,7 +191,7 @@
                 {{template "ports_container" .}}
 
                 <!-- Detection History Dates -->
-                <div class="sm:col-span-2 grid grid-cols-2 sm:grid-cols-3 gap-2 pt-2 border-t border-slate-200/80 dark:border-slate-800 text-[11px] text-slate-500 dark:text-slate-400">
+                <div class="sm:col-span-2 grid grid-cols-2 sm:grid-cols-4 gap-2 pt-2 border-t border-slate-200/80 dark:border-slate-800 text-[11px] text-slate-500 dark:text-slate-400">
                     <div>
                         <span class="block text-slate-400 dark:text-slate-500 text-[10px]">{{t .Lang "detail_first_seen"}}</span>
                         <span class="font-mono">{{if .Host.FirstSeen}}{{.Host.FirstSeen.Local.Format "2006-01-02 15:04"}}{{else}}-{{end}}</span>
@@ -201,10 +201,12 @@
                         <span class="font-mono">{{if .Host.LastSeen}}{{.Host.LastSeen.Local.Format "2006-01-02 15:04"}}{{else}}-{{end}}</span>
                     </div>
                     <div>
-                        <span class="block text-slate-400 dark:text-slate-500 text-[10px]">{{t .Lang "detail_traffic"}}</span>
-                        <span class="font-mono {{if .Host.IsStorming}}text-red-600 font-bold animate-pulse{{end}}">
-                            {{.Host.BroadcastCount1m}} {{t .Lang "detail_traffic_unit"}} {{if .Host.IsStorming}}{{t .Lang "detail_traffic_storm"}}{{end}}
-                        </span>
+                        <span class="block text-slate-400 dark:text-slate-500 text-[10px]">{{t .Lang "detail_last_port_scan"}}</span>
+                        <span class="font-mono">{{if .Host.LastPortScan}}{{.Host.LastPortScan.Local.Format "01-02 15:04"}}{{else}}-{{end}}</span>
+                    </div>
+                    <div>
+                        <span class="block text-slate-400 dark:text-slate-500 text-[10px]">{{t .Lang "detail_next_port_scan"}}</span>
+                        <span class="font-mono text-blue-600 dark:text-blue-400">{{if .Host.NextPortScan}}{{.Host.NextPortScan.Local.Format "01-02 15:04"}}{{else}}即時予定{{end}}</span>
                     </div>
                 </div>
             </div>
@@ -248,10 +250,21 @@
         </button>
     </div>
 
+    <!-- Security Risk Warning Alerts -->
+    {{if .Host.HasSecurityRisk}}
+    <div class="flex flex-wrap gap-1.5 pt-1">
+        {{range .Host.SecurityRiskBadges}}
+        <span class="px-2 py-0.5 rounded-md border text-[11px] font-medium flex items-center space-x-1 {{.BadgeClass}}">
+            <span>{{.Label}}</span>
+        </span>
+        {{end}}
+    </div>
+    {{end}}
+
     <div class="flex flex-wrap gap-1.5 pt-0.5">
         {{if .Host.OpenPortsList}}
             {{range .Host.OpenPortsList}}
-            <span class="px-2 py-0.5 rounded bg-blue-50 dark:bg-blue-950/60 border border-blue-200 dark:border-blue-800 text-blue-700 dark:text-blue-300 font-mono text-[10px] font-semibold">
+            <span class="px-2 py-0.5 rounded {{if or (eq .Port 1194) (eq .Port 1723) (eq .Port 5555)}}bg-rose-50 dark:bg-rose-950/60 border border-rose-300 dark:border-rose-800 text-rose-700 dark:text-rose-300 font-bold{{else if or (eq .Port 3389) (eq .Port 5900) (eq .Port 5938) (eq .Port 7070)}}bg-amber-50 dark:bg-amber-950/60 border border-amber-300 dark:border-amber-800 text-amber-800 dark:text-amber-300 font-semibold{{else if eq .Port 22}}bg-orange-50 dark:bg-orange-950/60 border border-orange-300 dark:border-orange-800 text-orange-800 dark:text-orange-300 font-semibold{{else}}bg-blue-50 dark:bg-blue-950/60 border border-blue-200 dark:border-blue-800 text-blue-700 dark:text-blue-300 font-medium{{end}} font-mono text-[10px]">
                 {{.Port}}/{{.Service}}
             </span>
             {{end}}

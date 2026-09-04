@@ -24,11 +24,14 @@ const (
 
 var profilePortMaps = map[DeviceProfile]map[int]string{
 	ProfileAppleMac: {
-		22:  "SSH (リモートログイン)",
-		80:  "HTTP",
-		443: "HTTPS",
-		445: "SMB (ファイル共有)",
-		548: "AFP (Mac共有)",
+		22:   "SSH (リモートログイン)",
+		80:   "HTTP",
+		443:  "HTTPS",
+		445:  "SMB (ファイル共有)",
+		548:  "AFP (Mac共有)",
+		5900: "VNC (画面共有)",
+		5938: "TeamViewer",
+		7070: "AnyDesk",
 	},
 	ProfileAppleMobile: {
 		// Mobile Apple devices (iOS, watchOS) run in deep stealth; no open inbound TCP ports
@@ -37,7 +40,12 @@ var profilePortMaps = map[DeviceProfile]map[int]string{
 		80:   "HTTP",
 		443:  "HTTPS",
 		445:  "SMB (ファイル共有)",
+		1723: "PPTP VPN",
 		3389: "RDP (リモートデスクトップ)",
+		5555: "SoftEther VPN",
+		5900: "VNC",
+		5938: "TeamViewer",
+		7070: "AnyDesk",
 	},
 	ProfilePrinter: {
 		80:   "HTTP (管理画面)",
@@ -58,8 +66,11 @@ var profilePortMaps = map[DeviceProfile]map[int]string{
 		80:   "HTTP",
 		443:  "HTTPS",
 		445:  "SMB (ファイル共有)",
+		1194: "OpenVPN",
 		5000: "Synology DSM / UPnP",
 		5001: "Synology DSM (HTTPS)",
+		5555: "SoftEther VPN",
+		5900: "VNC",
 		8080: "HTTP-Alt",
 		8443: "HTTPS-Alt",
 	},
@@ -74,6 +85,13 @@ var profilePortMaps = map[DeviceProfile]map[int]string{
 		80:   "HTTP",
 		443:  "HTTPS",
 		445:  "SMB (ファイル共有)",
+		1194: "OpenVPN",
+		1723: "PPTP VPN",
+		3389: "RDP (リモートデスクトップ)",
+		5555: "SoftEther VPN",
+		5900: "VNC",
+		5938: "TeamViewer",
+		7070: "AnyDesk",
 	},
 }
 
@@ -236,5 +254,103 @@ func ScanOpenPortsForProfile(ip string, profile DeviceProfile, timeout time.Dura
 // ScanOpenPorts probes ports using generic profile for backwards compatibility
 func ScanOpenPorts(ip string, timeout time.Duration) string {
 	return ScanOpenPortsForProfile(ip, ProfileGeneric, timeout)
+}
+
+// ScanOpenPortsLowNoise scans target ports serially with an intentional delay between ports (e.g. 100ms)
+// and modest connection timeout. This spreads out packets so that personal firewalls (like ESET)
+// never see burst RST packets or trigger port scan warnings.
+func ScanOpenPortsLowNoise(ip string, profile DeviceProfile, timeout time.Duration, interPortDelay time.Duration) string {
+	ports := GetTargetPortsForProfile(profile)
+	if len(ports) == 0 {
+		return ""
+	}
+
+	if timeout <= 0 {
+		timeout = 60 * time.Millisecond
+	}
+	if interPortDelay <= 0 {
+		interPortDelay = 100 * time.Millisecond
+	}
+
+	// Sort ports to scan deterministically
+	var portList []int
+	for p := range ports {
+		portList = append(portList, p)
+	}
+	sort.Ints(portList)
+
+	var openParts []string
+	for i, p := range portList {
+		if i > 0 {
+			time.Sleep(interPortDelay)
+		}
+		addr := net.JoinHostPort(ip, fmt.Sprintf("%d", p))
+		conn, err := net.DialTimeout("tcp", addr, timeout)
+		if err == nil {
+			conn.Close()
+			openParts = append(openParts, fmt.Sprintf("%d:%s", p, ports[p]))
+		}
+	}
+
+	return strings.Join(openParts, ",")
+}
+
+type PortRiskLevel string
+
+const (
+	RiskCritical PortRiskLevel = "critical" // 🚨 VPN サーバー検知
+	RiskWarning  PortRiskLevel = "warning"  // ⚠️ リモートアクセス待受
+	RiskInfo     PortRiskLevel = "info"     // ℹ️ 一般サービス
+)
+
+type PortRiskInfo struct {
+	Port        int
+	Service     string
+	Level       PortRiskLevel
+	Category    string // "VPN", "RemoteAccess", "RemoteLogin", "Normal"
+	BadgeClass  string
+	Description string
+}
+
+// EvaluatePortRisk classifies an open port into a security risk level
+func EvaluatePortRisk(port int, service string) PortRiskInfo {
+	switch port {
+	case 1194, 1723, 5555:
+		return PortRiskInfo{
+			Port:        port,
+			Service:     service,
+			Level:       RiskCritical,
+			Category:    "VPN",
+			BadgeClass:  "bg-rose-100 text-rose-800 border-rose-300 dark:bg-rose-950/70 dark:text-rose-300 dark:border-rose-800",
+			Description: "🚨 VPNサーバー待受",
+		}
+	case 3389, 5900, 5938, 7070:
+		return PortRiskInfo{
+			Port:        port,
+			Service:     service,
+			Level:       RiskWarning,
+			Category:    "RemoteAccess",
+			BadgeClass:  "bg-amber-100 text-amber-800 border-amber-300 dark:bg-amber-950/70 dark:text-amber-300 dark:border-amber-800",
+			Description: "⚠️ リモートアクセス待受",
+		}
+	case 22, 23:
+		return PortRiskInfo{
+			Port:        port,
+			Service:     service,
+			Level:       RiskWarning,
+			Category:    "RemoteLogin",
+			BadgeClass:  "bg-orange-100 text-orange-800 border-orange-300 dark:bg-orange-950/70 dark:text-orange-300 dark:border-orange-800",
+			Description: "⚠️ リモートログイン待受",
+		}
+	default:
+		return PortRiskInfo{
+			Port:        port,
+			Service:     service,
+			Level:       RiskInfo,
+			Category:    "Normal",
+			BadgeClass:  "bg-blue-50 text-blue-700 border-blue-200 dark:bg-blue-950/60 dark:text-blue-300 dark:border-blue-800",
+			Description: "一般サービス",
+		}
+	}
 }
 
