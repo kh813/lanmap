@@ -20,6 +20,7 @@ type PortInfo struct {
 
 // Host represents a discovered or monitored network host
 type Host struct {
+	ID                int64         `json:"id"`
 	IP                string        `json:"ip"`
 	SegmentID         *int64        `json:"segment_id"`
 	MACAddress        string        `json:"mac_address"`
@@ -55,6 +56,7 @@ type Host struct {
 	LastPortScan      *time.Time    `json:"last_port_scan"`
 	NextPortScan      *time.Time    `json:"next_port_scan"`
 	IgnoredPorts      string        `json:"ignored_ports"`
+	IsPreviousHost    bool          `json:"-"`
 	PingChartSVG      template.HTML `json:"-"`
 	UptimeBlocksSVG   template.HTML `json:"-"`
 	PingStats7d       string        `json:"-"`
@@ -318,9 +320,13 @@ func (h *Host) HasServiceInfo() bool {
 	return len(h.ServiceInfoBadges()) > 0
 }
 
-// IPID returns sanitized IP string for HTML element IDs (e.g. "192-168-1-1")
+// IPID returns sanitized IP string for HTML element IDs (e.g. "192-168-1-1" or "192-168-1-1-101")
 func (h *Host) IPID() string {
-	return strings.ReplaceAll(strings.ReplaceAll(h.IP, ".", "-"), ":", "-")
+	cleanIP := strings.ReplaceAll(strings.ReplaceAll(h.IP, ".", "-"), ":", "-")
+	if h.ID > 0 {
+		return fmt.Sprintf("%s-%d", cleanIP, h.ID)
+	}
+	return cleanIP
 }
 
 // IsNewHost returns true if host was first seen within the last 24 hours and is not yet approved
@@ -564,17 +570,42 @@ func (h *Host) SearchKeywords() string {
 	return strings.ToLower(strings.Join(parts, " "))
 }
 
-// UpsertHostOnScan inserts a newly scanned host or updates an existing host
+// UpsertHostOnScan inserts a newly scanned host or updates an existing host.
+// If an existing host with the same MAC address is found, it updates that host's IP and status.
+// If a new host with a different MAC address arrives on an existing IP, the previous host is kept as status='down',
+// and the new host is inserted with status='up'.
 func (db *DB) UpsertHostOnScan(h *Host) (isNew bool, isReplaced bool, err error) {
-	existing, err := db.GetHost(h.IP)
-	if err != nil {
-		return false, false, err
-	}
-
 	now := time.Now()
 	normMAC := strings.ToLower(strings.TrimSpace(h.MACAddress))
 
+	var existing *Host
+	if normMAC != "" {
+		existing, err = db.GetHostByMAC(normMAC)
+		if err != nil {
+			return false, false, err
+		}
+	} else {
+		// If MAC is not available (e.g. VPN or manual), fallback to IP match
+		existing, err = db.GetHost(h.IP)
+		if err != nil {
+			return false, false, err
+		}
+	}
+
 	if existing == nil {
+		// This MAC (or MAC-less host) is new.
+		// Check if another host was previously using this IP.
+		prevHostOnIP, err := db.GetHost(h.IP)
+		if err != nil {
+			return false, false, err
+		}
+
+		if prevHostOnIP != nil {
+			// Mark the previous host on this IP as 'down' so it remains visible as offline history
+			isReplaced = true
+			_, _ = db.Exec("UPDATE hosts SET status = 'down' WHERE id = ?", prevHostOnIP.ID)
+		}
+
 		query := `
 		INSERT INTO hosts (
 			ip, segment_id, mac_address, hostname, vendor_model, display_name,
@@ -594,27 +625,34 @@ func (db *DB) UpsertHostOnScan(h *Host) (isNew bool, isReplaced bool, err error)
 			?, ?
 		)
 		`
-		_, err := db.Exec(query,
+		status := h.Status
+		if status == "" {
+			status = "up"
+		}
+		_, err = db.Exec(query,
 			h.IP, h.SegmentID, normMAC, h.Hostname, h.VendorModel, h.DisplayName,
-			h.OSVendor, h.Status, h.PingRTTMs, h.PingJitterMs,
+			h.OSVendor, status, h.PingRTTMs, h.PingJitterMs,
 			h.OpenPorts, h.HTTPTitle, h.UPnPName, h.UPnPModel, h.UPnPSerial,
 			h.TLSSubject, h.TLSExpiry, h.MDNSModel,
 			h.IsApproved, h.IsDHCP, now, now,
 		)
-		return true, false, err
+		return true, isReplaced, err
 	}
 
-	isReplaced = false
-	if existing.MACAddress != "" && normMAC != "" && !strings.EqualFold(existing.MACAddress, normMAC) {
-		isReplaced = true
+	// Host with this MAC (or IP fallback) exists.
+	// Check if this host is moving to a new IP where another host previously was.
+	if existing.IP != h.IP {
+		prevHostOnTargetIP, _ := db.GetHost(h.IP)
+		if prevHostOnTargetIP != nil && prevHostOnTargetIP.ID != existing.ID {
+			// Mark that host on target IP as down
+			isReplaced = true
+			_, _ = db.Exec("UPDATE hosts SET status = 'down' WHERE id = ?", prevHostOnTargetIP.ID)
+		}
 	}
 
 	isApproved := existing.IsApproved
 	firstSeen := existing.FirstSeen
-	if isReplaced {
-		isApproved = false
-		firstSeen = now
-	} else if h.IsApproved {
+	if h.IsApproved {
 		isApproved = true
 	}
 
@@ -690,6 +728,7 @@ func (db *DB) UpsertHostOnScan(h *Host) (isNew bool, isReplaced bool, err error)
 
 	query := `
 	UPDATE hosts SET
+		ip = ?,
 		segment_id = COALESCE(?, segment_id),
 		mac_address = ?,
 		hostname = ?,
@@ -711,23 +750,23 @@ func (db *DB) UpsertHostOnScan(h *Host) (isNew bool, isReplaced bool, err error)
 		is_dhcp = ?,
 		first_seen = ?,
 		last_seen = ?
-	WHERE ip = ?
+	WHERE id = ?
 	`
 	_, err = db.Exec(query,
-		h.SegmentID, mac, hostname, vendorModel, displayName,
+		h.IP, h.SegmentID, mac, hostname, vendorModel, displayName,
 		osVendor, status, pingRTT, jitter, openPorts,
 		httpTitle, upnpName, upnpModel, upnpSerial,
 		tlsSubj, tlsExp, mdnsModel,
-		isApproved, isDHCP, firstSeen, now, h.IP,
+		isApproved, isDHCP, firstSeen, now, existing.ID,
 	)
 	return false, isReplaced, err
 }
 
-// GetHost fetches a host by IP
+// GetHost fetches the active host by IP (preferring status='up', then latest last_seen)
 func (db *DB) GetHost(ip string) (*Host, error) {
 	query := `
 	SELECT
-		ip, segment_id, mac_address, hostname, vendor_model, display_name,
+		id, ip, segment_id, mac_address, hostname, vendor_model, display_name,
 		os_vendor, status, ping_rtt_ms, ping_jitter_ms, uptime_pct,
 		open_ports, http_title, upnp_name, upnp_model, upnp_serial,
 		tls_subject, tls_expiry, mdns_model, broadcast_count_1m, is_storming,
@@ -736,19 +775,71 @@ func (db *DB) GetHost(ip string) (*Host, error) {
 		first_seen, last_seen, last_port_scan, next_port_scan, ignored_ports
 	FROM hosts
 	WHERE ip = ?
+	ORDER BY CASE WHEN status = 'up' THEN 0 ELSE 1 END, last_seen DESC
+	LIMIT 1
 	`
 	row := db.QueryRow(query, ip)
 	return scanHost(row)
 }
 
-// ListHosts lists hosts, optionally filtered by segment and online status
+// GetHostByID fetches a host by internal primary key ID
+func (db *DB) GetHostByID(id int64) (*Host, error) {
+	query := `
+	SELECT
+		id, ip, segment_id, mac_address, hostname, vendor_model, display_name,
+		os_vendor, status, ping_rtt_ms, ping_jitter_ms, uptime_pct,
+		open_ports, http_title, upnp_name, upnp_model, upnp_serial,
+		tls_subject, tls_expiry, mdns_model, broadcast_count_1m, is_storming,
+		is_approved, is_protected, is_static_ip, is_dhcp,
+		is_monitored, is_paused, has_conflict, kuma_name, uptime_kuma_id,
+		first_seen, last_seen, last_port_scan, next_port_scan, ignored_ports
+	FROM hosts
+	WHERE id = ?
+	`
+	row := db.QueryRow(query, id)
+	return scanHost(row)
+}
+
+// GetHostByMAC fetches a host by normalized MAC address (preferring status='up', then latest last_seen)
+func (db *DB) GetHostByMAC(mac string) (*Host, error) {
+	norm := strings.ToLower(strings.TrimSpace(mac))
+	if norm == "" {
+		return nil, nil
+	}
+	query := `
+	SELECT
+		id, ip, segment_id, mac_address, hostname, vendor_model, display_name,
+		os_vendor, status, ping_rtt_ms, ping_jitter_ms, uptime_pct,
+		open_ports, http_title, upnp_name, upnp_model, upnp_serial,
+		tls_subject, tls_expiry, mdns_model, broadcast_count_1m, is_storming,
+		is_approved, is_protected, is_static_ip, is_dhcp,
+		is_monitored, is_paused, has_conflict, kuma_name, uptime_kuma_id,
+		first_seen, last_seen, last_port_scan, next_port_scan, ignored_ports
+	FROM hosts
+	WHERE LOWER(TRIM(mac_address)) = ?
+	ORDER BY CASE WHEN status = 'up' THEN 0 ELSE 1 END, last_seen DESC
+	LIMIT 1
+	`
+	row := db.QueryRow(query, norm)
+	return scanHost(row)
+}
+
+// ListHosts lists hosts, optionally filtered by segment and online status (defaults to 3-day history)
 func (db *DB) ListHosts(segmentID *int64, onlineOnly bool) ([]*Host, error) {
+	if onlineOnly {
+		return db.ListHostsFiltered(segmentID, "online", 0)
+	}
+	return db.ListHostsFiltered(segmentID, "days", 3)
+}
+
+// ListHostsFiltered lists hosts with flexible filterMode ("online", "days", "all")
+func (db *DB) ListHostsFiltered(segmentID *int64, filterMode string, daysLimit int) ([]*Host, error) {
 	var query strings.Builder
 	var args []interface{}
 
 	query.WriteString(`
 	SELECT
-		ip, segment_id, mac_address, hostname, vendor_model, display_name,
+		id, ip, segment_id, mac_address, hostname, vendor_model, display_name,
 		os_vendor, status, ping_rtt_ms, ping_jitter_ms, uptime_pct,
 		open_ports, http_title, upnp_name, upnp_model, upnp_serial,
 		tls_subject, tls_expiry, mdns_model, broadcast_count_1m, is_storming,
@@ -764,11 +855,23 @@ func (db *DB) ListHosts(segmentID *int64, onlineOnly bool) ([]*Host, error) {
 		args = append(args, *segmentID)
 	}
 
-	if onlineOnly {
+	switch filterMode {
+	case "online":
 		query.WriteString(" AND status = 'up'")
+	case "days":
+		if daysLimit <= 0 {
+			daysLimit = 3
+		}
+		query.WriteString(" AND (status = 'up' OR (status != 'up' AND ((last_seen IS NOT NULL AND last_seen >= datetime('now', '-' || ? || ' days')) OR (last_seen IS NULL AND first_seen >= datetime('now', '-' || ? || ' days')))))")
+		args = append(args, daysLimit, daysLimit)
+	case "all":
+		// no filter
+	default:
+		// Default to 3 days
+		query.WriteString(" AND (status = 'up' OR (status != 'up' AND ((last_seen IS NOT NULL AND last_seen >= datetime('now', '-3 days')) OR (last_seen IS NULL AND first_seen >= datetime('now', '-3 days')))))")
 	}
 
-	query.WriteString(" ORDER BY is_storming DESC, is_approved ASC, ip ASC")
+	query.WriteString(" ORDER BY is_storming DESC, is_approved ASC, ip ASC, CASE WHEN status = 'up' THEN 0 ELSE 1 END, last_seen DESC")
 
 	rows, err := db.Query(query.String(), args...)
 	if err != nil {
@@ -783,6 +886,19 @@ func (db *DB) ListHosts(segmentID *int64, onlineOnly bool) ([]*Host, error) {
 			return nil, err
 		}
 		hosts = append(hosts, h)
+	}
+
+	// Mark superseded hosts (offline hosts where an active host exists on the same IP)
+	onlineIPs := make(map[string]bool)
+	for _, h := range hosts {
+		if h.Status == "up" {
+			onlineIPs[h.IP] = true
+		}
+	}
+	for _, h := range hosts {
+		if h.Status != "up" && onlineIPs[h.IP] {
+			h.IsPreviousHost = true
+		}
 	}
 
 	db.enrichHostsWithPingHistory(hosts)
@@ -843,43 +959,103 @@ func (db *DB) UpdateHostKumaStatus(ip string, kumaID *int64, isMonitored, isPaus
 	return err
 }
 
-// ToggleApproval toggles the approval status of a host
+// ToggleApprovalByID toggles the approval status of a host by its internal ID
+func (db *DB) ToggleApprovalByID(id int64) (bool, error) {
+	var current bool
+	err := db.QueryRow("SELECT is_approved FROM hosts WHERE id = ?", id).Scan(&current)
+	if err != nil {
+		return false, err
+	}
+
+	newVal := !current
+	_, err = db.Exec("UPDATE hosts SET is_approved = ? WHERE id = ?", newVal, id)
+	return newVal, err
+}
+
+// ToggleApproval toggles the approval status of a host (fallback using IP)
 func (db *DB) ToggleApproval(ip string) (bool, error) {
+	h, err := db.GetHost(ip)
+	if err != nil || h == nil {
+		return false, fmt.Errorf("host not found: %s", ip)
+	}
+	return db.ToggleApprovalByID(h.ID)
+}
+
+// ToggleProtectionByID toggles the protection flag of a host by its internal ID
+func (db *DB) ToggleProtectionByID(id int64) (bool, error) {
 	var current bool
-	err := db.QueryRow("SELECT is_approved FROM hosts WHERE ip = ?", ip).Scan(&current)
+	err := db.QueryRow("SELECT is_protected FROM hosts WHERE id = ?", id).Scan(&current)
 	if err != nil {
 		return false, err
 	}
 
 	newVal := !current
-	_, err = db.Exec("UPDATE hosts SET is_approved = ? WHERE ip = ?", newVal, ip)
+	_, err = db.Exec("UPDATE hosts SET is_protected = ? WHERE id = ?", newVal, id)
 	return newVal, err
 }
 
-// ToggleProtection toggles the protection flag of a host
+// ToggleProtection toggles the protection flag of a host (fallback using IP)
 func (db *DB) ToggleProtection(ip string) (bool, error) {
+	h, err := db.GetHost(ip)
+	if err != nil || h == nil {
+		return false, fmt.Errorf("host not found: %s", ip)
+	}
+	return db.ToggleProtectionByID(h.ID)
+}
+
+// ToggleDHCPByID toggles the is_dhcp flag of a host by its internal ID
+func (db *DB) ToggleDHCPByID(id int64) (bool, error) {
 	var current bool
-	err := db.QueryRow("SELECT is_protected FROM hosts WHERE ip = ?", ip).Scan(&current)
+	err := db.QueryRow("SELECT is_dhcp FROM hosts WHERE id = ?", id).Scan(&current)
 	if err != nil {
 		return false, err
 	}
 
 	newVal := !current
-	_, err = db.Exec("UPDATE hosts SET is_protected = ? WHERE ip = ?", newVal, ip)
+	_, err = db.Exec("UPDATE hosts SET is_dhcp = ? WHERE id = ?", newVal, id)
 	return newVal, err
 }
 
-// UpdateHostManual updates manually editable fields
-func (db *DB) UpdateHostManual(ip, displayName, vendorModel string, isStaticIP bool, ignoredPorts string) error {
+// ToggleDHCP toggles the is_dhcp flag of a host (fallback using IP)
+func (db *DB) ToggleDHCP(ip string) (bool, error) {
+	h, err := db.GetHost(ip)
+	if err != nil || h == nil {
+		return false, fmt.Errorf("host not found: %s", ip)
+	}
+	return db.ToggleDHCPByID(h.ID)
+}
+
+// UpdateHostManualByID updates manually editable fields by host ID
+func (db *DB) UpdateHostManualByID(id int64, displayName, vendorModel string, isStaticIP bool, ignoredPorts string) error {
 	query := `
 	UPDATE hosts SET
 		display_name = ?,
 		vendor_model = CASE WHEN ? != '' THEN ? ELSE vendor_model END,
 		is_static_ip = ?,
 		ignored_ports = ?
-	WHERE ip = ?
+	WHERE id = ?
 	`
-	_, err := db.Exec(query, displayName, vendorModel, vendorModel, isStaticIP, ignoredPorts, ip)
+	_, err := db.Exec(query, displayName, vendorModel, vendorModel, isStaticIP, ignoredPorts, id)
+	return err
+}
+
+// UpdateHostManual updates manually editable fields (fallback using IP)
+func (db *DB) UpdateHostManual(ip, displayName, vendorModel string, isStaticIP bool, ignoredPorts string) error {
+	h, err := db.GetHost(ip)
+	if err != nil || h == nil {
+		return fmt.Errorf("host not found: %s", ip)
+	}
+	return db.UpdateHostManualByID(h.ID, displayName, vendorModel, isStaticIP, ignoredPorts)
+}
+
+// TogglePortIgnoredByID toggles whether warnings for a specific port are suppressed on a host by ID
+func (db *DB) TogglePortIgnoredByID(id int64, port int) error {
+	h, err := db.GetHostByID(id)
+	if err != nil || h == nil {
+		return fmt.Errorf("host not found with id: %d", id)
+	}
+	newIgnored := togglePortInList(h.IgnoredPorts, port)
+	_, err = db.Exec("UPDATE hosts SET ignored_ports = ? WHERE id = ?", newIgnored, id)
 	return err
 }
 
@@ -889,9 +1065,7 @@ func (db *DB) TogglePortIgnored(ip string, port int) error {
 	if err != nil || h == nil {
 		return fmt.Errorf("host not found: %s", ip)
 	}
-	newIgnored := togglePortInList(h.IgnoredPorts, port)
-	_, err = db.Exec("UPDATE hosts SET ignored_ports = ? WHERE ip = ?", newIgnored, ip)
-	return err
+	return db.TogglePortIgnoredByID(h.ID, port)
 }
 
 func togglePortInList(ignored string, port int) string {
@@ -959,7 +1133,13 @@ func (db *DB) CreateManualHost(h *Host) error {
 	return err
 }
 
-// DeleteHost deletes a host by IP
+// DeleteHostByID deletes a host by internal ID
+func (db *DB) DeleteHostByID(id int64) error {
+	_, err := db.Exec("DELETE FROM hosts WHERE id = ?", id)
+	return err
+}
+
+// DeleteHost deletes a host by IP (or all hosts on that IP if multiple)
 func (db *DB) DeleteHost(ip string) error {
 	_, err := db.Exec("DELETE FROM hosts WHERE ip = ?", ip)
 	return err
@@ -980,6 +1160,7 @@ func scanHost(s scannable) (*Host, error) {
 	var ignoredPorts sql.NullString
 
 	err := s.Scan(
+		&h.ID,
 		&h.IP,
 		&segID,
 		&mac,
@@ -1077,7 +1258,7 @@ func scanHost(s scannable) (*Host, error) {
 func (db *DB) GetDuePortScanHost() (*Host, error) {
 	query := `
 	SELECT
-		ip, segment_id, mac_address, hostname, vendor_model, display_name,
+		id, ip, segment_id, mac_address, hostname, vendor_model, display_name,
 		os_vendor, status, ping_rtt_ms, ping_jitter_ms, uptime_pct,
 		open_ports, http_title, upnp_name, upnp_model, upnp_serial,
 		tls_subject, tls_expiry, mdns_model, broadcast_count_1m, is_storming,

@@ -499,5 +499,37 @@
   - [x] 日英辞書キー追加 (`internal/i18n`)
   - [x] Web ハンドラー `HandleTogglePortSuppress` 実装 & 単体テスト
 
+---
+
+### 🔹 Phase 23: DHCPオフライン表示(⚪)・同一IP交代時旧ホスト履歴保持・表示/保持期間カスタマイズ
+- [x] **23.1 データベース層 (`internal/db`)**
+  - [x] `hosts` テーブルの主キーを `id INTEGER PRIMARY KEY AUTOINCREMENT` に移行（レガシーDBからのテーブル再作成マイグレーション）
+  - [x] `settings` の初期シード値 `retention_days` を `"3"` に変更（旧 `"90"` 設定も `"3"` に移行）
+  - [x] `UpsertHostOnScan`: MACアドレス照合を優先。初見MACが既存IPに現れた場合、同一IPの既存端末の `status` を `'down'` に更新して残し、新端末を `status = 'up'` で新規INSERT。既存MACが別IPに移動した場合は新IPへ移動してUP復帰
+  - [x] `GetHostByID(id)`, `GetHostByMAC(mac)` 実装
+  - [x] `ListHostsFiltered(segmentID, filterMode, daysLimit)` 実装（`online` / `days` / `all`）。同一IPにオンライン端末が存在する旧端末への `IsPreviousHost = true` 付与
+  - [x] `ToggleApprovalByID`, `ToggleProtectionByID`, `ToggleDHCPByID`, `DeleteHostByID`, `UpdateHostManualByID`, `TogglePortIgnoredByID` 実装
+  - [x] 単体テスト (`TestHostUpsertAndMACReuse`, `TestListHostsDaysFilter`, `TestDBInitAndSeed`)
+- [x] **23.2 国際化辞書 (`internal/i18n`)**
+  - [x] 日英辞書キー追加 (`table_filter_3d`, `table_filter_7d`, `settings_days_1`, `settings_days_3`, `settings_days_7`, `settings_days_14`, `badge_previous_host`, `badge_previous_host_desc`)
+- [x] **23.3 UI テンプレート (`web/template/partials`)**
+  - [x] `main_table.html`:
+    - フィルターボタングループ (`[ 🟢 オンラインのみ ]`, `[ 🕒 直近3日 ]`, `[ 🗓️ 直近7日 ]`, `[ 📋 すべて ]`) 実装
+    - 先頭ステータスアイコンの死活連動：固定IP、DHCP（🔵）、未承認（🟡）ともに `status == "down"` なら `⚪` 表示
+    - `IsPreviousHost` 端末に `🕒 前回` バッジ表示 & 行の半透明化
+    - 各種操作エンドポイントに `?id={{.ID}}` 連携
+  - [x] `action_menu.html`, `host_detail_modal.html`, `edit_host_modal.html`: 各操作URLに `id` 連携
+  - [x] `settings_modal.html`: 保持期間セレクトボックスに `1`, `3 (推奨・既定)`, `7 (最大推奨)`, `14`, `30`, `60`, `90`, `180`, `365`, `0` を提供
+- [x] **23.4 Web ハンドラー & テスト (`internal/web`)**
+  - [x] `HandleMainTablePartial`: `filter` クエリ (`online`, `3d`, `7d`, `all`) 受付 & `ListHostsFiltered` 連携、`CurrentFilter`（既定 `"3d"`）返却
+  - [x] `getHostFromRequest`: `id` クエリ優先、`ip` フォールバック解決
+  - [x] 各操作ハンドラー（`HandleToggleApproval`, `HandleToggleProtection`, `HandleToggleHostDHCP`, `HandleToggleStaticIP`, `HandleUpdateHost`, `HandleTogglePortSuppress`, `HandleDeleteHost`）で ID 操作対応
+  - [x] 単体テスト `TestWebFiltersAndPreviousHost` 実装
+- [x] **23.5 ドキュメント更新 & 全体ビルド検証**
+  - [x] `lanmap_design.md`: 新スキーマ、同一IP旧端末履歴保持仕様、フィルター仕様、保持期間仕様の反映
+  - [x] `README.md`: 特長および初期設定の更新
+  - [x] `lanmap_todo.md`: Phase 23 完了チェック
+  - [x] `go test ./...` 100% PASS 確認 & `make build` 完了
+
 
 

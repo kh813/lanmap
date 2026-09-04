@@ -36,13 +36,13 @@ func TestDBInitAndSeed(t *testing.T) {
 		t.Errorf("unexpected default segment: %+v", defSeg)
 	}
 
-	// Check retention days seed
+	// Check retention days seed (default 3 days)
 	retDays, err := db.GetRetentionDays()
 	if err != nil {
 		t.Fatalf("GetRetentionDays failed: %v", err)
 	}
-	if retDays != 90 {
-		t.Errorf("expected retention days 90, got %d", retDays)
+	if retDays != 3 {
+		t.Errorf("expected retention days 3, got %d", retDays)
 	}
 }
 
@@ -159,30 +159,123 @@ func TestHostUpsertAndMACReuse(t *testing.T) {
 		t.Errorf("expected hostname updated to pc-alice-renamed, got %s", stored.Hostname)
 	}
 
-	// 3. DHCP IP reuse with DIFFERENT MAC address (Section 4.2.1)
+	// 3. DHCP IP reuse with DIFFERENT MAC address
+	// New device is inserted as up, previous device is retained with status='down'
 	h1DifferentMAC := &Host{
 		IP:          "192.168.1.100",
 		MACAddress:  "dd:ee:ff:44:55:66",
 		Hostname:    "unknown-device",
 		VendorModel: "Unknown Vendor",
+		Status:      "up",
 	}
 	isNew, isReplaced, err = db.UpsertHostOnScan(h1DifferentMAC)
 	if err != nil {
 		t.Fatalf("UpsertHostOnScan with different MAC failed: %v", err)
 	}
-	if isNew || !isReplaced {
-		t.Errorf("expected isNew=false, isReplaced=true on MAC change, got isNew=%v, isReplaced=%v", isNew, isReplaced)
+	if !isNew || !isReplaced {
+		t.Errorf("expected isNew=true, isReplaced=true on new MAC on same IP, got isNew=%v, isReplaced=%v", isNew, isReplaced)
 	}
 
 	storedAfterReuse, err := db.GetHost(h1.IP)
 	if err != nil || storedAfterReuse == nil {
 		t.Fatalf("GetHost after reuse failed: %v", err)
 	}
-	if storedAfterReuse.IsApproved {
-		t.Error("expected is_approved to be reset to false when MAC changed")
-	}
 	if storedAfterReuse.MACAddress != "dd:ee:ff:44:55:66" {
-		t.Errorf("expected new MAC address, got %s", storedAfterReuse.MACAddress)
+		t.Errorf("expected active host to be new MAC dd:ee:ff:44:55:66, got %s", storedAfterReuse.MACAddress)
+	}
+	if storedAfterReuse.Status != "up" {
+		t.Errorf("expected active host status to be up, got %s", storedAfterReuse.Status)
+	}
+
+	// Verify old host is retained in DB as status='down'
+	oldHost, err := db.GetHostByMAC("aa:bb:cc:11:22:33")
+	if err != nil || oldHost == nil {
+		t.Fatalf("GetHostByMAC for previous host failed: %v", err)
+	}
+	if oldHost.Status != "down" {
+		t.Errorf("expected previous host to have status='down', got %s", oldHost.Status)
+	}
+
+	// Verify ListHosts returns both hosts and marks previous host
+	allHosts, err := db.ListHosts(nil, false)
+	if err != nil {
+		t.Fatalf("ListHosts failed: %v", err)
+	}
+	if len(allHosts) < 2 {
+		t.Errorf("expected at least 2 hosts (new and previous), got %d", len(allHosts))
+	}
+	var foundPrev bool
+	for _, h := range allHosts {
+		if h.MACAddress == "aa:bb:cc:11:22:33" && h.IsPreviousHost {
+			foundPrev = true
+		}
+	}
+	if !foundPrev {
+		t.Error("expected previous host to have IsPreviousHost=true")
+	}
+}
+
+func TestListHostsDaysFilter(t *testing.T) {
+	db := setupTestDB(t)
+
+	now := time.Now()
+	// Host 1: online
+	h1 := &Host{
+		IP:         "192.168.1.10",
+		MACAddress: "aa:11:11:11:11:11",
+		Status:     "up",
+	}
+	_, _, _ = db.UpsertHostOnScan(h1)
+
+	// Host 2: offline 2 days ago
+	twoDaysAgo := now.Add(-48 * time.Hour)
+	_, _ = db.Exec("INSERT INTO hosts (ip, mac_address, status, first_seen, last_seen) VALUES (?, ?, 'down', ?, ?)",
+		"192.168.1.20", "bb:22:22:22:22:22", twoDaysAgo, twoDaysAgo)
+
+	// Host 3: offline 5 days ago
+	fiveDaysAgo := now.Add(-120 * time.Hour)
+	_, _ = db.Exec("INSERT INTO hosts (ip, mac_address, status, first_seen, last_seen) VALUES (?, ?, 'down', ?, ?)",
+		"192.168.1.30", "cc:33:33:33:33:33", fiveDaysAgo, fiveDaysAgo)
+
+	// Host 4: offline 10 days ago
+	tenDaysAgo := now.Add(-240 * time.Hour)
+	_, _ = db.Exec("INSERT INTO hosts (ip, mac_address, status, first_seen, last_seen) VALUES (?, ?, 'down', ?, ?)",
+		"192.168.1.40", "dd:44:44:44:44:44", tenDaysAgo, tenDaysAgo)
+
+	// 1. Online only filter
+	onlineHosts, err := db.ListHostsFiltered(nil, "online", 0)
+	if err != nil {
+		t.Fatalf("ListHostsFiltered online failed: %v", err)
+	}
+	if len(onlineHosts) != 1 || onlineHosts[0].IP != "192.168.1.10" {
+		t.Errorf("expected 1 online host, got %d", len(onlineHosts))
+	}
+
+	// 2. 3 days filter (should include online + 2 days ago = 2 hosts)
+	hosts3d, err := db.ListHostsFiltered(nil, "days", 3)
+	if err != nil {
+		t.Fatalf("ListHostsFiltered 3d failed: %v", err)
+	}
+	if len(hosts3d) != 2 {
+		t.Errorf("expected 2 hosts for 3-day filter, got %d", len(hosts3d))
+	}
+
+	// 3. 7 days filter (should include online + 2 days + 5 days = 3 hosts)
+	hosts7d, err := db.ListHostsFiltered(nil, "days", 7)
+	if err != nil {
+		t.Fatalf("ListHostsFiltered 7d failed: %v", err)
+	}
+	if len(hosts7d) != 3 {
+		t.Errorf("expected 3 hosts for 7-day filter, got %d", len(hosts7d))
+	}
+
+	// 4. All filter (should include all 4 hosts)
+	hostsAll, err := db.ListHostsFiltered(nil, "all", 0)
+	if err != nil {
+		t.Fatalf("ListHostsFiltered all failed: %v", err)
+	}
+	if len(hostsAll) != 4 {
+		t.Errorf("expected 4 hosts for all filter, got %d", len(hostsAll))
 	}
 }
 

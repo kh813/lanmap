@@ -57,7 +57,8 @@ func (db *DB) migrate() error {
 	);
 
 	CREATE TABLE IF NOT EXISTS hosts (
-		ip VARCHAR(45) PRIMARY KEY,
+		id INTEGER PRIMARY KEY AUTOINCREMENT,
+		ip VARCHAR(45) NOT NULL,
 		segment_id INTEGER,
 		mac_address VARCHAR(17),
 		hostname VARCHAR(255),
@@ -95,10 +96,12 @@ func (db *DB) migrate() error {
 		FOREIGN KEY (segment_id) REFERENCES segments(id) ON DELETE SET NULL
 	);
 
+	CREATE INDEX IF NOT EXISTS idx_hosts_ip ON hosts(ip);
 	CREATE INDEX IF NOT EXISTS idx_hosts_segment_id ON hosts(segment_id);
 	CREATE INDEX IF NOT EXISTS idx_hosts_status ON hosts(status);
 	CREATE INDEX IF NOT EXISTS idx_hosts_mac ON hosts(mac_address);
 	CREATE INDEX IF NOT EXISTS idx_hosts_hostname ON hosts(hostname);
+	CREATE INDEX IF NOT EXISTS idx_hosts_next_port_scan ON hosts(next_port_scan);
 
 	CREATE TABLE IF NOT EXISTS settings (
 		key VARCHAR(50) PRIMARY KEY,
@@ -132,6 +135,93 @@ func (db *DB) migrate() error {
 		return err
 	}
 
+	// Check if hosts table has 'id' primary key column (migrate from legacy ip PRIMARY KEY)
+	var hasID bool
+	rows, err := db.Query("PRAGMA table_info(hosts)")
+	if err == nil {
+		for rows.Next() {
+			var cid int
+			var name, ctype string
+			var notnull, pk int
+			var dflt sql.NullString
+			if err := rows.Scan(&cid, &name, &ctype, &notnull, &dflt, &pk); err == nil {
+				if name == "id" {
+					hasID = true
+				}
+			}
+		}
+		rows.Close()
+	}
+
+	if !hasID {
+		// Table recreate migration for legacy schema
+		migrateHostsSQL := `
+		CREATE TABLE hosts_migration_tmp (
+			id INTEGER PRIMARY KEY AUTOINCREMENT,
+			ip VARCHAR(45) NOT NULL,
+			segment_id INTEGER,
+			mac_address VARCHAR(17),
+			hostname VARCHAR(255),
+			vendor_model VARCHAR(255),
+			display_name VARCHAR(255),
+			os_vendor VARCHAR(255),
+			status VARCHAR(10) DEFAULT 'up',
+			ping_rtt_ms REAL,
+			ping_jitter_ms REAL,
+			uptime_pct REAL DEFAULT 100.0,
+			open_ports TEXT,
+			http_title VARCHAR(255),
+			upnp_name VARCHAR(255),
+			upnp_model VARCHAR(255),
+			upnp_serial VARCHAR(100),
+			tls_subject VARCHAR(255),
+			tls_expiry DATETIME,
+			mdns_model VARCHAR(100),
+			broadcast_count_1m INTEGER DEFAULT 0,
+			is_storming BOOLEAN DEFAULT 0,
+			is_approved BOOLEAN DEFAULT 0,
+			is_protected BOOLEAN DEFAULT 0,
+			is_static_ip BOOLEAN DEFAULT 0,
+			is_dhcp BOOLEAN DEFAULT 0,
+			is_monitored BOOLEAN DEFAULT 0,
+			is_paused BOOLEAN DEFAULT 0,
+			has_conflict BOOLEAN DEFAULT 0,
+			kuma_name VARCHAR(255),
+			uptime_kuma_id INTEGER DEFAULT NULL,
+			first_seen DATETIME DEFAULT CURRENT_TIMESTAMP,
+			last_seen DATETIME,
+			last_port_scan DATETIME,
+			next_port_scan DATETIME,
+			ignored_ports TEXT DEFAULT '',
+			FOREIGN KEY (segment_id) REFERENCES segments(id) ON DELETE SET NULL
+		);
+
+		INSERT INTO hosts_migration_tmp (
+			ip, segment_id, mac_address, hostname, vendor_model, display_name,
+			os_vendor, status, ping_rtt_ms, ping_jitter_ms, uptime_pct,
+			open_ports, http_title, upnp_name, upnp_model, upnp_serial,
+			tls_subject, tls_expiry, mdns_model, broadcast_count_1m, is_storming,
+			is_approved, is_protected, is_static_ip, is_dhcp,
+			is_monitored, is_paused, has_conflict, kuma_name, uptime_kuma_id,
+			first_seen, last_seen, last_port_scan, next_port_scan, ignored_ports
+		) SELECT
+			ip, segment_id, mac_address, hostname, vendor_model, display_name,
+			os_vendor, status, ping_rtt_ms, ping_jitter_ms, uptime_pct,
+			open_ports, http_title, upnp_name, upnp_model, upnp_serial,
+			tls_subject, tls_expiry, mdns_model, broadcast_count_1m, is_storming,
+			is_approved, is_protected, is_static_ip, is_dhcp,
+			is_monitored, is_paused, has_conflict, kuma_name, uptime_kuma_id,
+			first_seen, last_seen, last_port_scan, next_port_scan, COALESCE(ignored_ports, '')
+		FROM hosts;
+
+		DROP TABLE hosts;
+		ALTER TABLE hosts_migration_tmp RENAME TO hosts;
+		`
+		if _, err := db.Exec(migrateHostsSQL); err != nil {
+			return fmt.Errorf("failed to migrate hosts table to id-based schema: %w", err)
+		}
+	}
+
 	// Migrations for existing DBs
 	_, _ = db.Exec("ALTER TABLE hosts ADD COLUMN ping_rtt_ms REAL;")
 	_, _ = db.Exec("ALTER TABLE hosts ADD COLUMN ping_jitter_ms REAL;")
@@ -150,6 +240,7 @@ func (db *DB) migrate() error {
 	_, _ = db.Exec("ALTER TABLE hosts ADD COLUMN last_port_scan DATETIME;")
 	_, _ = db.Exec("ALTER TABLE hosts ADD COLUMN next_port_scan DATETIME;")
 	_, _ = db.Exec("ALTER TABLE hosts ADD COLUMN ignored_ports TEXT DEFAULT '';")
+	_, _ = db.Exec("CREATE INDEX IF NOT EXISTS idx_hosts_ip ON hosts(ip);")
 	_, _ = db.Exec("CREATE INDEX IF NOT EXISTS idx_hosts_next_port_scan ON hosts(next_port_scan);")
 	_, _ = db.Exec("ALTER TABLE segments ADD COLUMN dhcp_range VARCHAR(100) DEFAULT '';")
 	_, _ = db.Exec("ALTER TABLE segments ADD COLUMN is_dhcp_manual BOOLEAN DEFAULT 0;")
@@ -175,9 +266,17 @@ func (db *DB) seed() error {
 		return fmt.Errorf("failed to check retention_days setting: %w", err)
 	}
 	if count == 0 {
-		_, err = db.Exec("INSERT INTO settings (key, value) VALUES ('retention_days', '90')")
+		_, err = db.Exec("INSERT INTO settings (key, value) VALUES ('retention_days', '3')")
 		if err != nil {
 			return fmt.Errorf("failed to seed default retention_days: %w", err)
+		}
+	} else {
+		// Update default retention_days from legacy "90" to "3" if it was unmodified
+		var currentRetention string
+		if err := db.QueryRow("SELECT value FROM settings WHERE key = 'retention_days'").Scan(&currentRetention); err == nil {
+			if currentRetention == "90" {
+				_, _ = db.Exec("UPDATE settings SET value = '3' WHERE key = 'retention_days'")
+			}
 		}
 	}
 

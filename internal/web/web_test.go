@@ -8,6 +8,7 @@ import (
 	"path/filepath"
 	"strings"
 	"testing"
+	"time"
 
 	"lanmap/internal/config"
 	"lanmap/internal/db"
@@ -362,3 +363,164 @@ func TestWebRoutes(t *testing.T) {
 		t.Errorf("both 7070 and 5938 are suppressed, host should not have security risk")
 	}
 }
+
+func TestWebFiltersAndPreviousHost(t *testing.T) {
+	_, router, database := setupTestWeb(t)
+
+	now := time.Now()
+	// Create segment
+	seg, err := database.CreateSegment("Office", "10.0.0.0/24", "eth0", true)
+	if err != nil {
+		t.Fatalf("CreateSegment: %v", err)
+	}
+
+	// 1. Insert an active DHCP host
+	_, _, err = database.UpsertHostOnScan(&db.Host{
+		IP:          "10.0.0.20",
+		MACAddress: "aa:bb:cc:11:22:33",
+		Hostname:   "pc-alice",
+		DisplayName: "Alice PC",
+		SegmentID:   &seg.ID,
+		IsDHCP:      true,
+		Status:      "up",
+	})
+	if err != nil {
+		t.Fatalf("UpsertHostOnScan: %v", err)
+	}
+
+	// Verify it shows up as UP with 🔵 in table
+	req := httptest.NewRequest("GET", "/partials/main_table?filter=online", nil)
+	rec := httptest.NewRecorder()
+	router.ServeHTTP(rec, req)
+	if rec.Code != http.StatusOK {
+		t.Fatalf("expected 200, got %d", rec.Code)
+	}
+	body := rec.Body.String()
+	if !strings.Contains(body, "10.0.0.20") || !strings.Contains(body, "🔵") {
+		t.Errorf("expected 10.0.0.20 with 🔵 in online view, got body:\n%s", body)
+	}
+
+	// 2. Now a new host (different MAC) arrives on the same IP 10.0.0.20
+	_, _, err = database.UpsertHostOnScan(&db.Host{
+		IP:          "10.0.0.20",
+		MACAddress: "aa:bb:cc:44:55:66",
+		Hostname:   "pc-bob",
+		DisplayName: "Bob PC",
+		SegmentID:   &seg.ID,
+		IsDHCP:      true,
+		Status:      "up",
+	})
+	if err != nil {
+		t.Fatalf("UpsertHostOnScan Bob: %v", err)
+	}
+
+	// Get the two hosts from DB
+	hostAlice, err := database.GetHostByMAC("aa:bb:cc:11:22:33")
+	if err != nil {
+		t.Fatalf("GetHostByMAC Alice: %v", err)
+	}
+	hostBob, err := database.GetHostByMAC("aa:bb:cc:44:55:66")
+	if err != nil {
+		t.Fatalf("GetHostByMAC Bob: %v", err)
+	}
+
+	if hostAlice.Status != "down" {
+		t.Errorf("expected Alice to be down, got %s", hostAlice.Status)
+	}
+	if hostBob.Status != "up" {
+		t.Errorf("expected Bob to be up, got %s", hostBob.Status)
+	}
+
+	// In online view, only Bob should appear
+	reqOnline := httptest.NewRequest("GET", "/partials/main_table?filter=online", nil)
+	recOnline := httptest.NewRecorder()
+	router.ServeHTTP(recOnline, reqOnline)
+	bodyOnline := recOnline.Body.String()
+	if !strings.Contains(bodyOnline, "aa:bb:cc:44:55:66") {
+		t.Errorf("expected Bob in online view")
+	}
+	if strings.Contains(bodyOnline, "aa:bb:cc:11:22:33") {
+		t.Errorf("did not expect Alice in online view")
+	}
+
+	// In 3d view (default), BOTH should appear! Alice should have ⚪ and previous host badge
+	req3d := httptest.NewRequest("GET", "/partials/main_table?filter=3d", nil)
+	rec3d := httptest.NewRecorder()
+	router.ServeHTTP(rec3d, req3d)
+	body3d := rec3d.Body.String()
+	if !strings.Contains(body3d, "aa:bb:cc:44:55:66") || !strings.Contains(body3d, "aa:bb:cc:11:22:33") {
+		t.Errorf("expected both Bob and Alice in 3d view")
+	}
+	if !strings.Contains(body3d, "⚪") {
+		t.Errorf("expected ⚪ for offline Alice in 3d view")
+	}
+	if !strings.Contains(body3d, "前回") && !strings.Contains(body3d, "Prev") {
+		t.Errorf("expected previous host badge in 3d view")
+	}
+
+	// 3. Test ID-based actions on Alice specifically
+	// Alice is currently unapproved. Toggle approval for Alice by ID.
+	reqApproveAlice := httptest.NewRequest("POST", fmt.Sprintf("/api/hosts/10.0.0.20/toggle_approval?id=%d", hostAlice.ID), nil)
+	recApproveAlice := httptest.NewRecorder()
+	router.ServeHTTP(recApproveAlice, reqApproveAlice)
+	if recApproveAlice.Code != http.StatusOK {
+		t.Errorf("expected 200, got %d", recApproveAlice.Code)
+	}
+
+	aliceReloaded, _ := database.GetHostByID(hostAlice.ID)
+	bobReloaded, _ := database.GetHostByID(hostBob.ID)
+	if !aliceReloaded.IsApproved {
+		t.Errorf("expected Alice to be approved via ID action")
+	}
+	if bobReloaded.IsApproved {
+		t.Errorf("expected Bob to remain unapproved")
+	}
+
+	// Test ID-based delete on Alice
+	reqDelAlice := httptest.NewRequest("DELETE", fmt.Sprintf("/api/hosts/10.0.0.20?id=%d", hostAlice.ID), nil)
+	recDelAlice := httptest.NewRecorder()
+	router.ServeHTTP(recDelAlice, reqDelAlice)
+	if recDelAlice.Code != http.StatusOK {
+		t.Errorf("expected 200, got %d", recDelAlice.Code)
+	}
+
+	aliceAfterDel, _ := database.GetHostByID(hostAlice.ID)
+	if aliceAfterDel != nil {
+		t.Errorf("expected Alice to be deleted")
+	}
+	bobAfterDel, _ := database.GetHostByID(hostBob.ID)
+	if bobAfterDel == nil {
+		t.Errorf("expected Bob to still exist after Alice deleted")
+	}
+
+	// 4. Test Days limit filtering (3d vs 7d vs all)
+	// Insert host Charlie seen 5 days ago (should not appear in 3d, but should appear in 7d and all)
+	seen5dAgo := now.Add(-5 * 24 * time.Hour)
+	charlie := &db.Host{
+		IP:         "10.0.0.30",
+		MACAddress: "CC:CC:CC:33:33:33",
+		Status:     "down",
+		FirstSeen:  seen5dAgo,
+		LastSeen:   &seen5dAgo,
+	}
+	_ = database.CreateManualHost(charlie)
+	// Update last_seen to 5 days ago explicitly
+	_, _ = database.Exec("UPDATE hosts SET last_seen = ? WHERE ip = '10.0.0.30'", seen5dAgo)
+
+	// Charlie in 3d: should NOT appear
+	reqCheck3d := httptest.NewRequest("GET", "/partials/main_table?filter=3d", nil)
+	recCheck3d := httptest.NewRecorder()
+	router.ServeHTTP(recCheck3d, reqCheck3d)
+	if strings.Contains(recCheck3d.Body.String(), "10.0.0.30") {
+		t.Errorf("host from 5 days ago should NOT appear in 3d filter")
+	}
+
+	// Charlie in 7d: SHOULD appear
+	reqCheck7d := httptest.NewRequest("GET", "/partials/main_table?filter=7d", nil)
+	recCheck7d := httptest.NewRecorder()
+	router.ServeHTTP(recCheck7d, reqCheck7d)
+	if !strings.Contains(recCheck7d.Body.String(), "10.0.0.30") {
+		t.Errorf("host from 5 days ago SHOULD appear in 7d filter")
+	}
+}
+

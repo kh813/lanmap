@@ -65,9 +65,13 @@
                             {{t .Lang "settings_retention_help"}}
                         </p>
                         <select name="retention_days" class="w-full bg-white dark:bg-slate-900 border border-slate-300 dark:border-slate-700 rounded px-2.5 py-1.5 text-slate-800 dark:text-slate-200 focus:outline-none focus:border-blue-500 text-xs">
+                            <option value="1" {{if eq .Settings.retention_days "1"}}selected{{end}}>{{t .Lang "settings_days_1"}}</option>
+                            <option value="3" {{if or (eq .Settings.retention_days "3") (not .Settings.retention_days)}}selected{{end}}>{{t .Lang "settings_days_3"}}</option>
+                            <option value="7" {{if eq .Settings.retention_days "7"}}selected{{end}}>{{t .Lang "settings_days_7"}}</option>
+                            <option value="14" {{if eq .Settings.retention_days "14"}}selected{{end}}>{{t .Lang "settings_days_14"}}</option>
                             <option value="30" {{if eq .Settings.retention_days "30"}}selected{{end}}>{{t .Lang "settings_days_30"}}</option>
                             <option value="60" {{if eq .Settings.retention_days "60"}}selected{{end}}>{{t .Lang "settings_days_60"}}</option>
-                            <option value="90" {{if or (eq .Settings.retention_days "90") (not .Settings.retention_days)}}selected{{end}}>{{t .Lang "settings_days_90"}}</option>
+                            <option value="90" {{if eq .Settings.retention_days "90"}}selected{{end}}>{{t .Lang "settings_days_90"}}</option>
                             <option value="180" {{if eq .Settings.retention_days "180"}}selected{{end}}>{{t .Lang "settings_days_180"}}</option>
                             <option value="365" {{if eq .Settings.retention_days "365"}}selected{{end}}>{{t .Lang "settings_days_365"}}</option>
                             <option value="0" {{if eq .Settings.retention_days "0"}}selected{{end}}>{{t .Lang "settings_days_0"}}</option>

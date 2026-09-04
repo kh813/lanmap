@@ -119,6 +119,22 @@ func (h *Handler) getUnaddedLocalNetworks() []scanner.DetectedNetwork {
 	return unadded
 }
 
+// getHostFromRequest resolves a host by ?id= query param first, falling back to IP.
+func (h *Handler) getHostFromRequest(r *http.Request, ipFallback string) (*db.Host, error) {
+	if idStr := r.URL.Query().Get("id"); idStr != "" {
+		if id, err := strconv.ParseInt(idStr, 10, 64); err == nil && id > 0 {
+			host, err := h.db.GetHostByID(id)
+			if err == nil && host != nil {
+				return host, nil
+			}
+		}
+	}
+	if ipFallback != "" {
+		return h.db.GetHost(ipFallback)
+	}
+	return nil, fmt.Errorf("host not found")
+}
+
 // HandleMainTablePartial renders the main host table partial
 func (h *Handler) HandleMainTablePartial(w http.ResponseWriter, r *http.Request) {
 	lang := i18n.DetectLanguage(r)
@@ -137,8 +153,37 @@ func (h *Handler) HandleMainTablePartial(w http.ResponseWriter, r *http.Request)
 		}
 	}
 
-	onlineOnly := r.URL.Query().Get("online_only") == "true"
-	hosts, err := h.db.ListHosts(segID, onlineOnly)
+	filter := r.URL.Query().Get("filter")
+	if filter == "" {
+		if r.URL.Query().Get("online_only") == "true" {
+			filter = "online"
+		} else {
+			filter = "3d"
+		}
+	}
+
+	filterMode := "days"
+	daysLimit := 3
+	switch filter {
+	case "online":
+		filterMode = "online"
+		daysLimit = 0
+	case "7d":
+		filterMode = "days"
+		daysLimit = 7
+	case "all":
+		filterMode = "all"
+		daysLimit = 0
+	case "3d":
+		filterMode = "days"
+		daysLimit = 3
+	default:
+		filter = "3d"
+		filterMode = "days"
+		daysLimit = 3
+	}
+
+	hosts, err := h.db.ListHostsFiltered(segID, filterMode, daysLimit)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
@@ -190,7 +235,8 @@ func (h *Handler) HandleMainTablePartial(w http.ResponseWriter, r *http.Request)
 		"SegmentTitle":     segTitle,
 		"SegmentCIDR":      segCIDR,
 		"CurrentSegmentID": curSegIDStr,
-		"OnlineOnly":       onlineOnly,
+		"CurrentFilter":    filter,
+		"OnlineOnly":       filter == "online",
 		"Lang":             lang,
 	}
 
@@ -199,8 +245,7 @@ func (h *Handler) HandleMainTablePartial(w http.ResponseWriter, r *http.Request)
 
 // HandleActionMenuPartial renders the dropdown action menu
 func (h *Handler) HandleActionMenuPartial(w http.ResponseWriter, r *http.Request) {
-	ip := r.URL.Query().Get("ip")
-	host, err := h.db.GetHost(ip)
+	host, err := h.getHostFromRequest(r, r.URL.Query().Get("ip"))
 	if err != nil || host == nil {
 		http.Error(w, "Host not found", http.StatusNotFound)
 		return
@@ -249,8 +294,7 @@ func (h *Handler) HandleAddHostModal(w http.ResponseWriter, r *http.Request) {
 
 // HandleEditHostModal renders edit host modal
 func (h *Handler) HandleEditHostModal(w http.ResponseWriter, r *http.Request) {
-	ip := r.URL.Query().Get("ip")
-	host, err := h.db.GetHost(ip)
+	host, err := h.getHostFromRequest(r, r.URL.Query().Get("ip"))
 	if err != nil || host == nil {
 		http.Error(w, "Host not found", http.StatusNotFound)
 		return
@@ -268,14 +312,14 @@ func (h *Handler) HandleHostDetailModal(w http.ResponseWriter, r *http.Request) 
 	if ip == "" {
 		ip = r.PathValue("ip")
 	}
-	host, err := h.db.GetHost(ip)
+	host, err := h.getHostFromRequest(r, ip)
 	if err != nil || host == nil {
 		http.Error(w, "Host not found", http.StatusNotFound)
 		return
 	}
 
 	// Fetch 7-day ping history
-	history, _ := h.db.GetHostPingHistory(ip, 7*24*time.Hour)
+	history, _ := h.db.GetHostPingHistory(host.IP, 7*24*time.Hour)
 	stats7d := db.ComputePingStats7dDetails(history)
 	chart7dSVG := db.RenderSparkline7dSVG(history, 920, 200)
 	uptimeBlocks7dSVG := db.RenderUptimeBlocks7dSVG(history, 42)
@@ -346,7 +390,7 @@ func (h *Handler) HandleHostProbePorts(w http.ResponseWriter, r *http.Request, i
 		return
 	}
 
-	currentHost, _ := h.db.GetHost(ip)
+	currentHost, _ := h.getHostFromRequest(r, ip)
 	vendor := ""
 	osVendor := ""
 	hostname := ""
@@ -364,7 +408,7 @@ func (h *Handler) HandleHostProbePorts(w http.ResponseWriter, r *http.Request, i
 	w.Header().Set("Content-Type", "text/html; charset=utf-8")
 	w.Header().Set("HX-Trigger", "refreshMainTable")
 
-	updatedHost, _ := h.db.GetHost(ip)
+	updatedHost, _ := h.getHostFromRequest(r, ip)
 	if updatedHost == nil {
 		updatedHost = &db.Host{IP: ip, OpenPorts: openPorts, HTTPTitle: httpTitle}
 	}
@@ -388,7 +432,7 @@ func (h *Handler) HandleHostFullScan(w http.ResponseWriter, r *http.Request, ip 
 		return
 	}
 
-	currentHost, _ := h.db.GetHost(ip)
+	currentHost, _ := h.getHostFromRequest(r, ip)
 	vendor := ""
 	osVendor := ""
 	hostname := ""
@@ -409,7 +453,7 @@ func (h *Handler) HandleHostFullScan(w http.ResponseWriter, r *http.Request, ip 
 	w.Header().Set("Content-Type", "text/html; charset=utf-8")
 	w.Header().Set("HX-Trigger", "refreshMainTable")
 
-	updatedHost, _ := h.db.GetHost(ip)
+	updatedHost, _ := h.getHostFromRequest(r, ip)
 	if updatedHost == nil {
 		updatedHost = &db.Host{IP: ip, OpenPorts: openPorts, HTTPTitle: httpTitle}
 	}
@@ -493,7 +537,16 @@ func (h *Handler) HandleClearWhitelist(w http.ResponseWriter, r *http.Request) {
 
 // HandleToggleApproval toggles approval status
 func (h *Handler) HandleToggleApproval(w http.ResponseWriter, r *http.Request, ip string) {
-	_, err := h.db.ToggleApproval(ip)
+	var err error
+	if idStr := r.URL.Query().Get("id"); idStr != "" {
+		if id, pErr := strconv.ParseInt(idStr, 10, 64); pErr == nil && id > 0 {
+			_, err = h.db.ToggleApprovalByID(id)
+		} else {
+			_, err = h.db.ToggleApproval(ip)
+		}
+	} else {
+		_, err = h.db.ToggleApproval(ip)
+	}
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
@@ -503,7 +556,16 @@ func (h *Handler) HandleToggleApproval(w http.ResponseWriter, r *http.Request, i
 
 // HandleToggleProtection toggles protection status
 func (h *Handler) HandleToggleProtection(w http.ResponseWriter, r *http.Request, ip string) {
-	_, err := h.db.ToggleProtection(ip)
+	var err error
+	if idStr := r.URL.Query().Get("id"); idStr != "" {
+		if id, pErr := strconv.ParseInt(idStr, 10, 64); pErr == nil && id > 0 {
+			_, err = h.db.ToggleProtectionByID(id)
+		} else {
+			_, err = h.db.ToggleProtection(ip)
+		}
+	} else {
+		_, err = h.db.ToggleProtection(ip)
+	}
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
@@ -513,20 +575,33 @@ func (h *Handler) HandleToggleProtection(w http.ResponseWriter, r *http.Request,
 
 // HandleToggleHostDHCP toggles the is_dhcp status of a host and auto-adjusts segment DHCP range
 func (h *Handler) HandleToggleHostDHCP(w http.ResponseWriter, r *http.Request, ip string) {
-	newDHCPStatus, err := h.db.ToggleHostDHCP(ip)
+	var newDHCPStatus bool
+	var err error
+	var targetHost *db.Host
+	if idStr := r.URL.Query().Get("id"); idStr != "" {
+		if id, pErr := strconv.ParseInt(idStr, 10, 64); pErr == nil && id > 0 {
+			newDHCPStatus, err = h.db.ToggleDHCPByID(id)
+			targetHost, _ = h.db.GetHostByID(id)
+		} else {
+			newDHCPStatus, err = h.db.ToggleHostDHCP(ip)
+			targetHost, _ = h.db.GetHost(ip)
+		}
+	} else {
+		newDHCPStatus, err = h.db.ToggleHostDHCP(ip)
+		targetHost, _ = h.db.GetHost(ip)
+	}
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
 	}
 
 	// Auto-adjust segment DHCP range if marked as DHCP
-	if newDHCPStatus {
-		host, _ := h.db.GetHost(ip)
+	if newDHCPStatus && targetHost != nil {
 		var segID int64
-		if host != nil && host.SegmentID != nil {
-			segID = *host.SegmentID
+		if targetHost.SegmentID != nil {
+			segID = *targetHost.SegmentID
 		} else {
-			seg, _ := h.db.FindSegmentForIP(net.ParseIP(ip))
+			seg, _ := h.db.FindSegmentForIP(net.ParseIP(targetHost.IP))
 			if seg != nil {
 				segID = seg.ID
 			}
@@ -542,12 +617,12 @@ func (h *Handler) HandleToggleHostDHCP(w http.ResponseWriter, r *http.Request, i
 
 // HandleToggleStaticIP toggles static IP status
 func (h *Handler) HandleToggleStaticIP(w http.ResponseWriter, r *http.Request, ip string) {
-	host, err := h.db.GetHost(ip)
+	host, err := h.getHostFromRequest(r, ip)
 	if err != nil || host == nil {
 		http.Error(w, "Host not found", http.StatusNotFound)
 		return
 	}
-	_ = h.db.UpdateHostManual(ip, host.DisplayName, host.VendorModel, !host.IsStaticIP, host.IgnoredPorts)
+	_ = h.db.UpdateHostManualByID(host.ID, host.DisplayName, host.VendorModel, !host.IsStaticIP, host.IgnoredPorts)
 	h.HandleMainTablePartial(w, r)
 }
 
@@ -559,13 +634,13 @@ func (h *Handler) HandleUpdateHost(w http.ResponseWriter, r *http.Request, ip st
 	isStaticIP := r.FormValue("is_static_ip") == "true"
 	ignoredPorts := strings.TrimSpace(r.FormValue("ignored_ports"))
 
-	host, err := h.db.GetHost(ip)
+	host, err := h.getHostFromRequest(r, ip)
 	if err != nil || host == nil {
 		http.Error(w, "Host not found", http.StatusNotFound)
 		return
 	}
 
-	_ = h.db.UpdateHostManual(ip, displayName, vendorModel, isStaticIP, ignoredPorts)
+	_ = h.db.UpdateHostManualByID(host.ID, displayName, vendorModel, isStaticIP, ignoredPorts)
 	h.HandleMainTablePartial(w, r)
 }
 
@@ -577,7 +652,12 @@ func (h *Handler) HandleTogglePortSuppress(w http.ResponseWriter, r *http.Reques
 		http.Error(w, "Invalid port", http.StatusBadRequest)
 		return
 	}
-	if err := h.db.TogglePortIgnored(ip, port); err != nil {
+	host, err := h.getHostFromRequest(r, ip)
+	if err != nil || host == nil {
+		http.Error(w, "Host not found", http.StatusNotFound)
+		return
+	}
+	if err := h.db.TogglePortIgnoredByID(host.ID, port); err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
 	}
@@ -620,6 +700,13 @@ func (h *Handler) HandleCreateHost(w http.ResponseWriter, r *http.Request) {
 
 // HandleDeleteHost deletes a host
 func (h *Handler) HandleDeleteHost(w http.ResponseWriter, r *http.Request, ip string) {
+	if idStr := r.URL.Query().Get("id"); idStr != "" {
+		if id, err := strconv.ParseInt(idStr, 10, 64); err == nil && id > 0 {
+			_ = h.db.DeleteHostByID(id)
+			h.HandleMainTablePartial(w, r)
+			return
+		}
+	}
 	_ = h.db.DeleteHost(ip)
 	h.HandleMainTablePartial(w, r)
 }

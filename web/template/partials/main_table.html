@@ -1,5 +1,5 @@
 <div id="main-content" class="flex-1 flex flex-col min-w-0 bg-slate-50 dark:bg-slate-900 overflow-hidden"
-     hx-get="/partials/main_table?segment_id={{.CurrentSegmentID}}&online_only={{.OnlineOnly}}"
+     hx-get="/partials/main_table?segment_id={{.CurrentSegmentID}}&filter={{.CurrentFilter}}"
      hx-trigger="every 30s, refreshMainTable from:body"
      hx-swap="outerHTML">
     <!-- Top Action Bar -->
@@ -38,16 +38,26 @@
                 </button>
             </div>
 
-            <!-- Filter Switch -->
+            <!-- Filter Switch (Online, 3 Days [Default], 7 Days, All) -->
             <div class="bg-slate-200/80 dark:bg-slate-800/80 p-0.5 rounded-lg flex text-xs border border-slate-300 dark:border-slate-700">
-                <button hx-get="/partials/main_table?segment_id={{.CurrentSegmentID}}&online_only=true"
+                <button hx-get="/partials/main_table?segment_id={{.CurrentSegmentID}}&filter=online"
                         hx-target="#main-content" hx-swap="outerHTML"
-                        class="px-2.5 py-1 rounded-md font-medium transition {{if .OnlineOnly}}bg-white text-slate-900 dark:bg-slate-900 dark:text-white shadow-sm{{else}}text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-200{{end}}">
+                        class="px-2.5 py-1 rounded-md font-medium transition {{if eq .CurrentFilter "online"}}bg-white text-slate-900 dark:bg-slate-900 dark:text-white shadow-sm{{else}}text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-200{{end}}">
                     {{t .Lang "table_filter_online"}}
                 </button>
-                <button hx-get="/partials/main_table?segment_id={{.CurrentSegmentID}}&online_only=false"
+                <button hx-get="/partials/main_table?segment_id={{.CurrentSegmentID}}&filter=3d"
                         hx-target="#main-content" hx-swap="outerHTML"
-                        class="px-2.5 py-1 rounded-md font-medium transition {{if not .OnlineOnly}}bg-white text-slate-900 dark:bg-slate-900 dark:text-white shadow-sm{{else}}text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-200{{end}}">
+                        class="px-2.5 py-1 rounded-md font-medium transition {{if or (eq .CurrentFilter "3d") (not .CurrentFilter)}}bg-white text-slate-900 dark:bg-slate-900 dark:text-white shadow-sm{{else}}text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-200{{end}}">
+                    {{t .Lang "table_filter_3d"}}
+                </button>
+                <button hx-get="/partials/main_table?segment_id={{.CurrentSegmentID}}&filter=7d"
+                        hx-target="#main-content" hx-swap="outerHTML"
+                        class="px-2.5 py-1 rounded-md font-medium transition {{if eq .CurrentFilter "7d"}}bg-white text-slate-900 dark:bg-slate-900 dark:text-white shadow-sm{{else}}text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-200{{end}}">
+                    {{t .Lang "table_filter_7d"}}
+                </button>
+                <button hx-get="/partials/main_table?segment_id={{.CurrentSegmentID}}&filter=all"
+                        hx-target="#main-content" hx-swap="outerHTML"
+                        class="px-2.5 py-1 rounded-md font-medium transition {{if eq .CurrentFilter "all"}}bg-white text-slate-900 dark:bg-slate-900 dark:text-white shadow-sm{{else}}text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-200{{end}}">
                     {{t .Lang "table_filter_all"}}
                 </button>
             </div>
@@ -124,11 +134,11 @@
                     </tr>
 
                     {{range .Hosts}}
-                    <tr id="host-row-{{.IP}}"
-                        hx-get="/modals/host_detail?ip={{.IP}}"
+                    <tr id="host-row-{{.IPID}}"
+                        hx-get="/modals/host_detail?id={{.ID}}&ip={{.IP}}"
                         hx-target="#modal-container"
                         hx-swap="innerHTML"
-                        class="host-row hover:bg-blue-50/50 dark:hover:bg-slate-800/80 transition cursor-pointer {{if .IsStorming}}bg-amber-100/70 border-2 border-amber-500 dark:bg-amber-950/40 dark:border-amber-600{{else if and (not .IsApproved) (not .IsDHCP)}}bg-amber-50/30 dark:bg-amber-950/10{{end}}"
+                        class="host-row hover:bg-blue-50/50 dark:hover:bg-slate-800/80 transition cursor-pointer {{if .IsStorming}}bg-amber-100/70 border-2 border-amber-500 dark:bg-amber-950/40 dark:border-amber-600{{else if and (not .IsApproved) (not .IsDHCP)}}bg-amber-50/30 dark:bg-amber-950/10{{end}} {{if .IsPreviousHost}}opacity-75 bg-slate-50/60 dark:bg-slate-900/40{{end}}"
                         data-search="{{.SearchKeywords}}">
                         <!-- IP & MAC with Smart Hover Popover -->
                         <td class="py-3 px-3 cursor-pointer group/ip"
@@ -148,13 +158,30 @@
                                     <span title="{{t $.Lang "col_static_ip"}} (Down)" class="text-slate-400 font-bold text-xs">⚪</span>
                                     {{end}}
                                 {{else if .IsDHCP}}
-                                <span title="DHCP" class="text-blue-500 font-bold text-xs">🔵</span>
+                                    {{if eq .Status "up"}}
+                                    <span title="DHCP (UP)" class="text-blue-500 font-bold text-xs">🔵</span>
+                                    {{else}}
+                                    <span title="DHCP (Down)" class="text-slate-400 font-bold text-xs">⚪</span>
+                                    {{end}}
                                 {{else if not .IsApproved}}
-                                <span title="{{t $.Lang "badge_unapproved"}}" class="text-amber-500 font-bold text-xs">🟡</span>
+                                    {{if eq .Status "up"}}
+                                    <span title="{{t $.Lang "badge_unapproved"}} (UP)" class="text-amber-500 font-bold text-xs">🟡</span>
+                                    {{else}}
+                                    <span title="{{t $.Lang "badge_unapproved"}} (Down)" class="text-slate-400 font-bold text-xs">⚪</span>
+                                    {{end}}
+                                {{else}}
+                                    {{if eq .Status "up"}}
+                                    <span title="UP" class="text-emerald-500 font-bold text-xs">🟢</span>
+                                    {{else}}
+                                    <span title="Down" class="text-slate-400 font-bold text-xs">⚪</span>
+                                    {{end}}
                                 {{end}}
                                 <div>
                                     <div class="font-mono font-medium text-slate-900 dark:text-slate-100 flex items-center space-x-1 group-hover/ip:text-blue-600 dark:group-hover/ip:text-blue-400 transition-colors">
                                         <span>{{.IP}}</span>
+                                        {{if .IsPreviousHost}}
+                                        <span class="px-1.5 py-0.2 rounded text-[9px] bg-slate-200 dark:bg-slate-800 text-slate-600 dark:text-slate-400 border border-slate-300 dark:border-slate-700 font-medium" title="{{t $.Lang "badge_previous_host_desc"}}">{{t $.Lang "badge_previous_host"}}</span>
+                                        {{end}}
                                         <span class="text-[10px] text-slate-400 opacity-60 group-hover/ip:opacity-100">ℹ️</span>
                                     </div>
                                     <div class="font-mono text-[10px] text-slate-400 dark:text-slate-500">{{if .MACAddress}}{{.MACAddress}}{{else}}-{{end}}</div>
@@ -439,7 +466,7 @@
                         <!-- Static IP -->
                         <td class="py-3 px-3 text-center" onclick="event.stopPropagation()">
                             <input type="checkbox" {{if .IsStaticIP}}checked{{end}}
-                                   hx-post="/api/hosts/{{.IP}}/toggle_static"
+                                   hx-post="/api/hosts/{{.IP}}/toggle_static?id={{.ID}}"
                                    hx-target="#main-content" hx-swap="outerHTML"
                                    onclick="event.stopPropagation()"
                                    class="rounded bg-white dark:bg-slate-800 border-slate-300 dark:border-slate-700 text-blue-600 focus:ring-0 cursor-pointer">
@@ -447,7 +474,7 @@
 
                         <!-- Action Menu Button -->
                         <td class="py-3 px-3 text-right relative" onclick="event.stopPropagation()">
-                            <button hx-get="/partials/action_menu?ip={{.IP}}" hx-target="#action-menu-{{.IPID}}" hx-swap="innerHTML"
+                            <button hx-get="/partials/action_menu?id={{.ID}}&ip={{.IP}}" hx-target="#action-menu-{{.IPID}}" hx-swap="innerHTML"
                                     onclick="event.stopPropagation(); const m = document.getElementById('action-menu-{{.IPID}}'); if (m && m.children.length > 0) { m.innerHTML = ''; event.stopImmediatePropagation(); }"
                                     class="p-1 rounded text-slate-500 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white hover:bg-slate-100 dark:hover:bg-slate-800 transition font-bold text-sm tracking-widest px-2 focus:outline-none">
                                 ...
