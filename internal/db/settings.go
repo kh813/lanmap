@@ -66,7 +66,7 @@ func (db *DB) SetRetentionDays(days int) error {
 }
 
 // IsPortScanEnabled returns whether active TCP port scanning is enabled during background scans.
-// Defaults to false (Safe Mode) to avoid triggering IDS / firewalls (e.g. ESET Port Scan Attack).
+// Defaults to false (Safe Mode) to avoid triggering IDS / firewalls (port scan warnings).
 func (db *DB) IsPortScanEnabled() (bool, error) {
 	val, err := db.GetSetting("port_scan_enabled")
 	if err != nil {

@@ -193,7 +193,7 @@ func GetTargetPortsForProfile(profile DeviceProfile) map[int]string {
 }
 
 // ScanOpenPortsForProfile safely probes only relevant ports tailored to the device profile.
-// Prevents triggering IDS/firewalls like ESET Port Scan Attack warnings.
+// Prevents triggering IDS/firewalls (port scan warnings).
 func ScanOpenPortsForProfile(ip string, profile DeviceProfile, timeout time.Duration) string {
 	ports := GetTargetPortsForProfile(profile)
 	if len(ports) == 0 {
@@ -257,7 +257,7 @@ func ScanOpenPorts(ip string, timeout time.Duration) string {
 }
 
 // ScanOpenPortsLowNoise scans target ports serially with an intentional delay between ports (e.g. 100ms)
-// and modest connection timeout. This spreads out packets so that personal firewalls (like ESET)
+// and modest connection timeout. This spreads out packets so that personal firewalls
 // never see burst RST packets or trigger port scan warnings.
 func ScanOpenPortsLowNoise(ip string, profile DeviceProfile, timeout time.Duration, interPortDelay time.Duration) string {
 	ports := GetTargetPortsForProfile(profile)

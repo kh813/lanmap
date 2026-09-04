@@ -253,7 +253,7 @@ func (s *Scanner) scanSegmentInternal(ctx context.Context, seg *db.Segment) ([]*
 		var tlsExp *time.Time
 
 		// Only perform active TCP port probing and HTTP/TLS inspection if Port Scan is explicitly enabled (Full Mode).
-		// By default (Safe Mode), skip to prevent triggering IDS/firewalls like ESET Port Scan Attack warnings.
+		// By default (Safe Mode), skip to prevent triggering IDS/firewalls (port scan attack warnings).
 		if isPortScan {
 			openPorts, httpTitle, upnpName, upnpModel, upnpSerial, tlsSubj, tlsExp = ProbeHostPortsWithContext(ipStr, vendor, osVendor, hostname, ttl)
 			if vendor == "" && upnpName != "" {
