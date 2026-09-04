@@ -145,6 +145,9 @@ func runServer() {
 	bm := monitor.NewBroadcastMonitor(database, notif)
 	bm.Start(ctx)
 
+	dhcpMon := monitor.NewDHCPMonitor(database, notif)
+	dhcpMon.Start(ctx)
+
 	// Background Periodic Scanner & Retention Cleanup Task
 	go runBackgroundTasks(ctx, cfg, database, sc, notif)
 

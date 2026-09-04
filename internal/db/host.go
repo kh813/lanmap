@@ -470,6 +470,13 @@ func (db *DB) UpsertHostOnScan(h *Host) (isNew bool, isReplaced bool, err error)
 		mdnsModel = existing.MDNSModel
 	}
 
+	isDHCP := existing.IsDHCP || h.IsDHCP
+
+	status := h.Status
+	if status == "" {
+		status = existing.Status
+	}
+
 	query := `
 	UPDATE hosts SET
 		segment_id = COALESCE(?, segment_id),
@@ -490,16 +497,17 @@ func (db *DB) UpsertHostOnScan(h *Host) (isNew bool, isReplaced bool, err error)
 		tls_expiry = ?,
 		mdns_model = ?,
 		is_approved = ?,
+		is_dhcp = ?,
 		first_seen = ?,
 		last_seen = ?
 	WHERE ip = ?
 	`
 	_, err = db.Exec(query,
 		h.SegmentID, mac, hostname, vendorModel, displayName,
-		osVendor, h.Status, pingRTT, jitter, openPorts,
+		osVendor, status, pingRTT, jitter, openPorts,
 		httpTitle, upnpName, upnpModel, upnpSerial,
 		tlsSubj, tlsExp, mdnsModel,
-		isApproved, firstSeen, now, h.IP,
+		isApproved, isDHCP, firstSeen, now, h.IP,
 	)
 	return false, isReplaced, err
 }

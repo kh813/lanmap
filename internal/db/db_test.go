@@ -186,6 +186,49 @@ func TestHostUpsertAndMACReuse(t *testing.T) {
 	}
 }
 
+func TestHostUpsertDHCPSupport(t *testing.T) {
+	db := setupTestDB(t)
+
+	// 1. Initial insert with is_dhcp=false
+	h1 := &Host{
+		IP:          "192.168.1.88",
+		MACAddress:  "11:22:33:44:55:66",
+		Hostname:    "device-88",
+		IsDHCP:      false,
+		Status:      "up",
+	}
+	_, _, err := db.UpsertHostOnScan(h1)
+	if err != nil {
+		t.Fatalf("UpsertHostOnScan failed: %v", err)
+	}
+
+	stored, _ := db.GetHost("192.168.1.88")
+	if stored.IsDHCP {
+		t.Errorf("expected initial is_dhcp=false, got true")
+	}
+
+	// 2. DHCP event arrives with is_dhcp=true
+	h1DHCP := &Host{
+		IP:          "192.168.1.88",
+		MACAddress:  "11:22:33:44:55:66",
+		Hostname:    "device-88-dhcp",
+		IsDHCP:      true,
+		Status:      "up",
+	}
+	_, _, err = db.UpsertHostOnScan(h1DHCP)
+	if err != nil {
+		t.Fatalf("UpsertHostOnScan rescan failed: %v", err)
+	}
+
+	stored2, _ := db.GetHost("192.168.1.88")
+	if !stored2.IsDHCP {
+		t.Errorf("expected is_dhcp to be updated to true, got false")
+	}
+	if stored2.Hostname != "device-88-dhcp" {
+		t.Errorf("expected hostname updated, got %s", stored2.Hostname)
+	}
+}
+
 func TestHostCleanupProtection(t *testing.T) {
 	db := setupTestDB(t)
 

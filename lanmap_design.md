@@ -10,7 +10,7 @@
   * 外部サーバー（Docker、Node.js、DBサーバー、外部監視システム等）への依存を一切排除し、バイナリ単体（`./lanmap`）を実行するだけで全機能（DB保存、Web UI、死活監視、時系列グラフ描画、アラート送信）が完結すること。
 * **安全・低負荷な端末検出**:
   * 一般ユーザー権限で動作するICMP Echo（非特権ICMPソケット / `go-ping`互換）、mDNS、NetBIOS、UPnP/SSDP、ARPテーブル参照を活用。
-* **通信プロトコル**: ICMP Ping, mDNS, NBNS, UPnP/SSDP, Webhook (Slack/Discord/Teams/LINE等), HTTPS (TLS)
+* **通信プロトコル**: ICMP Ping, DHCP (UDP 67/68, BOOTP), mDNS, NBNS, UPnP/SSDP, Webhook (Slack/Discord/Teams/LINE等), HTTPS (TLS)
 * **開発言語・フレームワーク**:
   * **バックエンド**: Go 1.22+ (Standard Library 中心)
   * **組み込みDB**: `modernc.org/sqlite` (Pure Go, CGO不要)
@@ -26,7 +26,7 @@
 * **バックエンド**: Go 1.22+ (`go:embed` によるフロントエンド資材の内包)
 * **フロントエンド**: HTML5 / CSS (Tailwind CSS等) / HTMX (ビルド環境不要、SSR)
 * **データベース**: SQLite (`modernc.org/sqlite` による純粋Go実装)
-* **通信プロトコル**: ICMP Ping, mDNS, NBNS, UPnP/SSDP, Webhook (Slack/Discord等)
+* **通信プロトコル**: ICMP Ping, DHCP (UDP 67/68, BOOTP), mDNS, NBNS, UPnP/SSDP, Webhook (Slack/Discord等)
 
 ### 2.2 主要依存ライブラリ (`go.mod`)
 * `modernc.org/sqlite` : CGO不要の純粋Go製SQLiteドライバー
@@ -56,6 +56,7 @@ MACアドレス上位3バイト（OUI）からメーカーを推定するため�
   * macOSは非特権ICMPデータグラムソケットを標準でサポートしており、追加設定不要。
   * Linuxはカーネルの `net.ipv4.ping_group_range` sysctl設定に依存する（多くのディストリビューションはデフォルトで一般ユーザーに許可済み）。許可されていない環境で非特権ICMPの送信に失敗した場合は、生ソケットへのフォールバックは行わず、エラーログと共に「`sudo sysctl -w net.ipv4.ping_group_range="0 2147483647"` 等の設定変更、または `setcap cap_net_raw+ep` の付与が必要」という具体的な対処ガイダンスを表示する。
 * **Windows**: 生ICMPソケットではなく、管理者権限を必要としないWin32 API `IcmpSendEcho`（`syscall`経由）を使用する。
+* **DHCPパッシブ監視ソケット (UDP 67/68)**: DHCPパケット傍受は標準のUDPデータグラムソケット（`net.ListenUDP`）を使用し、macOSや一般的な環境では非特権で動作する。非特権ポート制限や既存DHCPサーバーデーモンとの競合等でバインドできない環境でも、lanmap は異常終了せず警告ログのみを出力して他監視（Ping/mDNS/SSDP等）を継続するフォールバック設計とする。
 * **サービス化時の実行ユーザー**: `systemd`/`launchd`/Windowsサービスいずれも、可能な限り専用の非特権ユーザー（またはログインユーザー）で実行する構成をデフォルトとし、root/Administrator専用ユーザーでの常駐は必須としない。
 
 ### 2.6 データディレクトリ構成
@@ -89,8 +90,9 @@ lanmap/
 │   │   ├── segment.go
 │   │   ├── host.go
 │   │   └── ping_history.go   # 24hタイムライン・7日間推移SVG・Uptimeブロック生成
-│   ├── monitor/              # ブロードキャストストーム・異常パケット検知
-│   │   └── broadcast.go
+│   ├── monitor/              # ブロードキャストストーム異常検知 & DHCPパッシブ監視
+│   │   ├── broadcast.go      # ブロードキャストストーム・異常トラフィック検知
+│   │   └── dhcp.go           # DHCPパケットパッシブ傍受 (ゼロ秒検知 & MAC/ホスト名/OS推定)
 │   ├── notifier/             # 未承認端末・異常検知時の Webhook 通知 (Google Chat / Slack / Discord / Teams / LINE)
 │   │   └── webhook.go
 │   ├── scanner/              # 低負荷ICMP Ping/mDNS/OUI スキャナー & 5大拡張プロファイリング
@@ -539,6 +541,59 @@ DHCP環境等での動的IP割り当てや撤去済み機器によるデータ�
 5. **稼働率 (24h Uptime %) & ジッター（Ping Jitter / 遅延揺らぎ: `ping_jitter_ms`, `uptime_pct`)**:
    * スキャン履歴から過去24時間の死活率（稼働率 %）を算出。
    * Ping RTT の直近揺らぎ（標準偏差）からジッター（ミリ秒）を計算し、Wi-Fi電波の安定度を可視化。
+
+### 8.5 DHCP (BOOTP) パッシブ監視 & ゼロ秒即時検知仕様
+
+端末がLANに接続した瞬間に発するDHCPブロードキャストパケット（UDP 67/68、BOOTP）をパッシブに傍受し、定期Pingスキャン（数分間隔）を待つことなく**ミリ秒単位の接続検知（ゼロ秒即時検知）**と高精度な端末メタデータ（物理MAC、IP、自己申告ホスト名、OS種別）の収集を行う。
+
+```text
+[Wi-Fi接続 / 有線LAN挿入] ──► [DHCP DISCOVER / REQUEST] (ブロードキャスト UDP 67/68)
+                                        │
+                                        ▼ (パッシブ受信: 外部パケット送信ゼロ)
+                               [DHCPMonitor (内蔵リスナー)]
+                                        │
+             ┌──────────────────────────┼──────────────────────────┐
+             ▼                          ▼                          ▼
+   [物理MACアドレス抽出]        [ホスト名 & OS推定]        [割り当て/要求IP特定]
+   (chaddr 先頭6バイト)        (Option 12 / 60 / 55)      (yiaddr / Option 50)
+             │                          │                          │
+             └──────────────────────────┼──────────────────────────┘
+                                        ▼
+                             [hosts テーブル自動登録/更新]
+                             ├─ is_dhcp = 1 (緑バッジ・未承認アラート抑止)
+                             ├─ status = 'up', last_seen = NOW()
+                             ├─ 所属セグメント自動特定 (FindSegmentForIP)
+                             └─ セグメントDHCPレンジ自動学習 (AutoAdjust)
+                                        │
+                                        ▼ (未承認端末の場合)
+                             [🚨 Webhook 即時アラート通知]
+```
+
+1. **パッシブ受信・傍受アーキテクチャ**:
+   * バックグラウンドで常駐する `DHCPMonitor`（`internal/monitor/dhcp.go`）が、UDP 67番（クライアント発ブロードキャスト宛先）および UDP 68番（サーバー発応答宛先）をデータグラムソケットでパッシブにリッスン。
+   * 自らパケットを送信しない（ステルス動作）ため、UTMやセキュリティ対策ソフトから検知・遮断されるリスクが皆無（セーフモード完全準拠）。
+   * ポートバインドに失敗する環境（権限制限等）でも、エラーログを出力し安全にフォールバック（他機能への影響ゼロ）。
+
+2. **DHCP / BOOTP パケット解析仕様**:
+   * **Magic Cookie 検証**: BOOTP 固定長ヘッダー（236バイト）直後の4バイト `0x63, 0x82, 0x53, 0x63` を確認。一致しないパケットは破棄。
+   * **物理MACアドレス (`chaddr`)**: `htype == 1`（Ethernet）かつ `hlen == 6` の場合、`chaddr` の先頭6バイトから正確なハードウェアMACアドレスを取得。ARPテーブルを引かずに100%確実に特定。
+   * **IPアドレスの優先順位決定**:
+     1. `yiaddr` (Your IP: サーバーからのACK/OFFERで払い出された確定IP)
+     2. `Option 50` (Requested IP: DISCOVER/REQUESTでクライアントが要求したIP)
+     3. `ciaddr` (Client IP: クライアントが既存リース更新時に送信したIP)
+   * **端末自己申告ホスト名 (`Option 12: Host Name`)**:
+     - iOS, macOS, Windows, Android, Linux等が自己申告する端末名文字列（例: `Taro-iPhone`, `DESKTOP-ABC123`, `MacBook-Pro`）を取得。
+     - mDNSやNetBIOSを待たずに即座に正確なホスト名が反映される。
+   * **ベンダー / OS識別 (`Option 60: Vendor Class Identifier` & `Option 55`)**:
+     - Option 60 文字列（例: `MSFT 5.0` -> Windows, `android-dhcp-14` -> Android, `dhcpcd` -> Linux, `printer` -> プリンタ）を解析して推定OSに反映。
+     - Option 55（Parameter Request List）の順序シグネチャによるOSフィンガープリント補助。
+   * **OUI ベンダー自動照合**:
+     - MACアドレス上位3バイトから同梱の OUI データベースを用いてメーカー名を即時解決。
+
+3. **DB連動 & 即時アラート**:
+   * **DHCP端末フラグ (`is_dhcp = 1`)**: DHCPパケットを発した端末は確実にDHCP動的端末であるため、`is_dhcp` を `1` に自動設定。一覧画面で「🟢 DHCP動的」緑バッジが表示され、誤アラートが抑止される。
+   * **セグメントDHCPレンジ自動学習**: セグメントが手動固定（`is_dhcp_manual = 1`）されていない場合、検出されたIPを取り込んでセグメントの `dhcp_range` を自動学習・拡張。
+   * **未承認端末の即時検知**: ホワイトリスト未登録端末の場合、定期Pingスキャンを待つことなくWi-Fi接続の瞬間に Webhook 通知（Slack/Teams等）を即時送信可能。
 
 ---
 
