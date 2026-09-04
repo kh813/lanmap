@@ -389,7 +389,13 @@ func (db *DB) UpsertHostOnScan(h *Host) (isNew bool, isReplaced bool, err error)
 	}
 
 	openPorts := h.OpenPorts
+	if openPorts == "" && existing.OpenPorts != "" {
+		openPorts = existing.OpenPorts
+	}
 	httpTitle := h.HTTPTitle
+	if httpTitle == "" && existing.HTTPTitle != "" {
+		httpTitle = existing.HTTPTitle
+	}
 	upnpName := h.UPnPName
 	if upnpName == "" && h.UPnPModel == "" {
 		upnpName = existing.UPnPName
@@ -405,11 +411,8 @@ func (db *DB) UpsertHostOnScan(h *Host) (isNew bool, isReplaced bool, err error)
 	tlsSubj := h.TLSSubject
 	tlsExp := h.TLSExpiry
 	if tlsSubj == "" && tlsExp == nil && existing.TLSSubject != "" {
-		// Check if port 443/8443 is still open
-		if strings.Contains(openPorts, "443") || strings.Contains(openPorts, "8443") {
-			tlsSubj = existing.TLSSubject
-			tlsExp = existing.TLSExpiry
-		}
+		tlsSubj = existing.TLSSubject
+		tlsExp = existing.TLSExpiry
 	}
 	mdnsModel := h.MDNSModel
 	if mdnsModel == "" {
@@ -1081,3 +1084,30 @@ func (db *DB) AutoAdjustSegmentDHCPRange(segID int64) (string, error) {
 	}
 	return newRange, nil
 }
+
+// UpdateHostExtendedProbes updates host's open ports, web title, UPnP, and TLS details after an on-demand probe
+func (db *DB) UpdateHostExtendedProbes(ip string, openPorts, httpTitle, upnpName, upnpModel, upnpSerial, tlsSubj string, tlsExp *time.Time) error {
+	query := `
+	UPDATE hosts SET
+		open_ports = ?,
+		http_title = ?,
+		upnp_name = CASE WHEN ? != '' THEN ? ELSE upnp_name END,
+		upnp_model = CASE WHEN ? != '' THEN ? ELSE upnp_model END,
+		upnp_serial = CASE WHEN ? != '' THEN ? ELSE upnp_serial END,
+		tls_subject = CASE WHEN ? != '' THEN ? ELSE tls_subject END,
+		tls_expiry = CASE WHEN ? IS NOT NULL THEN ? ELSE tls_expiry END,
+		last_seen = CURRENT_TIMESTAMP
+	WHERE ip = ?
+	`
+	_, err := db.Exec(query,
+		openPorts, httpTitle,
+		upnpName, upnpName,
+		upnpModel, upnpModel,
+		upnpSerial, upnpSerial,
+		tlsSubj, tlsSubj,
+		tlsExp, tlsExp,
+		ip,
+	)
+	return err
+}
+

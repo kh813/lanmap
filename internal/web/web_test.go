@@ -157,6 +157,14 @@ func TestWebRoutes(t *testing.T) {
 		t.Errorf("expected 200 from ping test endpoint, got %d", rec.Code)
 	}
 
+	// 9b. Test On-demand Probe Ports endpoint
+	req = httptest.NewRequest("POST", "/api/hosts/192.168.1.50/probe_ports", nil)
+	rec = httptest.NewRecorder()
+	router.ServeHTTP(rec, req)
+	if rec.Code != http.StatusOK || !strings.Contains(rec.Body.String(), "modal-ports-container") {
+		t.Errorf("expected 200 and modal-ports-container from probe ports endpoint, got %d body=%s", rec.Code, rec.Body.String())
+	}
+
 	// 10. Test Favicon endpoints (/favicon.ico and /static/favicon.svg)
 	req = httptest.NewRequest("GET", "/favicon.ico", nil)
 	rec = httptest.NewRecorder()

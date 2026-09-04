@@ -47,6 +47,9 @@ func NewRouter(h *Handler) http.Handler {
 	mux.HandleFunc("POST /api/hosts/{ip}/ping_test", func(w http.ResponseWriter, r *http.Request) {
 		h.HandleHostPingTest(w, r, r.PathValue("ip"))
 	})
+	mux.HandleFunc("POST /api/hosts/{ip}/probe_ports", func(w http.ResponseWriter, r *http.Request) {
+		h.HandleHostProbePorts(w, r, r.PathValue("ip"))
+	})
 	mux.HandleFunc("POST /api/hosts/{ip}/toggle_approval", func(w http.ResponseWriter, r *http.Request) {
 		h.HandleToggleApproval(w, r, r.PathValue("ip"))
 	})

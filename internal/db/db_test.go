@@ -269,6 +269,62 @@ func TestSettingsCRUD(t *testing.T) {
 	if all["webhook_slack_url"] != "https://hooks.slack.com/services/xxx" {
 		t.Errorf("missing webhook_slack_url in all settings")
 	}
+
+	// Test PortScanEnabled (default is false)
+	isPortScan, err := db.IsPortScanEnabled()
+	if err != nil {
+		t.Fatalf("IsPortScanEnabled failed: %v", err)
+	}
+	if isPortScan != false {
+		t.Errorf("expected default IsPortScanEnabled to be false (Safe Mode), got %v", isPortScan)
+	}
+
+	if err := db.SetPortScanEnabled(true); err != nil {
+		t.Fatalf("SetPortScanEnabled true failed: %v", err)
+	}
+	isPortScan, _ = db.IsPortScanEnabled()
+	if isPortScan != true {
+		t.Errorf("expected IsPortScanEnabled to be true after set, got %v", isPortScan)
+	}
+
+	if err := db.SetPortScanEnabled(false); err != nil {
+		t.Fatalf("SetPortScanEnabled false failed: %v", err)
+	}
+	isPortScan, _ = db.IsPortScanEnabled()
+	if isPortScan != false {
+		t.Errorf("expected IsPortScanEnabled to be false after set, got %v", isPortScan)
+	}
+
+	// Test UpdateHostExtendedProbes
+	hTest := &Host{IP: "192.168.1.150", MACAddress: "aa:bb:cc:11:22:33", Hostname: "test-box"}
+	_, _, err = db.UpsertHostOnScan(hTest)
+	if err != nil {
+		t.Fatalf("UpsertHostOnScan failed: %v", err)
+	}
+
+	err = db.UpdateHostExtendedProbes("192.168.1.150", "80:HTTP,443:HTTPS", "Welcome Server", "TestUPnP", "ModelX", "SN123", "server.local", nil)
+	if err != nil {
+		t.Fatalf("UpdateHostExtendedProbes failed: %v", err)
+	}
+
+	hFetched, err := db.GetHost("192.168.1.150")
+	if err != nil || hFetched == nil {
+		t.Fatalf("GetHost failed: %v", err)
+	}
+	if hFetched.OpenPorts != "80:HTTP,443:HTTPS" || hFetched.HTTPTitle != "Welcome Server" {
+		t.Errorf("unexpected probed host fields: open_ports=%s, http_title=%s", hFetched.OpenPorts, hFetched.HTTPTitle)
+	}
+
+	// Verify safe mode rescan does not wipe out previously probed open ports
+	hRescanSafe := &Host{IP: "192.168.1.150", MACAddress: "aa:bb:cc:11:22:33", Hostname: "test-box-updated"}
+	_, _, err = db.UpsertHostOnScan(hRescanSafe)
+	if err != nil {
+		t.Fatalf("UpsertHostOnScan safe mode failed: %v", err)
+	}
+	hAfterSafe, _ := db.GetHost("192.168.1.150")
+	if hAfterSafe.OpenPorts != "80:HTTP,443:HTTPS" || hAfterSafe.HTTPTitle != "Welcome Server" {
+		t.Errorf("open_ports or http_title wiped out by safe mode scan: open_ports=%s, http_title=%s", hAfterSafe.OpenPorts, hAfterSafe.HTTPTitle)
+	}
 }
 
 func TestHostOpenPortsParsing(t *testing.T) {

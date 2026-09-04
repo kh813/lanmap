@@ -204,7 +204,7 @@ var translations = map[string]map[string]string{
 		"seg_menu_delete":  "🗑️ Delete Segment",
 
 		// Add Host Modal
-		"add_host_title":       "➕ Manually Add Host",
+		"add_host_title":       "Manually Add Host",
 		"add_host_ip_label":    "IPv4 Address *",
 		"add_host_name_label":  "Display Name / Notes",
 		"add_host_name_ph":     "e.g. Core Switch 1F, Test Server",
@@ -229,13 +229,13 @@ var translations = map[string]map[string]string{
 		"edit_host_submit":       "Save Changes",
 
 		// Segment Modal
-		"seg_modal_title_add":          "➕ Add Network Segment",
+		"seg_modal_title_add":          "Add Network Segment",
 		"seg_modal_title_edit":         "✏️ Edit Segment",
 		"seg_modal_unadded_header":      "💡 Detected Unregistered / Deleted Local NICs (%d)",
 		"seg_modal_unadded_sub":         "Re-register with one click",
 		"seg_modal_main_lan":            "Main LAN",
 		"seg_modal_local_lan":           "Local LAN",
-		"seg_modal_unadded_btn":         "➕ One-Click Add",
+		"seg_modal_unadded_btn":         "One-Click Add",
 		"seg_modal_unadded_edit":        "📝 Edit",
 		"seg_modal_or_manual":           "or enter manually",
 		"seg_modal_name_label":          "Segment Display Name *",
@@ -259,10 +259,16 @@ var translations = map[string]map[string]string{
 		"seg_modal_submit":              "Save",
 
 		// Settings Modal
-		"settings_title":             "⚙️ lanmap System Settings",
+		"settings_title":             "lanmap System Settings",
 		"settings_theme_label":       "🎨 Theme (Light / Dark)",
 		"settings_theme_light":       "☀️ Light Theme (Default)",
 		"settings_theme_dark":        "🌙 Dark Theme",
+		"settings_scan_mode_label":   "🛡️ Network Scan Mode (Stealth / Safe Mode)",
+		"settings_scan_mode_help":    "Controls whether active TCP port probes are sent to devices during periodic background scans.",
+		"settings_scan_mode_safe":    "🛡️ Safe Mode (Recommended - Low Noise & Zero IDS Alerts)",
+		"settings_scan_mode_safe_desc":"Only uses ICMP Ping, ARP, and mDNS/DNS. Zero port scanning. Prevents false positive alerts from security software (ESET, Windows Defender, UTM).",
+		"settings_scan_mode_full":    "🔍 Full Audit Mode (Probes 17 Common Ports)",
+		"settings_scan_mode_full_desc":"Actively checks common ports (SSH, HTTP, SMB, etc.) on alive hosts. Use only in your own lab or authorized networks.",
 		"settings_retention_label":   "🧹 Offline Host Auto-Cleanup Retention Policy",
 		"settings_retention_help":    "Automatically delete unapproved and unprotected hosts that have not been seen for the specified period.",
 		"settings_days_30":           "30 Days",
@@ -283,6 +289,7 @@ var translations = map[string]map[string]string{
 		"settings_update_help":       "Queries GitHub Releases for the latest binary and updates in-place safely with one click.",
 		"settings_update_check_btn":  "Check for Updates",
 		"settings_update_checking":   "⏳ Checking GitHub Releases...",
+		"settings_whitelist_btn":     "Device Whitelist Ledger",
 		"settings_btn_save":          "💾 Save Settings",
 
 		// Host Detail Modal
@@ -315,6 +322,10 @@ var translations = map[string]map[string]string{
 		"detail_not_detected":           "Not detected",
 		"detail_mdns_model":             "mDNS Model:",
 		"detail_open_ports":             "Detected Open Ports:",
+		"detail_probe_ports_btn":        "🔍 Probe Open Ports",
+		"detail_probing_ports":          "⏳ Probing open ports & services...",
+		"detail_probe_ports_success":    "Port scan completed: %s",
+		"detail_probe_ports_none":       "No open ports found (Host is stealth)",
 		"detail_stealth":                "No primary ports responding (Stealth)",
 		"detail_web_admin":              "🌐 Web Admin:",
 		"detail_upnp_info":              "📻 UPnP Device Info:",
@@ -450,7 +461,7 @@ var translations = map[string]map[string]string{
 		"seg_menu_delete":  "🗑️ このセグメントを削除",
 
 		// Add Host Modal
-		"add_host_title":       "➕ ホストを手動追加",
+		"add_host_title":       "ホストを手動追加",
 		"add_host_ip_label":    "IPv4 アドレス *",
 		"add_host_name_label":  "表示名・メモ",
 		"add_host_name_ph":     "例: 1F基幹スイッチ, 検証用サーバー",
@@ -475,13 +486,13 @@ var translations = map[string]map[string]string{
 		"edit_host_submit":       "変更を保存",
 
 		// Segment Modal
-		"seg_modal_title_add":          "➕ ネットワークセグメントの追加",
+		"seg_modal_title_add":          "ネットワークセグメントの追加",
 		"seg_modal_title_edit":         "✏️ セグメントの編集",
 		"seg_modal_unadded_header":      "💡 検出された未登録 / 削除済みのローカルNIC (%d件)",
 		"seg_modal_unadded_sub":         "ワンクリックで再登録可能",
 		"seg_modal_main_lan":            "メインLAN",
 		"seg_modal_local_lan":           "ローカルLAN",
-		"seg_modal_unadded_btn":         "➕ ワンクリック追加",
+		"seg_modal_unadded_btn":         "ワンクリック追加",
 		"seg_modal_unadded_edit":        "📝 編集",
 		"seg_modal_or_manual":           "または手動で入力",
 		"seg_modal_name_label":          "セグメント表示名 *",
@@ -505,10 +516,16 @@ var translations = map[string]map[string]string{
 		"seg_modal_submit":              "保存",
 
 		// Settings Modal
-		"settings_title":             "⚙️ lanmap システム設定",
+		"settings_title":             "lanmap システム設定",
 		"settings_theme_label":       "🎨 テーマ表示切替 (Theme)",
 		"settings_theme_light":       "☀️ ライトテーマ (既定)",
 		"settings_theme_dark":        "🌙 ダークテーマ",
+		"settings_scan_mode_label":   "🛡️ ネットワークスキャン動作モード (セーフモード設定)",
+		"settings_scan_mode_help":    "定期バックグラウンドスキャン時に、各端末への能動的なTCPポート接続を行うかを制御します。",
+		"settings_scan_mode_safe":    "🛡️ セーフモード (推奨・低ノイズ & セキュリティ警告ゼロ)",
+		"settings_scan_mode_safe_desc":"Ping、ARPテーブル、リバースDNS/mDNSのみで静かに監視します。ポートスキャンを行わないため、ESET等のセキュリティソフトやUTMから攻撃と誤認識されません。",
+		"settings_scan_mode_full":    "🔍 フルスキャンモード (主要17ポート詳細調査)",
+		"settings_scan_mode_full_desc":"生存端末に対して主要ポート（SSH, HTTP, SMB等）の開放状況を定期調査します。社内検証環境や許可された自社LANでのみご利用ください。",
 		"settings_retention_label":   "🧹 古いホストの自動クリーンアップ保持期間 (Retention Policy)",
 		"settings_retention_help":    "最終検出日時から指定期間経過した未保護・未承認端末を自動削除します。",
 		"settings_days_30":           "30 日間",
@@ -529,6 +546,7 @@ var translations = map[string]map[string]string{
 		"settings_update_help":       "GitHub Releases から最新バイナリを照会し、ワンクリックで安全にインプレース更新・自動再起動します。",
 		"settings_update_check_btn":  "最新アップデートを確認",
 		"settings_update_checking":   "⏳ GitHub Releases を照会中...",
+		"settings_whitelist_btn":     "社内端末台帳 (ホワイトリスト)",
 		"settings_btn_save":          "💾 設定を保存",
 
 		// Host Detail Modal
@@ -561,6 +579,10 @@ var translations = map[string]map[string]string{
 		"detail_not_detected":           "未検出",
 		"detail_mdns_model":             "mDNSモデル:",
 		"detail_open_ports":             "検出されたオープンポート:",
+		"detail_probe_ports_btn":        "🔍 開放ポートを診断",
+		"detail_probing_ports":          "⏳ 開放ポート・サービスを診断中...",
+		"detail_probe_ports_success":    "ポート診断完了: %s",
+		"detail_probe_ports_none":       "開放ポートなし (全ポート応答なし / ステルス)",
 		"detail_stealth":                "主要ポートの応答なし (ステルス)",
 		"detail_web_admin":              "🌐 Web管理画面:",
 		"detail_upnp_info":              "📻 UPnP機器情報:",

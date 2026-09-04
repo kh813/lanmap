@@ -325,6 +325,49 @@ func (h *Handler) HandleHostPingTest(w http.ResponseWriter, r *http.Request, ip 
 	`, rttVal, ttlText)))
 }
 
+// HandleHostProbePorts runs an on-demand port scan and extended probe on a single host
+func (h *Handler) HandleHostProbePorts(w http.ResponseWriter, r *http.Request, ip string) {
+	if ip == "" {
+		http.Error(w, "IP required", http.StatusBadRequest)
+		return
+	}
+
+	targetIP := net.ParseIP(ip)
+	if targetIP == nil {
+		http.Error(w, "Invalid IP address", http.StatusBadRequest)
+		return
+	}
+
+	currentHost, _ := h.db.GetHost(ip)
+	vendor := ""
+	osVendor := ""
+	hostname := ""
+	if currentHost != nil {
+		vendor = currentHost.VendorModel
+		osVendor = currentHost.OSVendor
+		hostname = currentHost.Hostname
+	}
+
+	openPorts, httpTitle, upnpName, upnpModel, upnpSerial, tlsSubj, tlsExp := scanner.ProbeHostPortsWithContext(ip, vendor, osVendor, hostname, 0)
+
+	_ = h.db.UpdateHostExtendedProbes(ip, openPorts, httpTitle, upnpName, upnpModel, upnpSerial, tlsSubj, tlsExp)
+
+	lang := i18n.DetectLanguage(r)
+	w.Header().Set("Content-Type", "text/html; charset=utf-8")
+	w.Header().Set("HX-Trigger", "refreshMainTable")
+
+	updatedHost, _ := h.db.GetHost(ip)
+	if updatedHost == nil {
+		updatedHost = &db.Host{IP: ip, OpenPorts: openPorts, HTTPTitle: httpTitle}
+	}
+
+	_ = h.tmpl.ExecuteTemplate(w, "ports_container", map[string]interface{}{
+		"Host": updatedHost,
+		"Lang": lang,
+	})
+}
+
+
 // HandleSegmentModal renders segment add/edit modal
 func (h *Handler) HandleSegmentModal(w http.ResponseWriter, r *http.Request) {
 	var seg *db.Segment
@@ -622,6 +665,7 @@ func (h *Handler) HandleSaveSettings(w http.ResponseWriter, r *http.Request) {
 
 	fields := []string{
 		"retention_days",
+		"port_scan_enabled",
 		"webhook_gchat_url",
 		"webhook_slack_url",
 		"webhook_teams_url",

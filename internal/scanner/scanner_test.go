@@ -231,3 +231,159 @@ func TestEnsureLocalSegmentDefaultGateway(t *testing.T) {
 		}
 	}
 }
+
+func TestDetermineDeviceProfile(t *testing.T) {
+	tests := []struct {
+		name     string
+		vendor   string
+		osVendor string
+		hostname string
+		ttl      int
+		expected DeviceProfile
+	}{
+		{
+			name:     "Apple Mac Laptop",
+			vendor:   "Apple, Inc.",
+			osVendor: "macOS Sonoma",
+			hostname: "Hiroshi-MacBook-Pro.local",
+			ttl:      64,
+			expected: ProfileAppleMac,
+		},
+		{
+			name:     "Apple iPhone",
+			vendor:   "Apple, Inc.",
+			osVendor: "iOS 17.5",
+			hostname: "iPhone-User.local",
+			ttl:      64,
+			expected: ProfileAppleMobile,
+		},
+		{
+			name:     "Windows 11 PC via TTL",
+			vendor:   "Dell Inc.",
+			osVendor: "",
+			hostname: "DESKTOP-ABC1234",
+			ttl:      128,
+			expected: ProfileWindows,
+		},
+		{
+			name:     "Windows PC via OS Vendor",
+			vendor:   "Intel",
+			osVendor: "Windows 10",
+			hostname: "win-pc",
+			ttl:      0,
+			expected: ProfileWindows,
+		},
+		{
+			name:     "Canon Network Printer",
+			vendor:   "CANON INC.",
+			osVendor: "",
+			hostname: "canon-printer.local",
+			ttl:      64,
+			expected: ProfilePrinter,
+		},
+		{
+			name:     "Epson Printer via Hostname",
+			vendor:   "Seiko Epson Corp.",
+			osVendor: "",
+			hostname: "EPSON-L3150",
+			ttl:      64,
+			expected: ProfilePrinter,
+		},
+		{
+			name:     "Synology NAS",
+			vendor:   "Synology Incorporated",
+			osVendor: "",
+			hostname: "DS920-Vault",
+			ttl:      64,
+			expected: ProfileNASLinux,
+		},
+		{
+			name:     "Buffalo Wi-Fi Router",
+			vendor:   "BUFFALO.INC",
+			osVendor: "",
+			hostname: "WSR-3200AX4S",
+			ttl:      64,
+			expected: ProfileNetwork,
+		},
+		{
+			name:     "Cisco Switch via TTL",
+			vendor:   "",
+			osVendor: "",
+			hostname: "cisco-core",
+			ttl:      255,
+			expected: ProfileNetwork,
+		},
+		{
+			name:     "Google Chromecast / Home",
+			vendor:   "Google, Inc.",
+			osVendor: "",
+			hostname: "Living-Room-Speaker",
+			ttl:      64,
+			expected: ProfileMediaIoT,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got := DetermineDeviceProfile(tt.vendor, tt.osVendor, tt.hostname, tt.ttl)
+			if got != tt.expected {
+				t.Errorf("DetermineDeviceProfile(%q, %q, %q, %d) = %v, expected %v",
+					tt.vendor, tt.osVendor, tt.hostname, tt.ttl, got, tt.expected)
+			}
+		})
+	}
+}
+
+func TestAdaptiveTargetPorts(t *testing.T) {
+	// 1. Apple Mac must have SMB(445) and AirPlay(5000/7000), but NOT Windows RDP(3389) or Printer(9100)
+	macPorts := GetTargetPortsForProfile(ProfileAppleMac)
+	if _, ok := macPorts[445]; !ok {
+		t.Errorf("expected SMB(445) in Apple Mac profile")
+	}
+	if _, ok := macPorts[5000]; !ok {
+		t.Errorf("expected AirPlay(5000) in Apple Mac profile")
+	}
+	if _, ok := macPorts[3389]; ok {
+		t.Errorf("unexpected Windows RDP(3389) in Apple Mac profile")
+	}
+	if _, ok := macPorts[9100]; ok {
+		t.Errorf("unexpected RAW Printer(9100) in Apple Mac profile")
+	}
+
+	// 2. Windows must have SMB(445) and RDP(3389), but NOT Apple AFP(548) or AirPlay(5000/7000)
+	winPorts := GetTargetPortsForProfile(ProfileWindows)
+	if _, ok := winPorts[445]; !ok {
+		t.Errorf("expected SMB(445) in Windows profile")
+	}
+	if _, ok := winPorts[3389]; !ok {
+		t.Errorf("expected RDP(3389) in Windows profile")
+	}
+	if _, ok := winPorts[548]; ok {
+		t.Errorf("unexpected AFP(548) in Windows profile")
+	}
+	if _, ok := winPorts[5000]; ok {
+		t.Errorf("unexpected AirPlay(5000) in Windows profile")
+	}
+
+	// 3. Printer must have IPP(631) and RAW(9100), but NOT SSH(22) or RDP(3389)
+	printerPorts := GetTargetPortsForProfile(ProfilePrinter)
+	if _, ok := printerPorts[631]; !ok {
+		t.Errorf("expected IPP(631) in Printer profile")
+	}
+	if _, ok := printerPorts[9100]; !ok {
+		t.Errorf("expected RAW(9100) in Printer profile")
+	}
+	if _, ok := printerPorts[22]; ok {
+		t.Errorf("unexpected SSH(22) in Printer profile")
+	}
+	if _, ok := printerPorts[3389]; ok {
+		t.Errorf("unexpected RDP(3389) in Printer profile")
+	}
+
+	// 4. Apple Mobile must have 0 target ports (stealth preservation)
+	mobilePorts := GetTargetPortsForProfile(ProfileAppleMobile)
+	if len(mobilePorts) != 0 {
+		t.Errorf("expected 0 ports for Apple Mobile, got %d", len(mobilePorts))
+	}
+}
+

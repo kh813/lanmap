@@ -188,49 +188,7 @@
                     {{end}}
                 </div>
 
-                <!-- Open Ports -->
-                <div class="space-y-1">
-                    <span class="text-slate-400 dark:text-slate-500 text-[11px] block">{{t .Lang "detail_open_ports"}}</span>
-                    <div class="flex flex-wrap gap-1.5 pt-0.5">
-                        {{if .Host.OpenPortsList}}
-                            {{range .Host.OpenPortsList}}
-                            <span class="px-2 py-0.5 rounded bg-blue-50 dark:bg-blue-950/60 border border-blue-200 dark:border-blue-800 text-blue-700 dark:text-blue-300 font-mono text-[10px] font-semibold">
-                                {{.Port}}/{{.Service}}
-                            </span>
-                            {{end}}
-                        {{else}}
-                            <span class="text-slate-400 text-[11px]">{{t .Lang "detail_stealth"}}</span>
-                        {{end}}
-                    </div>
-                </div>
-
-                <!-- Optional Extended Attributes (Web title, UPnP, TLS) -->
-                {{if or .Host.HTTPTitle .Host.UPnPModel .Host.TLSExpiry}}
-                <div class="sm:col-span-2 space-y-1.5 pt-2 border-t border-slate-200/80 dark:border-slate-800">
-                    {{if .Host.HTTPTitle}}
-                    <div class="flex items-center space-x-2 text-[11px]">
-                        <span class="text-slate-400 shrink-0">{{t .Lang "detail_web_admin"}}</span>
-                        <span class="font-medium text-slate-800 dark:text-slate-200 truncate">「{{.Host.HTTPTitle}}」</span>
-                    </div>
-                    {{end}}
-
-                    {{if .Host.UPnPModel}}
-                    <div class="flex items-center space-x-2 text-[11px]">
-                        <span class="text-slate-400 shrink-0">{{t .Lang "detail_upnp_info"}}</span>
-                        <span class="font-mono text-slate-700 dark:text-slate-300">{{.Host.UPnPName}} {{.Host.UPnPModel}} {{if .Host.UPnPSerial}}(S/N: {{.Host.UPnPSerial}}){{end}}</span>
-                    </div>
-                    {{end}}
-
-                    {{if .Host.TLSExpiry}}
-                    <div class="flex items-center space-x-2 text-[11px]">
-                        <span class="text-slate-400 shrink-0">{{t .Lang "detail_tls_cert"}}</span>
-                        <span class="font-mono {{if .Host.TLSExpiresSoon}}text-red-600 dark:text-red-400 font-bold{{else}}text-slate-700 dark:text-slate-300{{end}}">
-                            {{.Host.TLSFormatted}} ({{.Host.TLSSubject}})
-                        </span>
-                    </div>
-                    {{end}}
-                </div>
-                {{end}}
+                {{template "ports_container" .}}
 
                 <!-- Detection History Dates -->
                 <div class="sm:col-span-2 grid grid-cols-2 sm:grid-cols-3 gap-2 pt-2 border-t border-slate-200/80 dark:border-slate-800 text-[11px] text-slate-500 dark:text-slate-400">
@@ -269,3 +227,66 @@
         </div>
     </div>
 </div>
+
+{{define "ports_container"}}
+<div id="modal-ports-container" class="sm:col-span-2 space-y-2 p-3 bg-slate-50/80 dark:bg-slate-950/60 rounded-xl border border-slate-200/80 dark:border-slate-800 animate-fade-in">
+    <div class="flex items-center justify-between">
+        <div class="flex items-center space-x-2">
+            <span class="text-slate-500 dark:text-slate-400 text-xs font-semibold">{{t .Lang "detail_open_ports"}}</span>
+            <div id="modal-ports-spinner" class="htmx-indicator text-blue-600 dark:text-blue-400 text-[11px] font-semibold animate-pulse">
+                {{t .Lang "detail_probing_ports"}}
+            </div>
+        </div>
+        <button type="button"
+                hx-post="/api/hosts/{{.Host.IP}}/probe_ports"
+                hx-target="#modal-ports-container"
+                hx-swap="outerHTML"
+                hx-indicator="#modal-ports-spinner"
+                class="px-2.5 py-1 rounded-lg bg-white dark:bg-slate-900 border border-slate-300 dark:border-slate-700 hover:border-blue-500 text-slate-800 dark:text-slate-200 font-medium transition text-[11px] flex items-center space-x-1 shadow-sm cursor-pointer">
+            <span>🔍</span>
+            <span>{{t .Lang "detail_probe_ports_btn"}}</span>
+        </button>
+    </div>
+
+    <div class="flex flex-wrap gap-1.5 pt-0.5">
+        {{if .Host.OpenPortsList}}
+            {{range .Host.OpenPortsList}}
+            <span class="px-2 py-0.5 rounded bg-blue-50 dark:bg-blue-950/60 border border-blue-200 dark:border-blue-800 text-blue-700 dark:text-blue-300 font-mono text-[10px] font-semibold">
+                {{.Port}}/{{.Service}}
+            </span>
+            {{end}}
+        {{else}}
+            <span class="text-slate-400 text-[11px]">{{t .Lang "detail_stealth"}}</span>
+        {{end}}
+    </div>
+
+    <!-- Optional Extended Attributes (Web title, UPnP, TLS) -->
+    {{if or .Host.HTTPTitle .Host.UPnPModel .Host.TLSExpiry}}
+    <div class="space-y-1.5 pt-2 border-t border-slate-200/80 dark:border-slate-800">
+        {{if .Host.HTTPTitle}}
+        <div class="flex items-center space-x-2 text-[11px]">
+            <span class="text-slate-400 shrink-0">{{t .Lang "detail_web_admin"}}</span>
+            <span class="font-medium text-slate-800 dark:text-slate-200 truncate">「{{.Host.HTTPTitle}}」</span>
+        </div>
+        {{end}}
+
+        {{if .Host.UPnPModel}}
+        <div class="flex items-center space-x-2 text-[11px]">
+            <span class="text-slate-400 shrink-0">{{t .Lang "detail_upnp_info"}}</span>
+            <span class="font-mono text-slate-700 dark:text-slate-300">{{.Host.UPnPName}} {{.Host.UPnPModel}} {{if .Host.UPnPSerial}}(S/N: {{.Host.UPnPSerial}}){{end}}</span>
+        </div>
+        {{end}}
+
+        {{if .Host.TLSExpiry}}
+        <div class="flex items-center space-x-2 text-[11px]">
+            <span class="text-slate-400 shrink-0">{{t .Lang "detail_tls_cert"}}</span>
+            <span class="font-mono {{if .Host.TLSExpiresSoon}}text-red-600 dark:text-red-400 font-bold{{else}}text-slate-700 dark:text-slate-300{{end}}">
+                {{.Host.TLSFormatted}} ({{.Host.TLSSubject}})
+            </span>
+        </div>
+        {{end}}
+    </div>
+    {{end}}
+</div>
+{{end}}
+

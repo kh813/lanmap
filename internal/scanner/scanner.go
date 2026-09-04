@@ -139,6 +139,8 @@ func (s *Scanner) scanSegmentInternal(ctx context.Context, seg *db.Segment) ([]*
 		return nil, fmt.Errorf("failed to parse CIDR %s: %w", seg.CIDR, err)
 	}
 
+	isPortScan, _ := s.db.IsPortScanEnabled()
+
 	concurrency := s.config.ScanConcurrency
 	if concurrency <= 0 {
 		concurrency = 30
@@ -242,33 +244,18 @@ func (s *Scanner) scanSegmentInternal(ctx context.Context, seg *db.Segment) ([]*
 			}
 		}
 
-		openPorts := ScanOpenPorts(ipStr, 50*time.Millisecond)
-		if strings.Contains(vendor, "Apple") || osVendor == "macOS / iOS" {
-			openPorts = strings.ReplaceAll(openPorts, "5000:AirPlay / UPnP (またはSynology)", "5000:AirPlay (macOS)")
-		} else if strings.Contains(vendor, "Synology") {
-			openPorts = strings.ReplaceAll(openPorts, "5000:AirPlay / UPnP (またはSynology)", "5000:Synology DSM")
-		}
-
-		// 1. Web Title
-		httpTitle := ExtractWebTitle(ipStr, openPorts)
-
-		// 2. UPnP / SSDP info
+		var openPorts, httpTitle string
 		var upnpName, upnpModel, upnpSerial string
-		if upnp := FetchUPnPInfo(ipStr); upnp != nil {
-			upnpName = upnp.FriendlyName
-			upnpModel = upnp.ModelName
-			upnpSerial = upnp.SerialNumber
-			if vendor == "" && upnp.Manufacturer != "" {
-				vendor = upnp.Manufacturer
-			}
-		}
-
-		// 3. TLS Certificate
 		var tlsSubj string
 		var tlsExp *time.Time
-		if tlsInfo := InspectTLSCert(ipStr); tlsInfo != nil {
-			tlsSubj = tlsInfo.Subject
-			tlsExp = &tlsInfo.Expiry
+
+		// Only perform active TCP port probing and HTTP/TLS inspection if Port Scan is explicitly enabled (Full Mode).
+		// By default (Safe Mode), skip to prevent triggering IDS/firewalls like ESET Port Scan Attack warnings.
+		if isPortScan {
+			openPorts, httpTitle, upnpName, upnpModel, upnpSerial, tlsSubj, tlsExp = ProbeHostPortsWithContext(ipStr, vendor, osVendor, hostname, ttl)
+			if vendor == "" && upnpName != "" {
+				// UPnP might reveal vendor
+			}
 		}
 
 		// 4. mDNS Model (Query target port 5353 for verified model signature)
@@ -389,3 +376,38 @@ func generateIPs(cidr string) ([]net.IP, error) {
 
 	return ips, nil
 }
+
+// ProbeHostPortsWithContext performs active port scan and inspection with full host context (vendor, OS, hostname, TTL)
+func ProbeHostPortsWithContext(ipStr, vendor, osVendor, hostname string, ttl int) (openPorts, httpTitle, upnpName, upnpModel, upnpSerial, tlsSubj string, tlsExp *time.Time) {
+	profile := DetermineDeviceProfile(vendor, osVendor, hostname, ttl)
+	openPorts = ScanOpenPortsForProfile(ipStr, profile, 100*time.Millisecond)
+
+	// 1. Web Title
+	httpTitle = ExtractWebTitle(ipStr, openPorts)
+
+	// 2. UPnP / SSDP info (only probe if not a mobile client)
+	if profile != ProfileAppleMobile {
+		if upnp := FetchUPnPInfo(ipStr); upnp != nil {
+			upnpName = upnp.FriendlyName
+			upnpModel = upnp.ModelName
+			upnpSerial = upnp.SerialNumber
+		}
+	}
+
+	// 3. TLS Certificate (only inspect if HTTPS ports were confirmed open)
+	if strings.Contains(openPorts, "443") || strings.Contains(openPorts, "8443") || strings.Contains(openPorts, "5001") {
+		if tlsInfo := InspectTLSCert(ipStr); tlsInfo != nil {
+			tlsSubj = tlsInfo.Subject
+			tlsExp = &tlsInfo.Expiry
+		}
+	}
+
+	return openPorts, httpTitle, upnpName, upnpModel, upnpSerial, tlsSubj, tlsExp
+}
+
+// ProbeHostPorts performs on-demand active port scan using adaptive profiling
+func ProbeHostPorts(ipStr, vendor, osVendor string) (openPorts, httpTitle, upnpName, upnpModel, upnpSerial, tlsSubj string, tlsExp *time.Time) {
+	return ProbeHostPortsWithContext(ipStr, vendor, osVendor, "", 0)
+}
+
+

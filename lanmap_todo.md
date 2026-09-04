@@ -325,3 +325,46 @@
 - [x] **15.4 ドキュメント更新**
   - [x] `README.md`、`lanmap_design.md`、`lanmap_todo.md` 更新
 
+---
+
+### 🔹 Phase 16: セーフモード（デフォルト・低ノイズ監視）& オンデマンドポート診断 & 表示バグ修正
+- [x] **16.1 表示バグ修正 & i18n 辞書整備 (`internal/i18n`)**
+  - [x] `settings_whitelist_btn` キーの登録漏れ修正（EN: `Device Whitelist Ledger`, JA: `社内端末台帳 (ホワイトリスト)`）
+  - [x] タイトル重複絵文字の除去（`➕ ➕ ホストを手動追加` ➔ `➕ ホストを手動追加`, `⚙️ ⚙️ lanmap システム設定` ➔ `⚙️ lanmap システム設定`, `➕ ➕ ワンクリック追加` ➔ `➕ ワンクリック追加`）
+  - [x] スキャンモード切替（セーフモード vs フルスキャン）およびオンデマンドポート診断用の日英翻訳キー定義
+  - [x] 辞書整合性テスト実行確認 (`internal/i18n/i18n_test.go`)
+- [x] **16.2 DB層 & 設定管理 (`internal/db`)**
+  - [x] `IsPortScanEnabled()`（デフォルト `false`: セーフモード）、`SetPortScanEnabled()` 実装
+  - [x] `UpsertHostOnScan` で空のプローブ結果による既存ポート/タイトル情報の意図しない消失を防止
+  - [x] `UpdateHostExtendedProbes`: オンデマンド診断結果の直接保存メソッド実装
+  - [x] 単体テスト追加 & 実行 (`internal/db/db_test.go`)
+- [x] **16.3 スキャナー層 (`internal/scanner`)**
+  - [x] `scanSegmentInternal`: `IsPortScanEnabled` 判定により、セーフモード時は能動的TCPポート接続（`ScanOpenPorts`, `ExtractWebTitle`, `FetchUPnPInfo`, `InspectTLSCert`）をスキップ
+  - [x] `ProbeHostPorts`: 単一ホストに対するオンデマンドポート診断関数を新設
+  - [x] 単体テスト実行確認 (`internal/scanner/scanner_test.go`)
+- [x] **16.4 Web API & UI テンプレート (`internal/web`, `web/template`)**
+  - [x] `POST /api/hosts/{ip}/probe_ports`: 単発ポート診断エンドポイントを新設し htmx 動的置換対応
+  - [x] `HandleSaveSettings`: `port_scan_enabled` フィールドを保存対象に追加
+  - [x] `settings_modal.html`: スキャンモード切替（セーフモード推奨 / フルスキャンモード）セクションを追加
+  - [x] `host_detail_modal.html`: 開放ポート欄に「🔍 開放ポートを診断」ボタンとスピナーを配置
+  - [x] Web 単体テスト追加 & 実行 (`internal/web/web_test.go`)
+- [x] **16.5 ドキュメント更新**
+  - [x] `lanmap_design.md`、`lanmap_todo.md` 更新
+
+---
+
+### 🔹 Phase 17: OS・機器プロファイル別 適応型（Adaptive）ポート選定エンジンの実装
+- [x] **17.1 プロファイル判定ロジック & 最適ポートマッピング (`internal/scanner/ports.go`)**
+  - [x] 端末プロファイル定義 (`DeviceProfile`: Mac/Apple, Windows, Printer, Router/Network, NAS/Server, Mobile/IoT, Generic)
+  - [x] `DetermineDeviceProfile(vendor, osVendor, hostname, ttl)` による端末属性の自動識別
+  - [x] プロファイル別の必要最小限ポートマップ定義（MacにはRDPを投げず、WindowsにはAFP/AirPlayを投げず、プリンタにはSSH/RDPを投げない）
+  - [x] `ScanOpenPortsForProfile` による低ノイズ・ピンポイントスキャンの実装
+- [x] **17.2 スキャナー層との統合 (`internal/scanner/scanner.go`)**
+  - [x] `ProbeHostPorts` およびフルスキャン時に `DetermineDeviceProfile` を適用
+- [x] **17.3 単体テスト & 検証 (`internal/scanner/ports_test.go` or `scanner_test.go`)**
+  - [x] Mac, Windows, Printer, NAS の各プロファイルで意図したポートのみが選定され、無関係なポートが除外されていることの検証
+- [x] **17.4 ドキュメント更新**
+  - [x] `README.md`、`lanmap_design.md`、`lanmap_todo.md` の更新
+
+
+
