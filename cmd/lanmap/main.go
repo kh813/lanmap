@@ -24,8 +24,8 @@ import (
 	"lanmap/internal/web"
 )
 
-// Version is injected during build via -ldflags, defaults to development
-var Version = "v0.0.14"
+// Version can be overwritten at build time with -ldflags
+var Version = "v0.0.15"
 
 func main() {
 	if len(os.Args) > 1 {
