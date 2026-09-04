@@ -128,7 +128,7 @@
                         hx-get="/modals/host_detail?ip={{.IP}}"
                         hx-target="#modal-container"
                         hx-swap="innerHTML"
-                        class="host-row hover:bg-blue-50/50 dark:hover:bg-slate-800/80 transition cursor-pointer {{if .IsStorming}}bg-red-100/70 border-2 border-red-500 dark:bg-red-950/40 dark:border-red-600{{else if and (not .IsApproved) (not .IsDHCP)}}bg-red-50/50 dark:bg-red-950/10{{end}}"
+                        class="host-row hover:bg-blue-50/50 dark:hover:bg-slate-800/80 transition cursor-pointer {{if .IsStorming}}bg-amber-100/70 border-2 border-amber-500 dark:bg-amber-950/40 dark:border-amber-600{{else if and (not .IsApproved) (not .IsDHCP)}}bg-amber-50/30 dark:bg-amber-950/10{{end}}"
                         data-search="{{.SearchKeywords}}">
                         <!-- IP & MAC with Smart Hover Popover -->
                         <td class="py-3 px-3 cursor-pointer group/ip"
@@ -136,14 +136,10 @@
                             onmouseleave="hideHostPopover('popover-{{.IPID}}')">
                             <div class="flex items-center space-x-1.5">
                                 {{if .IsStorming}}
-                                <span title="{{t $.Lang "badge_storm_alert"}}" class="text-red-600 font-bold text-base animate-bounce">💥</span>
+                                <span title="{{t $.Lang "badge_storm_alert"}}" class="text-amber-500 font-bold text-xs animate-bounce">⚠️</span>
                                 {{else if .HasSecurityRisk}}
                                     {{range .SecurityRiskBadges}}
-                                        {{if eq .Level "critical"}}
-                                        <span title="{{.Label}}" class="text-rose-600 font-bold text-xs animate-pulse">🚨</span>
-                                        {{else}}
-                                        <span title="{{.Label}}" class="text-amber-500 font-bold text-xs">⚠️</span>
-                                        {{end}}
+                                    <span title="{{.Label}}" class="text-amber-500 font-bold text-xs animate-pulse">⚠️</span>
                                     {{end}}
                                 {{else if .IsStaticIP}}
                                     {{if eq .Status "up"}}
@@ -154,7 +150,7 @@
                                 {{else if .IsDHCP}}
                                 <span title="DHCP" class="text-blue-500 font-bold text-xs">🔵</span>
                                 {{else if not .IsApproved}}
-                                <span title="{{t $.Lang "badge_unapproved"}}" class="text-red-500 font-bold">⚠️</span>
+                                <span title="{{t $.Lang "badge_unapproved"}}" class="text-amber-500 font-bold text-xs">🟡</span>
                                 {{end}}
                                 <div>
                                     <div class="font-mono font-medium text-slate-900 dark:text-slate-100 flex items-center space-x-1 group-hover/ip:text-blue-600 dark:group-hover/ip:text-blue-400 transition-colors">
@@ -384,7 +380,7 @@
                                 {{t $.Lang "badge_new"}}
                             </span>
                             {{else}}
-                            <span class="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-medium bg-red-100 text-red-800 dark:bg-red-500/10 dark:text-red-400 border border-red-200 dark:border-red-500/20">
+                            <span class="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-medium bg-amber-100 text-amber-800 dark:bg-amber-950/60 dark:text-amber-300 border border-amber-300 dark:border-amber-800">
                                 {{t $.Lang "badge_unapproved"}}
                             </span>
                             {{end}}

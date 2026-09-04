@@ -163,7 +163,7 @@ var translations = map[string]map[string]string{
 		"badge_dhcp_new":     "🔵 DHCP 🆕",
 		"badge_dhcp_dynamic": "🔵 DHCP Dynamic",
 		"badge_new":          "🆕 NEW",
-		"badge_unapproved":   "🔴 Unapproved",
+		"badge_unapproved":   "🟡 Unapproved",
 		"badge_unverified":   "Unverified",
 		"badge_up":           "🟢 up",
 		"badge_down":         "⚪ Down",
@@ -190,7 +190,7 @@ var translations = map[string]map[string]string{
 
 		// Action Menu
 		"action_mark_approved":      "✅ Mark as Approved",
-		"action_mark_unapproved":    "🔴 Mark as Unapproved",
+		"action_mark_unapproved":    "🟡 Mark as Unapproved",
 		"action_protect":            "📌 Protect from Deletion",
 		"action_unprotect":          "📌 Remove Deletion Protection",
 		"action_toggle_dhcp_mark":   "🔵 Mark as DHCP Dynamic",
@@ -432,7 +432,7 @@ var translations = map[string]map[string]string{
 		"badge_dhcp_new":     "🔵 DHCP 🆕",
 		"badge_dhcp_dynamic": "🔵 DHCP動的",
 		"badge_new":          "🆕 NEW",
-		"badge_unapproved":   "🔴 未承認",
+		"badge_unapproved":   "🟡 未承認",
 		"badge_unverified":   "未検証",
 		"badge_up":           "🟢 up",
 		"badge_down":         "⚪ Down",
@@ -459,7 +459,7 @@ var translations = map[string]map[string]string{
 
 		// Action Menu
 		"action_mark_approved":      "✅ 承認済みに変更",
-		"action_mark_unapproved":    "🔴 未承認に戻す",
+		"action_mark_unapproved":    "🟡 未承認に戻す",
 		"action_protect":            "📌 自動削除から保護",
 		"action_unprotect":          "📌 保護を解除",
 		"action_toggle_dhcp_mark":   "🔵 DHCP動的端末としてマーク",
@@ -517,7 +517,7 @@ var translations = map[string]map[string]string{
 		"seg_modal_dhcp_label":          "DHCP IPレンジ (任意・複数指定可)",
 		"seg_modal_dhcp_sub":            "カンマ区切りで複数指定可能",
 		"seg_modal_dhcp_ph":             "例: 100-200 または 192.168.0.100-200, 192.168.1.150-200",
-		"seg_modal_dhcp_help":           "動的に払い出されるDHCP端末帯域（例: 100-200、192.168.0.100-200、フルIP形式）を指定します。複数範囲はカンマ区切りで指定可能。未承認時の赤色警戒表示を抑え、青色バッジ (🔵) で表示します。",
+		"seg_modal_dhcp_help":           "動的に払い出されるDHCP端末帯域（例: 100-200、192.168.0.100-200、フルIP形式）を指定します。複数範囲はカンマ区切りで指定可能。未承認時の警戒表示を抑え、青色バッジ (🔵) で表示します。",
 		"seg_modal_dhcp_manual":         "🔒 手入力したIPレンジを固定する (端末マーク時の自動推測・自動調整を停止)",
 		"seg_modal_presets":             "プリセット:",
 		"seg_modal_dhcp_suggest":        "💡 推定: %s",
