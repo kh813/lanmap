@@ -98,7 +98,6 @@ func (db *DB) migrate() error {
 	CREATE INDEX IF NOT EXISTS idx_hosts_status ON hosts(status);
 	CREATE INDEX IF NOT EXISTS idx_hosts_mac ON hosts(mac_address);
 	CREATE INDEX IF NOT EXISTS idx_hosts_hostname ON hosts(hostname);
-	CREATE INDEX IF NOT EXISTS idx_hosts_next_port_scan ON hosts(next_port_scan);
 
 	CREATE TABLE IF NOT EXISTS settings (
 		key VARCHAR(50) PRIMARY KEY,
@@ -149,6 +148,7 @@ func (db *DB) migrate() error {
 	_, _ = db.Exec("ALTER TABLE hosts ADD COLUMN is_dhcp BOOLEAN DEFAULT 0;")
 	_, _ = db.Exec("ALTER TABLE hosts ADD COLUMN last_port_scan DATETIME;")
 	_, _ = db.Exec("ALTER TABLE hosts ADD COLUMN next_port_scan DATETIME;")
+	_, _ = db.Exec("CREATE INDEX IF NOT EXISTS idx_hosts_next_port_scan ON hosts(next_port_scan);")
 	_, _ = db.Exec("ALTER TABLE segments ADD COLUMN dhcp_range VARCHAR(100) DEFAULT '';")
 	_, _ = db.Exec("ALTER TABLE segments ADD COLUMN is_dhcp_manual BOOLEAN DEFAULT 0;")
 
