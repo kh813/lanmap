@@ -959,36 +959,36 @@ func (h *Handler) HandleCheckUpdate(w http.ResponseWriter, r *http.Request) {
 		}
 		_, _ = w.Write([]byte(fmt.Sprintf(`
 			<div class="p-3 bg-blue-50 dark:bg-blue-950/60 border border-blue-200 dark:border-blue-800 rounded-lg text-xs space-y-2 text-slate-800 dark:text-slate-100 animate-fade-in">
-				<div class="flex items-center justify-between">
-					<span class="font-bold text-blue-700 dark:text-blue-300 text-sm">🚀 新バージョン %s が利用可能です！</span>
-					<span class="text-[10px] text-slate-500">%s 公開</span>
+				<div class="flex flex-wrap items-center justify-between gap-1.5">
+					<span class="font-bold text-blue-700 dark:text-blue-300 text-xs sm:text-sm">🚀 新バージョン %s が利用可能です！</span>
+					<span class="text-[10px] text-slate-500 whitespace-nowrap">%s 公開</span>
 				</div>
-				<p class="text-[11px] text-slate-600 dark:text-slate-300 whitespace-pre-line font-mono bg-white/60 dark:bg-slate-900/60 p-2 rounded border border-slate-200/60 dark:border-slate-800/60">%s</p>
-				<div class="pt-1 flex items-center space-x-2">
+				<div class="text-[11px] text-slate-600 dark:text-slate-300 whitespace-pre-line break-all break-words font-mono bg-white/70 dark:bg-slate-900/70 p-2 rounded border border-slate-200/60 dark:border-slate-800/60 max-h-28 overflow-y-auto">%s</div>
+				<div class="pt-1 flex flex-wrap items-center gap-2">
 					<button type="button"
 							hx-post="/api/system/update/apply?url=%s"
 							hx-target="#update-check-result"
 							hx-swap="innerHTML"
 							hx-indicator="#update-spinner"
-							class="px-4 py-2 rounded-lg bg-emerald-600 hover:bg-emerald-500 text-white font-bold transition shadow text-xs flex items-center space-x-1.5 cursor-pointer">
+							class="flex-1 min-w-[200px] px-3 py-2 rounded-lg bg-emerald-600 hover:bg-emerald-500 text-white font-bold transition shadow text-xs flex items-center justify-center space-x-1.5 cursor-pointer">
 						<span>⚡</span>
-						<span>今すぐ %s へアップデートして再起動</span>
+						<span class="truncate">今すぐ %s へアップデートして再起動</span>
 					</button>
 					<a href="https://github.com/kh813/lanmap/releases/tag/%s" target="_blank" rel="noopener noreferrer"
-					   class="px-3 py-2 rounded-lg bg-slate-200 dark:bg-slate-800 hover:bg-slate-300 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-300 font-medium transition text-xs flex items-center space-x-1">
+					   class="px-3 py-2 rounded-lg bg-slate-200 dark:bg-slate-800 hover:bg-slate-300 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-300 font-medium transition text-xs flex items-center justify-center space-x-1 whitespace-nowrap">
 						<span>🔗 リリースノート</span>
 					</a>
 				</div>
-				<div id="update-spinner" class="htmx-indicator text-blue-600 dark:text-blue-400 text-xs pt-1 font-bold animate-pulse">
+				<div id="update-spinner" class="htmx-indicator text-blue-600 dark:text-blue-400 text-xs pt-1 font-bold animate-pulse text-center">
 					⏳ 最新バイナリをダウンロードして更新・再起動中...
 				</div>
 			</div>
 		`, rel.TagName, rel.PublishedAt.Format("2006-01-02 15:04"), bodyEscaped, template.URLQueryEscaper(rel.AssetURL), rel.TagName, rel.TagName)))
 	} else {
 		_, _ = w.Write([]byte(fmt.Sprintf(`
-			<div class="p-3 bg-emerald-50 dark:bg-emerald-950/40 border border-emerald-200 dark:border-emerald-800 rounded-lg text-emerald-700 dark:text-emerald-300 text-xs flex items-center justify-between animate-fade-in">
+			<div class="p-2.5 bg-emerald-50 dark:bg-emerald-950/40 border border-emerald-200 dark:border-emerald-800 rounded-lg text-emerald-700 dark:text-emerald-300 text-xs flex flex-wrap items-center justify-between gap-1 animate-fade-in">
 				<span class="font-medium">✅ 現在、最新バージョン (%s) を使用しています。</span>
-				<span class="text-[10px] text-emerald-600 dark:text-emerald-400 font-mono">最終確認: %s</span>
+				<span class="text-[10px] text-emerald-600 dark:text-emerald-400 font-mono whitespace-nowrap">最終確認: %s</span>
 			</div>
 		`, currentVer, time.Now().Format("15:04:05"))))
 	}
