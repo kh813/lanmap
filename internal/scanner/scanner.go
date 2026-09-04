@@ -312,7 +312,13 @@ func (s *Scanner) scanSegmentInternal(ctx context.Context, seg *db.Segment) ([]*
 
 		// If matched whitelist on subsequent scan, ensure approved status
 		if isApproved {
-			_ = s.db.UpdateHostManual(ipStr, displayName, vendor, false)
+			staticIP := false
+			ignored := ""
+			if existingHost, _ := s.db.GetHost(ipStr); existingHost != nil {
+				staticIP = existingHost.IsStaticIP
+				ignored = existingHost.IgnoredPorts
+			}
+			_ = s.db.UpdateHostManual(ipStr, displayName, vendor, staticIP, ignored)
 			_, _ = s.db.Exec("UPDATE hosts SET is_approved = 1 WHERE ip = ?", ipStr)
 		}
 

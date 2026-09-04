@@ -91,6 +91,7 @@ func (db *DB) migrate() error {
 		last_seen DATETIME,
 		last_port_scan DATETIME,
 		next_port_scan DATETIME,
+		ignored_ports TEXT DEFAULT '',
 		FOREIGN KEY (segment_id) REFERENCES segments(id) ON DELETE SET NULL
 	);
 
@@ -148,6 +149,7 @@ func (db *DB) migrate() error {
 	_, _ = db.Exec("ALTER TABLE hosts ADD COLUMN is_dhcp BOOLEAN DEFAULT 0;")
 	_, _ = db.Exec("ALTER TABLE hosts ADD COLUMN last_port_scan DATETIME;")
 	_, _ = db.Exec("ALTER TABLE hosts ADD COLUMN next_port_scan DATETIME;")
+	_, _ = db.Exec("ALTER TABLE hosts ADD COLUMN ignored_ports TEXT DEFAULT '';")
 	_, _ = db.Exec("CREATE INDEX IF NOT EXISTS idx_hosts_next_port_scan ON hosts(next_port_scan);")
 	_, _ = db.Exec("ALTER TABLE segments ADD COLUMN dhcp_range VARCHAR(100) DEFAULT '';")
 	_, _ = db.Exec("ALTER TABLE segments ADD COLUMN is_dhcp_manual BOOLEAN DEFAULT 0;")

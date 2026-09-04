@@ -882,6 +882,7 @@ func TestSecurityRiskBadges(t *testing.T) {
 	}
 
 	// Host with Telnet SHOULD be flagged as warning security risk
+	// Host with Telnet SHOULD be flagged as warning security risk
 	telnetHost := &Host{
 		IP:        "192.168.1.40",
 		OpenPorts: "23:Telnet",
@@ -892,6 +893,85 @@ func TestSecurityRiskBadges(t *testing.T) {
 	telnetBadges := telnetHost.SecurityRiskBadges()
 	if len(telnetBadges) != 1 || telnetBadges[0].Port != 23 {
 		t.Errorf("expected 1 telnet risk badge, got %v", telnetBadges)
+	}
+
+	// Host with TeamViewer (5938) and AnyDesk (7070) should have CRITICAL badges
+	remoteHost := &Host{
+		IP:        "192.168.1.50",
+		OpenPorts: "5938:TeamViewer,7070:AnyDesk",
+	}
+	remoteBadges := remoteHost.SecurityRiskBadges()
+	if len(remoteBadges) != 2 {
+		t.Fatalf("expected 2 badges for TeamViewer and AnyDesk, got %d", len(remoteBadges))
+	}
+	for _, b := range remoteBadges {
+		if b.Level != "critical" {
+			t.Errorf("expected critical level for port %d (%s), got %s", b.Port, b.Service, b.Level)
+		}
+	}
+
+	// Test port suppression
+	remoteHost.IgnoredPorts = "7070"
+	if !remoteHost.IsPortIgnored(7070) {
+		t.Errorf("expected port 7070 to be ignored")
+	}
+	if remoteHost.IsPortIgnored(5938) {
+		t.Errorf("expected port 5938 not to be ignored")
+	}
+
+	// Now SecurityRiskBadges should only contain TeamViewer (5938)
+	filteredBadges := remoteHost.SecurityRiskBadges()
+	if len(filteredBadges) != 1 || filteredBadges[0].Port != 5938 {
+		t.Errorf("expected only TeamViewer risk badge, got %v", filteredBadges)
+	}
+
+	// SuppressedRiskBadges should contain AnyDesk (7070)
+	suppressedBadges := remoteHost.SuppressedRiskBadges()
+	if len(suppressedBadges) != 1 || suppressedBadges[0].Port != 7070 {
+		t.Errorf("expected 1 suppressed badge for AnyDesk 7070, got %v", suppressedBadges)
+	}
+}
+
+func TestTogglePortIgnored(t *testing.T) {
+	db := setupTestDB(t)
+
+	host := &Host{
+		IP:        "192.168.1.60",
+		Status:    "up",
+		OpenPorts: "7070:AnyDesk",
+	}
+	_, _, err := db.UpsertHostOnScan(host)
+	if err != nil {
+		t.Fatalf("UpsertHostOnScan failed: %v", err)
+	}
+
+	// Verify initially it has risk
+	h1, _ := db.GetHost("192.168.1.60")
+	if !h1.HasSecurityRisk() {
+		t.Fatalf("expected initial host to have security risk")
+	}
+
+	// Toggle ignore for 7070
+	if err := db.TogglePortIgnored("192.168.1.60", 7070); err != nil {
+		t.Fatalf("TogglePortIgnored failed: %v", err)
+	}
+
+	// Now it should NOT have risk
+	h2, _ := db.GetHost("192.168.1.60")
+	if h2.HasSecurityRisk() {
+		t.Errorf("expected suppressed host to not have security risk")
+	}
+	if !h2.HasSuppressedRisks() {
+		t.Errorf("expected host to have suppressed risk badges")
+	}
+
+	// Toggle again to unsuppress
+	if err := db.TogglePortIgnored("192.168.1.60", 7070); err != nil {
+		t.Fatalf("TogglePortIgnored unsuppress failed: %v", err)
+	}
+	h3, _ := db.GetHost("192.168.1.60")
+	if !h3.HasSecurityRisk() {
+		t.Errorf("expected unsuppressed host to have security risk again")
 	}
 }
 

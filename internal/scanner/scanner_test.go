@@ -424,6 +424,16 @@ func TestScanOpenPortsLowNoise(t *testing.T) {
 		t.Errorf("expected critical for SoftEther 5555, got %s", vpnRisk.Level)
 	}
 
+	tvRisk := EvaluatePortRisk(5938, "TeamViewer")
+	if tvRisk.Level != RiskCritical {
+		t.Errorf("expected critical for TeamViewer 5938, got %s", tvRisk.Level)
+	}
+
+	adRisk := EvaluatePortRisk(7070, "AnyDesk")
+	if adRisk.Level != RiskCritical {
+		t.Errorf("expected critical for AnyDesk 7070, got %s", adRisk.Level)
+	}
+
 	rdpRisk := EvaluatePortRisk(3389, "RDP")
 	if rdpRisk.Level != RiskWarning {
 		t.Errorf("expected warning for RDP 3389, got %s", rdpRisk.Level)

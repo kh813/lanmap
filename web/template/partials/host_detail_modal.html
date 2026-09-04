@@ -268,9 +268,32 @@
     {{if .Host.HasSecurityRisk}}
     <div class="flex flex-wrap gap-1.5 pt-1">
         {{range .Host.SecurityRiskBadges}}
-        <span class="px-2 py-0.5 rounded-md border text-[11px] font-medium flex items-center space-x-1 {{.BadgeClass}}">
+        <div class="inline-flex items-center space-x-1.5 px-2 py-0.5 rounded-md border text-[11px] font-medium {{.BadgeClass}}">
             <span>{{.Label}}</span>
-        </span>
+            <button hx-post="/api/hosts/{{$.Host.IP}}/toggle_port_suppress?port={{.Port}}"
+                    hx-target="#modal-container" hx-swap="innerHTML"
+                    title="{{t $.Lang "detail_suppress_title"}}"
+                    class="ml-1 text-[10px] px-1.5 py-0.5 rounded bg-white/70 dark:bg-black/40 hover:bg-white dark:hover:bg-black/60 text-slate-800 dark:text-slate-200 transition border border-black/10 dark:border-white/10 shadow-xs cursor-pointer">
+                {{t $.Lang "detail_suppress_btn"}}
+            </button>
+        </div>
+        {{end}}
+    </div>
+    {{end}}
+
+    <!-- Suppressed / Known Risk Ports -->
+    {{if .Host.HasSuppressedRisks}}
+    <div class="flex flex-wrap gap-1.5 pt-1">
+        {{range .Host.SuppressedRiskBadges}}
+        <div class="inline-flex items-center space-x-1.5 px-2 py-0.5 rounded-md border text-[11px] font-medium {{.BadgeClass}}">
+            <span>{{.Label}}</span>
+            <button hx-post="/api/hosts/{{$.Host.IP}}/toggle_port_suppress?port={{.Port}}"
+                    hx-target="#modal-container" hx-swap="innerHTML"
+                    title="{{t $.Lang "detail_unsuppress_title"}}"
+                    class="ml-1 text-[10px] px-1.5 py-0.5 rounded bg-white dark:bg-slate-700 hover:bg-slate-100 dark:hover:bg-slate-600 text-slate-700 dark:text-slate-200 transition border border-slate-300 dark:border-slate-600 shadow-xs cursor-pointer">
+                {{t $.Lang "detail_unsuppress_btn"}}
+            </button>
+        </div>
         {{end}}
     </div>
     {{end}}
@@ -289,7 +312,7 @@
     <div class="flex flex-wrap gap-1.5 pt-0.5">
         {{if .Host.OpenPortsList}}
             {{range .Host.OpenPortsList}}
-            <span class="px-2 py-0.5 rounded {{if or (eq .Port 1194) (eq .Port 1723) (eq .Port 5555)}}bg-rose-50 dark:bg-rose-950/60 border border-rose-300 dark:border-rose-800 text-rose-700 dark:text-rose-300 font-bold{{else if or (eq .Port 23) (eq .Port 3389) (eq .Port 5900) (eq .Port 5938) (eq .Port 7070)}}bg-amber-50 dark:bg-amber-950/60 border border-amber-300 dark:border-amber-800 text-amber-800 dark:text-amber-300 font-semibold{{else if eq .Port 22}}bg-sky-50 dark:bg-sky-950/60 border border-sky-300 dark:border-sky-800 text-sky-800 dark:text-sky-300 font-medium{{else}}bg-blue-50 dark:bg-blue-950/60 border border-blue-200 dark:border-blue-800 text-blue-700 dark:text-blue-300 font-medium{{end}} font-mono text-[10px]">
+            <span class="px-2 py-0.5 rounded {{if or (eq .Port 1194) (eq .Port 1723) (eq .Port 5555) (eq .Port 5938) (eq .Port 7070)}}bg-rose-50 dark:bg-rose-950/60 border border-rose-300 dark:border-rose-800 text-rose-700 dark:text-rose-300 font-bold{{else if or (eq .Port 23) (eq .Port 3389) (eq .Port 5900)}}bg-amber-50 dark:bg-amber-950/60 border border-amber-300 dark:border-amber-800 text-amber-800 dark:text-amber-300 font-semibold{{else if eq .Port 22}}bg-sky-50 dark:bg-sky-950/60 border border-sky-300 dark:border-sky-800 text-sky-800 dark:text-sky-300 font-medium{{else}}bg-blue-50 dark:bg-blue-950/60 border border-blue-200 dark:border-blue-800 text-blue-700 dark:text-blue-300 font-medium{{end}} font-mono text-[10px]">
                 {{.Port}}/{{.Service}}
             </span>
             {{end}}

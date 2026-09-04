@@ -418,16 +418,25 @@ type PortRiskInfo struct {
 // EvaluatePortRisk classifies an open port into a security risk level
 func EvaluatePortRisk(port int, service string) PortRiskInfo {
 	switch port {
-	case 1194, 1723, 5555:
+	case 1194, 1723, 5555, 5938, 7070:
+		cat := "VPN"
+		desc := "🚨 VPNサーバー待受"
+		if port == 5938 {
+			cat = "TeamViewer"
+			desc = "🚨 TeamViewer 待受 (緊急)"
+		} else if port == 7070 {
+			cat = "AnyDesk"
+			desc = "🚨 AnyDesk 待受 (緊急)"
+		}
 		return PortRiskInfo{
 			Port:        port,
 			Service:     service,
 			Level:       RiskCritical,
-			Category:    "VPN",
+			Category:    cat,
 			BadgeClass:  "bg-rose-100 text-rose-800 border-rose-300 dark:bg-rose-950/70 dark:text-rose-300 dark:border-rose-800",
-			Description: "🚨 VPNサーバー待受",
+			Description: desc,
 		}
-	case 3389, 5900, 5938, 7070:
+	case 3389, 5900:
 		return PortRiskInfo{
 			Port:        port,
 			Service:     service,

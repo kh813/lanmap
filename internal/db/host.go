@@ -54,6 +54,7 @@ type Host struct {
 	LastSeen          *time.Time    `json:"last_seen"`
 	LastPortScan      *time.Time    `json:"last_port_scan"`
 	NextPortScan      *time.Time    `json:"next_port_scan"`
+	IgnoredPorts      string        `json:"ignored_ports"`
 	PingChartSVG      template.HTML `json:"-"`
 	UptimeBlocksSVG   template.HTML `json:"-"`
 	PingStats7d       string        `json:"-"`
@@ -61,7 +62,7 @@ type Host struct {
 
 // RiskBadge represents a visual security risk indicator for ports
 type RiskBadge struct {
-	Level      string // "critical", "warning", "info"
+	Level      string // "critical", "warning", "info", "suppressed"
 	Label      string
 	Port       int
 	Service    string
@@ -76,10 +77,43 @@ type ServiceBadge struct {
 	BadgeClass string
 }
 
-// SecurityRiskBadges returns any security risk badges identified on open ports
+// IsPortIgnored returns true if the port is in the host's ignored/suppressed ports list
+func (h *Host) IsPortIgnored(port int) bool {
+	if h.IgnoredPorts == "" {
+		return false
+	}
+	for _, part := range strings.Split(h.IgnoredPorts, ",") {
+		val, err := strconv.Atoi(strings.TrimSpace(part))
+		if err == nil && val == port {
+			return true
+		}
+	}
+	return false
+}
+
+// IgnoredPortsList returns list of integer port numbers whose warnings are suppressed
+func (h *Host) IgnoredPortsList() []int {
+	var list []int
+	if h.IgnoredPorts == "" {
+		return list
+	}
+	for _, part := range strings.Split(h.IgnoredPorts, ",") {
+		val, err := strconv.Atoi(strings.TrimSpace(part))
+		if err == nil {
+			list = append(list, val)
+		}
+	}
+	sort.Ints(list)
+	return list
+}
+
+// SecurityRiskBadges returns any security risk badges identified on open ports, excluding suppressed ports
 func (h *Host) SecurityRiskBadges() []RiskBadge {
 	var badges []RiskBadge
 	for _, p := range h.OpenPortsList() {
+		if h.IsPortIgnored(p.Port) {
+			continue
+		}
 		switch p.Port {
 		case 1194, 1723, 5555:
 			badges = append(badges, RiskBadge{
@@ -89,7 +123,23 @@ func (h *Host) SecurityRiskBadges() []RiskBadge {
 				Service:    p.Service,
 				BadgeClass: "bg-rose-100 text-rose-800 border-rose-300 dark:bg-rose-950/70 dark:text-rose-300 dark:border-rose-800",
 			})
-		case 3389, 5900, 5938, 7070:
+		case 5938:
+			badges = append(badges, RiskBadge{
+				Level:      "critical",
+				Label:      "🚨 TeamViewer",
+				Port:       p.Port,
+				Service:    p.Service,
+				BadgeClass: "bg-rose-100 text-rose-800 border-rose-300 dark:bg-rose-950/70 dark:text-rose-300 dark:border-rose-800",
+			})
+		case 7070:
+			badges = append(badges, RiskBadge{
+				Level:      "critical",
+				Label:      "🚨 AnyDesk",
+				Port:       p.Port,
+				Service:    p.Service,
+				BadgeClass: "bg-rose-100 text-rose-800 border-rose-300 dark:bg-rose-950/70 dark:text-rose-300 dark:border-rose-800",
+			})
+		case 3389, 5900:
 			badges = append(badges, RiskBadge{
 				Level:      "warning",
 				Label:      "⚠️ " + p.Service,
@@ -110,7 +160,33 @@ func (h *Host) SecurityRiskBadges() []RiskBadge {
 	return badges
 }
 
-// HasSecurityRisk returns true if the host has critical or warning open ports
+// SuppressedRiskBadges returns open ports that would normally be security risks but have been suppressed
+func (h *Host) SuppressedRiskBadges() []RiskBadge {
+	var badges []RiskBadge
+	for _, p := range h.OpenPortsList() {
+		if !h.IsPortIgnored(p.Port) {
+			continue
+		}
+		switch p.Port {
+		case 1194, 1723, 5555, 5938, 7070, 3389, 5900, 23:
+			badges = append(badges, RiskBadge{
+				Level:      "suppressed",
+				Label:      "🛡️ " + p.Service + " (既知・警告抑止中)",
+				Port:       p.Port,
+				Service:    p.Service,
+				BadgeClass: "bg-slate-100 text-slate-700 border-slate-300 dark:bg-slate-800 dark:text-slate-300 dark:border-slate-700",
+			})
+		}
+	}
+	return badges
+}
+
+// HasSuppressedRisks returns true if the host has any suppressed risk ports
+func (h *Host) HasSuppressedRisks() bool {
+	return len(h.SuppressedRiskBadges()) > 0
+}
+
+// HasSecurityRisk returns true if the host has unsuppressed critical or warning open ports
 func (h *Host) HasSecurityRisk() bool {
 	return len(h.SecurityRiskBadges()) > 0
 }
@@ -657,7 +733,7 @@ func (db *DB) GetHost(ip string) (*Host, error) {
 		tls_subject, tls_expiry, mdns_model, broadcast_count_1m, is_storming,
 		is_approved, is_protected, is_static_ip, is_dhcp,
 		is_monitored, is_paused, has_conflict, kuma_name, uptime_kuma_id,
-		first_seen, last_seen, last_port_scan, next_port_scan
+		first_seen, last_seen, last_port_scan, next_port_scan, ignored_ports
 	FROM hosts
 	WHERE ip = ?
 	`
@@ -678,7 +754,7 @@ func (db *DB) ListHosts(segmentID *int64, onlineOnly bool) ([]*Host, error) {
 		tls_subject, tls_expiry, mdns_model, broadcast_count_1m, is_storming,
 		is_approved, is_protected, is_static_ip, is_dhcp,
 		is_monitored, is_paused, has_conflict, kuma_name, uptime_kuma_id,
-		first_seen, last_seen, last_port_scan, next_port_scan
+		first_seen, last_seen, last_port_scan, next_port_scan, ignored_ports
 	FROM hosts
 	WHERE 1=1
 	`)
@@ -794,16 +870,58 @@ func (db *DB) ToggleProtection(ip string) (bool, error) {
 }
 
 // UpdateHostManual updates manually editable fields
-func (db *DB) UpdateHostManual(ip, displayName, vendorModel string, isStaticIP bool) error {
+func (db *DB) UpdateHostManual(ip, displayName, vendorModel string, isStaticIP bool, ignoredPorts string) error {
 	query := `
 	UPDATE hosts SET
 		display_name = ?,
 		vendor_model = CASE WHEN ? != '' THEN ? ELSE vendor_model END,
-		is_static_ip = ?
+		is_static_ip = ?,
+		ignored_ports = ?
 	WHERE ip = ?
 	`
-	_, err := db.Exec(query, displayName, vendorModel, vendorModel, isStaticIP, ip)
+	_, err := db.Exec(query, displayName, vendorModel, vendorModel, isStaticIP, ignoredPorts, ip)
 	return err
+}
+
+// TogglePortIgnored toggles whether warnings for a specific port are suppressed on a host
+func (db *DB) TogglePortIgnored(ip string, port int) error {
+	h, err := db.GetHost(ip)
+	if err != nil || h == nil {
+		return fmt.Errorf("host not found: %s", ip)
+	}
+	newIgnored := togglePortInList(h.IgnoredPorts, port)
+	_, err = db.Exec("UPDATE hosts SET ignored_ports = ? WHERE ip = ?", newIgnored, ip)
+	return err
+}
+
+func togglePortInList(ignored string, port int) string {
+	parts := strings.Split(ignored, ",")
+	var list []int
+	found := false
+	for _, p := range parts {
+		p = strings.TrimSpace(p)
+		if p == "" {
+			continue
+		}
+		val, err := strconv.Atoi(p)
+		if err != nil {
+			continue
+		}
+		if val == port {
+			found = true
+		} else {
+			list = append(list, val)
+		}
+	}
+	if !found {
+		list = append(list, port)
+	}
+	sort.Ints(list)
+	var strList []string
+	for _, val := range list {
+		strList = append(strList, strconv.Itoa(val))
+	}
+	return strings.Join(strList, ",")
 }
 
 // CreateManualHost creates a manually defined host
@@ -818,7 +936,7 @@ func (db *DB) CreateManualHost(h *Host) error {
 		tls_subject, tls_expiry, mdns_model, broadcast_count_1m, is_storming,
 		is_approved, is_protected, is_static_ip, is_dhcp,
 		is_monitored, is_paused, has_conflict, kuma_name, uptime_kuma_id,
-		first_seen, last_seen
+		first_seen, last_seen, ignored_ports
 	) VALUES (
 		?, ?, ?, ?, ?, ?,
 		?, ?, ?, ?, 100.0,
@@ -826,7 +944,7 @@ func (db *DB) CreateManualHost(h *Host) error {
 		?, ?, ?, ?, ?,
 		?, ?, ?, ?,
 		?, ?, ?, ?, ?,
-		?, ?
+		?, ?, ?
 	)
 	`
 	_, err := db.Exec(query,
@@ -836,7 +954,7 @@ func (db *DB) CreateManualHost(h *Host) error {
 		h.TLSSubject, h.TLSExpiry, h.MDNSModel, h.BroadcastCount1m, h.IsStorming,
 		h.IsApproved, h.IsProtected, h.IsStaticIP, h.IsDHCP,
 		h.IsMonitored, h.IsPaused, h.HasConflict, h.KumaName, h.UptimeKumaID,
-		now, now,
+		now, now, h.IgnoredPorts,
 	)
 	return err
 }
@@ -859,6 +977,7 @@ func scanHost(s scannable) (*Host, error) {
 	var kumaID sql.NullInt64
 	var lastSeen, tlsExp, lastPortScan, nextPortScan sql.NullTime
 	var rtt, jitter, uptime sql.NullFloat64
+	var ignoredPorts sql.NullString
 
 	err := s.Scan(
 		&h.IP,
@@ -895,6 +1014,7 @@ func scanHost(s scannable) (*Host, error) {
 		&lastSeen,
 		&lastPortScan,
 		&nextPortScan,
+		&ignoredPorts,
 	)
 	if err != nil {
 		if err == sql.ErrNoRows {
@@ -919,14 +1039,13 @@ func scanHost(s scannable) (*Host, error) {
 	h.UPnPSerial = upnpSerial.String
 	h.TLSSubject = tlsSubj.String
 	h.MDNSModel = mdnsModel.String
+	h.IgnoredPorts = ignoredPorts.String
 
 	if rtt.Valid {
-		val := rtt.Float64
-		h.PingRTTMs = &val
+		h.PingRTTMs = &rtt.Float64
 	}
 	if jitter.Valid {
-		val := jitter.Float64
-		h.PingJitterMs = &val
+		h.PingJitterMs = &jitter.Float64
 	}
 	if uptime.Valid {
 		h.UptimePct = uptime.Float64
@@ -964,7 +1083,7 @@ func (db *DB) GetDuePortScanHost() (*Host, error) {
 		tls_subject, tls_expiry, mdns_model, broadcast_count_1m, is_storming,
 		is_approved, is_protected, is_static_ip, is_dhcp,
 		is_monitored, is_paused, has_conflict, kuma_name, uptime_kuma_id,
-		first_seen, last_seen, last_port_scan, next_port_scan
+		first_seen, last_seen, last_port_scan, next_port_scan, ignored_ports
 	FROM hosts
 	WHERE status = 'up' AND is_paused = 0 AND (next_port_scan IS NULL OR next_port_scan <= ?)
 	ORDER BY (CASE WHEN next_port_scan IS NULL THEN 0 ELSE 1 END), next_port_scan ASC

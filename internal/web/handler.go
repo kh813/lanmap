@@ -265,6 +265,9 @@ func (h *Handler) HandleEditHostModal(w http.ResponseWriter, r *http.Request) {
 // HandleHostDetailModal renders host detail modal with 7-day ping metrics & graphs
 func (h *Handler) HandleHostDetailModal(w http.ResponseWriter, r *http.Request) {
 	ip := r.URL.Query().Get("ip")
+	if ip == "" {
+		ip = r.PathValue("ip")
+	}
 	host, err := h.db.GetHost(ip)
 	if err != nil || host == nil {
 		http.Error(w, "Host not found", http.StatusNotFound)
@@ -544,7 +547,7 @@ func (h *Handler) HandleToggleStaticIP(w http.ResponseWriter, r *http.Request, i
 		http.Error(w, "Host not found", http.StatusNotFound)
 		return
 	}
-	_ = h.db.UpdateHostManual(ip, host.DisplayName, host.VendorModel, !host.IsStaticIP)
+	_ = h.db.UpdateHostManual(ip, host.DisplayName, host.VendorModel, !host.IsStaticIP, host.IgnoredPorts)
 	h.HandleMainTablePartial(w, r)
 }
 
@@ -554,6 +557,7 @@ func (h *Handler) HandleUpdateHost(w http.ResponseWriter, r *http.Request, ip st
 	displayName := r.FormValue("display_name")
 	vendorModel := r.FormValue("vendor_model")
 	isStaticIP := r.FormValue("is_static_ip") == "true"
+	ignoredPorts := strings.TrimSpace(r.FormValue("ignored_ports"))
 
 	host, err := h.db.GetHost(ip)
 	if err != nil || host == nil {
@@ -561,8 +565,24 @@ func (h *Handler) HandleUpdateHost(w http.ResponseWriter, r *http.Request, ip st
 		return
 	}
 
-	_ = h.db.UpdateHostManual(ip, displayName, vendorModel, isStaticIP)
+	_ = h.db.UpdateHostManual(ip, displayName, vendorModel, isStaticIP, ignoredPorts)
 	h.HandleMainTablePartial(w, r)
+}
+
+// HandleTogglePortSuppress toggles suppression of warning for a specific port on a host
+func (h *Handler) HandleTogglePortSuppress(w http.ResponseWriter, r *http.Request, ip string) {
+	portStr := r.URL.Query().Get("port")
+	port, err := strconv.Atoi(portStr)
+	if err != nil || port <= 0 {
+		http.Error(w, "Invalid port", http.StatusBadRequest)
+		return
+	}
+	if err := h.db.TogglePortIgnored(ip, port); err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+	w.Header().Set("HX-Trigger", "refreshMainTable")
+	h.HandleHostDetailModal(w, r)
 }
 
 // HandleCreateHost manually creates a host

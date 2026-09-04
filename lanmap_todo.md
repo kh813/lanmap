@@ -490,5 +490,14 @@
 - [x] **22.5 単体テスト & ビルド検証**
   - [x] `internal/scanner/scanner_test.go` & `internal/db/db_test.go` のテスト更新
   - [x] `make test` & `make build`
+- [x] **22.6 TeamViewer/AnyDesk 緊急化 & 既知ポート警告手動抑止機能**
+  - [x] TeamViewer (`5938`), AnyDesk (`7070`) を `RiskCritical`（`🚨`）に格上げ
+  - [x] `hosts` テーブルに `ignored_ports` カラム追加 & マイグレーション
+  - [x] `IsPortIgnored`, `SuppressedRiskBadges`, `TogglePortIgnored` 実装
+  - [x] ホスト詳細モーダルに「🛡️ 警告を抑止」/「✕ 抑止解除」ボタンを追加しワンクリックトグル対応
+  - [x] ホスト編集モーダルに `ignored_ports` 手動入力欄を追加
+  - [x] 日英辞書キー追加 (`internal/i18n`)
+  - [x] Web ハンドラー `HandleTogglePortSuppress` 実装 & 単体テスト
+
 
 

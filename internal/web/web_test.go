@@ -321,4 +321,44 @@ func TestWebRoutes(t *testing.T) {
 	if recCookie.Code != http.StatusOK || !strings.Contains(recCookie.Body.String(), "ネットワークセグメントの追加") {
 		t.Errorf("expected Japanese output due to lanmap_lang=ja cookie, got body=%s", recCookie.Body.String())
 	}
+
+	// 17. Test Port Suppression Endpoint & Host Update with Ignored Ports
+	_ = database.CreateManualHost(&db.Host{
+		IP:        "192.168.1.99",
+		Status:    "up",
+		OpenPorts: "7070:AnyDesk,5938:TeamViewer",
+	})
+
+	// Toggle suppression for 7070
+	reqSupp := httptest.NewRequest("POST", "/api/hosts/192.168.1.99/toggle_port_suppress?port=7070", nil)
+	recSupp := httptest.NewRecorder()
+	router.ServeHTTP(recSupp, reqSupp)
+	if recSupp.Code != http.StatusOK {
+		t.Errorf("expected 200 from /api/hosts/192.168.1.99/toggle_port_suppress, got %d", recSupp.Code)
+	}
+	if recSupp.Header().Get("HX-Trigger") != "refreshMainTable" {
+		t.Errorf("expected HX-Trigger: refreshMainTable, got: %s", recSupp.Header().Get("HX-Trigger"))
+	}
+
+	hSupp, _ := database.GetHost("192.168.1.99")
+	if !hSupp.IsPortIgnored(7070) {
+		t.Errorf("expected port 7070 to be ignored on host, got %s", hSupp.IgnoredPorts)
+	}
+
+	// Update host manual with ignored_ports
+	updateForm := strings.NewReader("display_name=JumpBox&is_static_ip=true&ignored_ports=7070,5938")
+	reqUp := httptest.NewRequest("POST", "/api/hosts/192.168.1.99/update", updateForm)
+	reqUp.Header.Set("Content-Type", "application/x-www-form-urlencoded")
+	recUp := httptest.NewRecorder()
+	router.ServeHTTP(recUp, reqUp)
+	if recUp.Code != http.StatusOK {
+		t.Errorf("expected 200 from host update, got %d", recUp.Code)
+	}
+	hUp, _ := database.GetHost("192.168.1.99")
+	if hUp.IgnoredPorts != "7070,5938" {
+		t.Errorf("expected ignored_ports to be '7070,5938', got '%s'", hUp.IgnoredPorts)
+	}
+	if hUp.HasSecurityRisk() {
+		t.Errorf("both 7070 and 5938 are suppressed, host should not have security risk")
+	}
 }
