@@ -145,6 +145,12 @@
                                         <span title="{{.Label}}" class="text-amber-500 font-bold text-xs">⚠️</span>
                                         {{end}}
                                     {{end}}
+                                {{else if .IsStaticIP}}
+                                    {{if eq .Status "up"}}
+                                    <span title="{{t $.Lang "col_static_ip"}} (UP)" class="text-emerald-500 font-bold text-xs">🟢</span>
+                                    {{else}}
+                                    <span title="{{t $.Lang "col_static_ip"}} (Down)" class="text-slate-400 font-bold text-xs">⚪</span>
+                                    {{end}}
                                 {{else if .IsDHCP}}
                                 <span title="DHCP" class="text-blue-500 font-bold text-xs">🔵</span>
                                 {{else if not .IsApproved}}
@@ -169,12 +175,12 @@
                                         <span class="text-base">🔍</span>
                                         <div>
                                             <div class="font-bold text-slate-900 dark:text-white font-mono text-xs flex items-center space-x-2">
-                                                <span>{{.IP}}</span>
-                                                {{if .IsStaticIP}}
-                                                <span class="px-1 py-0.2 rounded text-[9px] bg-slate-100 text-slate-600 dark:bg-slate-800 dark:text-slate-400">{{t $.Lang "col_static_ip"}}</span>
-                                                {{else if .IsDHCP}}
-                                                <span class="px-1.5 py-0.2 rounded text-[9px] bg-blue-100 text-blue-800 dark:bg-blue-950/60 dark:text-blue-300 font-medium">🔵 DHCP</span>
-                                                {{end}}
+                                                 <span>{{.IP}}</span>
+                                                 {{if .IsStaticIP}}
+                                                 <span class="px-1.5 py-0.2 rounded text-[9px] bg-emerald-100 text-emerald-800 dark:bg-emerald-950/60 dark:text-emerald-300 font-medium">🟢 {{t $.Lang "col_static_ip"}}</span>
+                                                 {{else if .IsDHCP}}
+                                                 <span class="px-1.5 py-0.2 rounded text-[9px] bg-blue-100 text-blue-800 dark:bg-blue-950/60 dark:text-blue-300 font-medium">🔵 DHCP</span>
+                                                 {{end}}
                                             </div>
                                             <div class="text-[10px] text-slate-500 truncate max-w-[200px]">{{if .Hostname}}{{.Hostname}}{{else}}{{t $.Lang "popover_no_hostname"}}{{end}}</div>
                                         </div>
@@ -356,6 +362,11 @@
                             <span class="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-medium bg-emerald-100 text-emerald-800 dark:bg-emerald-500/10 dark:text-emerald-400 border border-emerald-200 dark:border-emerald-500/20">
                                 {{t $.Lang "badge_approved"}}
                             </span>
+                            {{else if .IsStaticIP}}
+                            <span class="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-medium bg-emerald-50 text-emerald-700 dark:bg-emerald-950/40 dark:text-emerald-400 border border-emerald-200 dark:border-emerald-900/60"
+                                  title="{{t $.Lang "col_static_ip"}}">
+                                🟢 {{t $.Lang "col_static_ip"}}
+                            </span>
                             {{else if .IsDHCP}}
                                 {{if .IsNewHost}}
                                 <span class="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-bold bg-blue-100 text-blue-800 dark:bg-blue-950/60 dark:text-blue-300 border border-blue-300 dark:border-blue-800"
@@ -422,7 +433,8 @@
                         <!-- Static IP -->
                         <td class="py-3 px-3 text-center" onclick="event.stopPropagation()">
                             <input type="checkbox" {{if .IsStaticIP}}checked{{end}}
-                                   hx-post="/api/hosts/{{.IP}}/toggle_static" hx-swap="none"
+                                   hx-post="/api/hosts/{{.IP}}/toggle_static"
+                                   hx-target="#main-content" hx-swap="outerHTML"
                                    onclick="event.stopPropagation()"
                                    class="rounded bg-white dark:bg-slate-800 border-slate-300 dark:border-slate-700 text-blue-600 focus:ring-0 cursor-pointer">
                         </td>

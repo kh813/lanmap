@@ -545,7 +545,7 @@ func (h *Handler) HandleToggleStaticIP(w http.ResponseWriter, r *http.Request, i
 		return
 	}
 	_ = h.db.UpdateHostManual(ip, host.DisplayName, host.VendorModel, !host.IsStaticIP)
-	w.WriteHeader(http.StatusOK)
+	h.HandleMainTablePartial(w, r)
 }
 
 // HandleUpdateHost updates host manual fields

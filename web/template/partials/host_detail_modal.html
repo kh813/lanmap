@@ -11,7 +11,7 @@
                     <h2 class="text-lg font-bold text-slate-900 dark:text-white font-mono flex items-center space-x-2">
                         <span>{{.Host.IP}}</span>
                         {{if .Host.IsStaticIP}}
-                        <span class="text-[10px] font-sans font-semibold px-2 py-0.5 rounded bg-blue-100 dark:bg-blue-900/60 text-blue-700 dark:text-blue-300">{{t .Lang "detail_static_badge"}}</span>
+                        <span class="text-[10px] font-sans font-semibold px-2 py-0.5 rounded bg-emerald-100 dark:bg-emerald-950/60 text-emerald-800 dark:text-emerald-300">🟢 {{t .Lang "detail_static_badge"}}</span>
                         {{end}}
                     </h2>
                     <!-- Status Badges -->
