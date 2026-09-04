@@ -256,27 +256,37 @@ func TestWebRoutes(t *testing.T) {
 	}
 
 	// 15. Test Segment DHCP Range Validation on POST
-	// A. Invalid range should return 400 Bad Request with error container
+	// A. Invalid range should return 422 Unprocessable Entity with error container
 	valForm := strings.NewReader("name=TestLAN&cidr=192.168.1.0/24&dhcp_range=200-100&is_enabled=true")
 	req = httptest.NewRequest("POST", "/api/segments", valForm)
 	req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
 	rec = httptest.NewRecorder()
 	router.ServeHTTP(rec, req)
-	if rec.Code != http.StatusBadRequest || !strings.Contains(rec.Body.String(), "開始ホスト番号") {
-		t.Errorf("expected 400 and validation error message, got status=%d body=%s", rec.Code, rec.Body.String())
+	if rec.Code != http.StatusUnprocessableEntity || !strings.Contains(rec.Body.String(), "開始ホスト番号") {
+		t.Errorf("expected 422 and validation error message, got status=%d body=%s", rec.Code, rec.Body.String())
 	}
 
-	// B. Range outside CIDR should return 400 Bad Request
+	// B. Range outside CIDR should return 422 Unprocessable Entity
 	valForm = strings.NewReader("name=TestLAN&cidr=192.168.1.0/24&dhcp_range=192.168.2.100-192.168.2.200&is_enabled=true")
 	req = httptest.NewRequest("POST", "/api/segments", valForm)
 	req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
 	rec = httptest.NewRecorder()
 	router.ServeHTTP(rec, req)
-	if rec.Code != http.StatusBadRequest || !strings.Contains(rec.Body.String(), "含まれていません") {
-		t.Errorf("expected 400 and subnet error, got status=%d body=%s", rec.Code, rec.Body.String())
+	if rec.Code != http.StatusUnprocessableEntity || !strings.Contains(rec.Body.String(), "含まれていません") {
+		t.Errorf("expected 422 and subnet error, got status=%d body=%s", rec.Code, rec.Body.String())
 	}
 
-	// C. Valid range should succeed with 200 OK
+	// C. Valid /23 multi-range prefix format (e.g. 192.168.0.100-200, 192.168.1.150-200 in 192.168.1.0/23)
+	valForm = strings.NewReader("name=BranchLAN&cidr=192.168.1.0/23&dhcp_range=192.168.0.100-200,192.168.1.150-200&is_enabled=true")
+	req = httptest.NewRequest("POST", "/api/segments", valForm)
+	req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
+	rec = httptest.NewRecorder()
+	router.ServeHTTP(rec, req)
+	if rec.Code != http.StatusOK {
+		t.Errorf("expected 200 for valid /23 multi-range prefix DHCP, got status=%d body=%s", rec.Code, rec.Body.String())
+	}
+
+	// D. Valid range should succeed with 200 OK
 	valForm = strings.NewReader("name=TestLAN&cidr=192.168.1.0/24&dhcp_range=100-150,180-200&is_enabled=true&is_dhcp_manual=true")
 	req = httptest.NewRequest("POST", "/api/segments", valForm)
 	req.Header.Set("Content-Type", "application/x-www-form-urlencoded")

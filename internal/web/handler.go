@@ -561,11 +561,18 @@ func (h *Handler) HandleCreateOrUpdateSegment(w http.ResponseWriter, r *http.Req
 	if err := db.ValidateDHCPRange(dhcpRange, cidr); err != nil {
 		w.Header().Set("HX-Retarget", "#seg-error-container")
 		w.Header().Set("HX-Reswap", "innerHTML")
-		w.WriteHeader(http.StatusBadRequest)
-		errMsg := fmt.Sprintf(`<div class="p-2.5 mb-3 rounded-lg bg-red-50 dark:bg-red-950/60 border border-red-200 dark:border-red-800 text-red-600 dark:text-red-400 text-xs font-medium flex items-center space-x-2 animate-fade-in">
-			<span>⚠️</span>
-			<span>%s</span>
-		</div>`, html.EscapeString(err.Error()))
+		w.WriteHeader(http.StatusUnprocessableEntity)
+		title := "DHCP Range Error"
+		if i18n.DetectLanguage(r) == "ja" {
+			title = "DHCPレンジ設定エラー"
+		}
+		errMsg := fmt.Sprintf(`<div class="p-3 mb-3 rounded-lg bg-red-50 dark:bg-red-950/70 border border-red-200 dark:border-red-800 text-red-700 dark:text-red-300 text-xs flex items-start space-x-2 animate-fade-in shadow-xs">
+			<span class="text-base shrink-0 mt-0.5">⚠️</span>
+			<div class="flex-1 leading-relaxed">
+				<div class="font-bold mb-0.5">%s</div>
+				<div>%s</div>
+			</div>
+		</div>`, html.EscapeString(title), html.EscapeString(err.Error()))
 		_, _ = w.Write([]byte(errMsg))
 		return
 	}

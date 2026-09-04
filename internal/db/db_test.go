@@ -535,6 +535,33 @@ func TestDHCPRangeAndGuess(t *testing.T) {
 		t.Errorf("expected 192.168.1.50 NOT to be in 10-20, 100-200")
 	}
 
+	// 3.1 Test Prefix Range with /23 subnet (e.g. 192.168.0.100-200 and 192.168.1.150-200)
+	slash23Range := "192.168.0.100-200, 192.168.1.150-200"
+	if !IsInDHCPRange("192.168.0.100", slash23Range) {
+		t.Errorf("expected 192.168.0.100 to be in range")
+	}
+	if !IsInDHCPRange("192.168.0.150", slash23Range) {
+		t.Errorf("expected 192.168.0.150 to be in range")
+	}
+	if !IsInDHCPRange("192.168.0.200", slash23Range) {
+		t.Errorf("expected 192.168.0.200 to be in range")
+	}
+	if !IsInDHCPRange("192.168.1.150", slash23Range) {
+		t.Errorf("expected 192.168.1.150 to be in range")
+	}
+	if !IsInDHCPRange("192.168.1.200", slash23Range) {
+		t.Errorf("expected 192.168.1.200 to be in range")
+	}
+	if IsInDHCPRange("192.168.0.50", slash23Range) {
+		t.Errorf("expected 192.168.0.50 NOT to be in range")
+	}
+	if IsInDHCPRange("192.168.1.100", slash23Range) {
+		t.Errorf("expected 192.168.1.100 NOT to be in range (only 150-200)")
+	}
+	if IsInDHCPRange("192.168.2.150", slash23Range) {
+		t.Errorf("expected 192.168.2.150 NOT to be in range")
+	}
+
 	// 4. Test GuessDHCPRange
 	hosts := []*Host{
 		{IP: "192.168.1.1", VendorModel: "Yamaha RTX1210"}, // Router
@@ -641,7 +668,10 @@ func TestValidateDHCPRange(t *testing.T) {
 		{"50-100, 150-200", "192.168.1.0/24"},
 		{"50-100\n150-200;210-220", "192.168.1.0/24"},
 		{"192.168.1.50-192.168.1.150", "192.168.1.0/24"},
+		{"192.168.1.50-150", "192.168.1.0/24"}, // Prefix range (start full IP, end host number)
 		{"10.0.0.10-10.0.0.50, 10.0.0.60-10.0.0.100", "10.0.0.0/24"},
+		{"192.168.0.100-200, 192.168.1.150-200", "192.168.1.0/23"},                                 // /23 multi-range prefix format
+		{"192.168.0.100-192.168.0.200, 192.168.1.150-192.168.1.200", "192.168.1.0/23"},             // /23 multi-range full IP format
 	}
 
 	for _, tc := range validTests {
@@ -662,7 +692,9 @@ func TestValidateDHCPRange(t *testing.T) {
 		{"100-300", "192.168.1.0/24", "host number 300 out of bounds"},
 		{"abc-def", "192.168.1.0/24", "non-numeric"},
 		{"192.168.1.200-192.168.1.100", "192.168.1.0/24", "full IP start > end"},
+		{"192.168.1.200-100", "192.168.1.0/24", "prefix range start > end"},
 		{"192.168.2.100-192.168.2.200", "192.168.1.0/24", "full IP outside CIDR"},
+		{"192.168.2.100-200", "192.168.1.0/23", "prefix range outside /23 subnet"},
 		{"100-200", "192.168.1.0/28", "octet outside narrow subnet (/28)"},
 		{"100-192.168.1.200", "192.168.1.0/24", "mismatched types"},
 	}

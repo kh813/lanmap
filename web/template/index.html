@@ -50,6 +50,16 @@
             document.cookie = "lanmap_lang=" + lang + "; path=/; max-age=31536000; SameSite=Lax";
             window.location.reload();
         }
+
+        // Allow htmx to swap response HTML on validation errors (HTTP 400 / 422)
+        document.addEventListener('DOMContentLoaded', function() {
+            document.body.addEventListener('htmx:beforeOnLoad', function (evt) {
+                if (evt.detail.xhr.status === 400 || evt.detail.xhr.status === 422) {
+                    evt.detail.shouldSwap = true;
+                    evt.detail.isError = false;
+                }
+            });
+        });
     </script>
     <style>
         ::-webkit-scrollbar { width: 6px; height: 6px; }
