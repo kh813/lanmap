@@ -669,19 +669,260 @@ $ lanmap service uninstall
 * **Ping タイムラインの時間比例24時間レンダリング＆未計測ギャップ表示** (完了)
 
 ### 11.3 今後の機能拡張計画 (Roadmap)
-1. **ホストのカスタムメモ・備考機能 (Notes / Tags)**
+1. **OS別 監視ポートカスタマイズ & CSVインポート/エクスポート機能** (最優先 / 第12章参照)
+   * 設定モーダルにタブUI（「⚙️ システム設定」「🎯 監視ポート設定」）を新設。
+   * 「対象OS（Mac/Windows/Linux/プリンタ等）、プロトコル（TCP/80など）、プロトコル名、備考」の追加・編集・削除、有効/無効切替。
+   * ポート設定一覧の CSV エクスポート & CSV インポート機能（バックアップおよび社内統一ポリシー配布）。
+2. **フェデレーション機能（分散拠点・マルチLAN統合監視 / `lanmap-agent` 連携）** (最優先 / 第13章参照)
+   * 軽量エージェント `lanmap-agent`（または `lanmap agent` コマンド）を用意し、各拠点のLAN情報を集約して中央の `lanmap (server)` に送信。
+   * サーバー側の左カラムに各エージェントの拠点LANメニュー項目を追加し、クリックでメイン画面にその拠点の端末情報をシームレス表示。
+   * ペアリング/登録フロー: サーバー側で「フェデレーション受付モード」有効化 ➔ agent がフェデレーション要求 ➔ サーバー側で承認 ➔ 以降は暗号化トンネル（TLS / Bearer Token）でセキュア通信。
+   * **バージョン互換性チェック**: 双方のバージョン差異による不整合を防ぐため、通信時にバージョンネゴシエーションを行い、バージョン不一致時は Web UI 上でアップデートを促す警告表示を必須化。
+3. **ホストのカスタムメモ・備考機能 (Notes / Tags)**
    * 「総務部 鈴木PC」「受付プリンター」など任意の自由テキストメモをホストごとに登録・保存。
-2. **ホスト一覧 & 稼働履歴 CSV / TSV エクスポート**
+4. **ホスト一覧 & 稼働履歴 CSV / TSV エクスポート**
    * 検出・承認された端末一覧およびPing統計台帳をワンクリックでCSVダウンロード。
-3. **Wake-on-LAN (WoL) 送信機能**
+5. **Wake-on-LAN (WoL) 送信機能**
    * スリープ中の端末のMACアドレス宛にマジックパケットを送信して遠隔起動。
-4. **Web GUI パスワードロック機能 (簡易認証)**
+6. **Web GUI パスワードロック機能 (簡易認証)**
    * 設定画面での管理者パスワード指定、およびセッションベースの簡易ログイン画面（認証ダイアログ/ロック機能）の追加。
-5. **アクセス元IPの許可リスト（CIDR制限）**
+7. **アクセス元IPの許可リスト（CIDR制限）**
    * 設定でアクセスを許可するIP/CIDRを指定し、それ以外からのリクエストをアプリ層で拒否。
-6. **CSRF対策**
+8. **CSRF対策**
    * 承認/削除/設定変更等、state変更を伴うHTMXリクエストにCSRFトークンを付与。
-7. **Webhook URL 等の機密設定情報の暗号化保存**
+9. **Webhook URL 等の機密設定情報の暗号化保存**
    * `settings` テーブルに平文で保持しているWebhook URLを暗号化。
-8. **簡易監査ログ**
-   * 承認・削除・設定変更等の操作について、操作元IPと日時を記録し、事後追跡を可能にする。
+10. **簡易監査ログ**
+    * 承認・削除・設定変更等の操作について、操作元IPと日時を記録し、事後追跡を可能にする。
+
+---
+
+## 12. OS別 監視ポートカスタマイズ機能 設計仕様 (Customizable Monitored Ports per OS Profile)
+
+### 12.1 概要・目的
+現在 `internal/scanner/ports.go` に静的に定義されているプロファイル別ポート（Mac, Windows, Linux, Printer, Router, NAS, Mobile/IoT, Generic）を、ユーザー環境や社内セキュリティポリシーに合わせてWeb UIから柔軟にカスタマイズ（追加・編集・削除・有効/無効切替）できるようにする。また、設定のバックアップや他環境への展開を容易にするため、CSV形式でのエクスポートおよびインポート機能を提供する。
+
+### 12.2 UI/UX 仕様
+
+#### 1. 設定画面のタブナビゲーション (`settings_modal.html`)
+設定モーダル上部にタブバーを設置し、クリックで表示内容を切り替える（Alpine.js / htmx を使用）。
+* **タブ1: `[ ⚙️ システム設定 ]` (System Settings)**
+  * 既存のスキャン間隔、データ保持期間、スキャンモード（セーフモード/フルスキャン）、Webhook通知設定、SSL証明書、セルフアップデート等。
+* **タブ2: `[ 🎯 監視ポート設定 ]` (Monitored Ports)**
+  * OSプロファイルごとの監視対象ポート一覧・編集テーブル、CSVインポート/エクスポートUI。
+
+#### 2. 監視ポート設定タブのUI要素
+* **プロファイル切替フィルター**:
+  * ドロップダウンまたはボタングループ: `[ すべて | Mac/Apple | Windows | Linux/Unix | プリンタ | ルーター・NW | NAS・サーバー | モバイル・IoT | 汎用/その他 ]`
+* **監視ポート一覧テーブル**:
+  * **対象OS (Target OS)**: バッジ表示（例: `🍏 Mac`, `🪟 Windows`, `🐧 Linux`, `🖨️ Printer`, `🌐 Router` 等）
+  * **プロトコル / ポート (Protocol / Port)**: 例: `TCP / 80`, `UDP / 161`
+  * **プロトコル名 / サービス名 (Protocol Name)**: 例: `HTTP`, `SSH`, `RDP`, `SNMP`
+  * **備考 / 用途 (Notes / Description)**: 自由記述（例: `社内Web管理画面`, `リモート保守用`, `拠点間VPN`）
+  * **監視状態 (Status)**: トグルスイッチ（有効 / 無効）
+  * **操作 (Actions)**: `[ ✏️ 編集 ]` `[ 🗑️ 削除 ]`
+* **アクションツールバー**:
+  * `[ ➕ 監視ポートを追加 ]`: 新規ポート定義追加モーダルまたはインライン行を表示。
+  * `[ 📥 CSVエクスポート ]`: 現在の登録内容をCSVファイル（`lanmap_ports.csv`）として即時ダウンロード。
+  * `[ 📤 CSVインポート ]`: CSVファイルを選択またはドラッグ＆ドロップして一括取り込み。
+  * `[ 🔄 デフォルトにリセット ]`: 組み込みの初期推奨ポート定義に復元。
+
+### 12.3 CSV インポート & エクスポート仕様
+
+#### 1. CSVフォーマット
+ヘッダー行を含み、カンマ区切り（UTF-8）とする。
+
+```csv
+TargetOS,Protocol,Port,ProtocolName,Description,Enabled
+mac,TCP,22,SSH,Remote Login (SSH),true
+mac,TCP,5900,VNC,Screen Sharing / VNC,true
+windows,TCP,3389,RDP,Remote Desktop,true
+windows,TCP,445,SMB,Windows File Sharing,true
+printer,TCP,80,HTTP,Printer Web Interface,true
+printer,TCP,631,IPP,Internet Printing Protocol,true
+router,TCP,80,HTTP,Router Admin Console,true
+all,TCP,5938,TeamViewer,TeamViewer Remote,true
+```
+
+#### 2. バリデーションルール
+* `TargetOS`: `mac`, `windows`, `linux`, `printer`, `router`, `nas`, `iot`, `generic`, `all` のいずれか（大文字小文字不問）。
+* `Protocol`: `TCP` または `UDP`（初期実装はTCP主体）。
+* `Port`: `1` 〜 `65535` の整数。
+* `ProtocolName`: 1〜64文字の文字列（空欄不可）。
+* `Description`: 最大255文字（空欄可）。
+* `Enabled`: `true`/`false` または `1`/`0`（デフォルト: `true`）。
+
+#### 3. インポート動作
+* インポート時に「**既存に追加・更新（マージ）**」または「**既存設定をすべて削除して入れ替え（完全置換）**」の選択肢を設ける。
+* エラー行が存在する場合は、処理を中断して行番号とエラー理由をモーダル上に明示。
+
+### 12.4 データモデル・DB層 (`internal/db`)
+
+#### テーブル定義: `custom_profile_ports`
+```sql
+CREATE TABLE IF NOT EXISTS custom_profile_ports (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    profile_id VARCHAR(32) NOT NULL,       -- 'mac', 'windows', 'linux', 'printer', 'router', 'nas', 'iot', 'generic', 'all'
+    protocol VARCHAR(8) NOT NULL DEFAULT 'TCP', -- 'TCP', 'UDP'
+    port INTEGER NOT NULL,                 -- 1..65535
+    protocol_name VARCHAR(64) NOT NULL,    -- 'HTTP', 'SSH', 'RDP' 等
+    description TEXT,                      -- 備考・用途メモ
+    is_enabled BOOLEAN NOT NULL DEFAULT 1, -- 有効/無効フラグ
+    is_builtin BOOLEAN NOT NULL DEFAULT 0, -- 組み込みプリセットフラグ
+    created_at DATETIME NOT NULL,
+    updated_at DATETIME NOT NULL,
+    UNIQUE(profile_id, protocol, port)
+);
+CREATE INDEX IF NOT EXISTS idx_profile_ports_lookup ON custom_profile_ports(profile_id, is_enabled);
+```
+
+### 12.5 スキャナーエンジン連動 (`internal/scanner`)
+* アプリ起動時およびポート設定保存時に、DBから全有効ポート定義を読み出してスキャナー内のインメモリキャッシュ（`sync.RWMutex` 保護）を更新。
+* 端末スキャン時（フルスキャンまたはセーフモード下の適応型巡回・オンデマンド診断）、`DetermineDeviceProfile` で判定されたプロファイルに対応するポート（および `all` に指定された共通ポート）を抽出して低ノイズプローブを実行。
+
+---
+
+## 13. フェデレーション（分散拠点・マルチLAN統合監視）設計仕様 (Multi-Site Federation & Agent Architecture)
+
+### 13.1 アーキテクチャ概要
+中央で稼働する親機 `lanmap (server)` に対し、離れた拠点や別VLAN/AWS/GCP等に設置された子機 `lanmap-agent`（または `lanmap agent` コマンド）が、その拠点LAN内で Ping / ARP / DNS / mDNS / ポート検査 を実行し、集約したホスト情報を中央サーバーにセキュアに送信（Push型）して一元可視化する機能である。
+
+```
++-------------------------------------------------------------------------+
+|                        lanmap (server) 中央サーバー                       |
+|  - Web UI 管理画面 (HTTPS 3002)                                          |
+|  - 左カラムサイドバー: [ 本社LAN ] [ 🏢 大阪支社 ] [ 🏢 福岡営業所 ]      |
+|  - フェデレーションAPI: /api/federation/* (ペアリング / レポート受信)     |
+|  - 統合SQLite DB (全拠点の端末台帳・稼働統計を一元保持)                   |
++-------------------------------------------------------------------------+
+                                    ▲
+                                    │ HTTPS (TLS) 暗号化通信
+          ┌─────────────────────────┴─────────────────────────┐
+          │                                                   │
++-------------------------+                         +-------------------------+
+|   lanmap-agent (大阪)   |                         |   lanmap-agent (福岡)   |
+| - 軽量バイナリ          |                         | - 軽量バイナリ          |
+| - 192.168.10.0/24 探索  |                         | - 172.16.0.0/24 探索    |
+| - 定期Ping / ポート検査 |                         | - 定期Ping / ポート検査 |
++-------------------------+                         +-------------------------+
+```
+
+### 13.2 UI/UX 仕様
+
+#### 1. 左カラムサイドバーでの拠点別表示 (`sidebar.html`)
+* ローカルセグメント一覧の下部に「🌐 拠点LAN (Remote Sites)」セクションを新設。
+* ペアリング済みの各エージェント（例: `🏢 大阪支社 LAN (192.168.10.0/24)`）がメニュー項目として並ぶ。
+* 項目をクリックすると、メイン画面の端末一覧がその拠点のホスト情報に切り替わる（`?agent_id=<uuid>`）。
+* 拠点項目には「オンライン状態インジケーター（緑丸/グレー丸）」「端末数」「最終更新日時」を表示。
+
+#### 2. バージョン不一致警告バッジ & 警告バナー
+* サーバー（親機）とエージェント（子機）のバイナリバージョンが一致していない場合、通信やデータスキーマの不整合による事故を防ぐため、視覚的な警告を表示する。
+  * **サイドバー**: 拠点名横に `⚠️ v0.0.11 (要更新)` バッジを表示。
+  * **メイン画面上部**: 該当拠点選択時に警告バナーを表示:
+    > ⚠️ **エージェントのバージョン不一致**: 大阪支社エージェントのバージョン (`v0.0.11`) がサーバー (`v0.0.13`) と異なります。新機能の利用やスキーマ整合性維持のため、エージェントを最新版にアップデートしてください。
+
+### 13.3 ペアリング & 承認セキュリティフロー
+
+安易な不正端末からのデータ混入を防ぐため、PIN / トークンを用いた2段階ペアリング＆サーバー管理者承認フローを導入する。
+
+```
+[ エージェント (agent) ]                                [ サーバー (server / Web UI) ]
+         │                                                            │
+         │                                        1. [新規エージェント追加] をクリック
+         │                                           ➔ 受付モード開始 (PIN発行: "839201")
+         │                                                            │
+         │ 2. ペアリング要求 (PIN, 拠点名, IP, Version)              │
+         ├───────────────────────────────────────────────────────────>│
+         │                                                            │
+         │                                        3. Web UI に参加要求ポップアップ表示
+         │                                           管理者「承認 (Approve)」をクリック
+         │                                           ➔ 永続Agent Token (Secret) 生成
+         │ 4. 承認完了 & Agent Token 発行                             │
+         │<───────────────────────────────────────────────────────────┤
+         │                                                            │
+         │ 5. 以降、Agent Token を付与した暗号化通信 (TLS) で定期送信 │
+         ├───────────────────────────────────────────────────────────>│
+```
+
+1. **ステップ1 (サーバー側受付モード開始)**:
+   * サーバーの Web UI（フェデレーション管理画面）で「➕ 新規エージェントを追加」を押下。
+   * サーバーが一時的な「ワンタイムPIN（6桁数字、有効期限15分）」を発行し、受付待機状態となる。
+2. **ステップ2 (エージェントからの参加要求)**:
+   * 拠点側でエージェントコマンドを実行:
+     ```bash
+     $ ./lanmap-agent pair --server https://lanmap.example.com:3002 --pin 839201 --name "大阪支社"
+     ```
+   * エージェントはサーバーに対し、PIN・拠点名・ローカルCIDR・エージェントバージョンを送信。
+3. **ステップ3 (サーバー管理者による承認)**:
+   * サーバー Web UI 上に「新規エージェント参加要求: 大阪支社 (IP: 203.0.113.10, Version: v0.0.13)」が通知表示される。
+   * 管理者が内容を確認し、「承認」ボタンを押下。
+4. **ステップ4 (シークレットトークン発行)**:
+   * サーバーはエージェント専用の暗号化認証トークン（高エントロピーBearer Token）を発行。
+   * エージェントはローカル設定ファイル（`agent.json`）にトークンを安全に保存。
+5. **ステップ5 (暗号化定期通信)**:
+   * ペアリング完了後、エージェントは HTTPS 通信ヘッダーにトークンを付与し、定期スキャン結果（ホスト情報、稼働履歴、ポート情報）を `POST /api/federation/report` へ安全に送信。
+
+### 13.4 通信プロトコル & バージョン整合性仕様
+
+#### 1. レポート送信エンドポイント (`POST /api/federation/report`)
+* **ヘッダー**:
+  * `Authorization: Bearer <agent_token>`
+  * `X-Lanmap-Agent-Version: v0.0.13`
+  * `X-Lanmap-Schema-Version: 1`
+  * `Content-Type: application/json`
+* **リクエストペイロード例**:
+  ```json
+  {
+    "agent_id": "agent-uuid-550e8400",
+    "agent_name": "大阪支社",
+    "agent_version": "v0.0.13",
+    "schema_version": 1,
+    "scanned_at": "2026-09-05T05:40:00Z",
+    "cidr": "192.168.10.0/24",
+    "hosts": [
+      {
+        "ip": "192.168.10.1",
+        "mac": "00:11:22:33:44:55",
+        "hostname": "router-osaka.local",
+        "vendor": "Yamaha",
+        "device_profile": "router",
+        "is_online": true,
+        "ping_rtt_ms": 1.2,
+        "open_ports": "80,443"
+      }
+    ]
+  }
+  ```
+
+#### 2. バージョン判定 & ネゴシエーションロジック
+* サーバーは受信時に `X-Lanmap-Agent-Version` および `X-Lanmap-Schema-Version` を照合:
+  * **完全一致**: 正常処理。
+  * **マイナー/パッチ差異** (例: サーバー `v0.0.13` に対し エージェント `v0.0.12`):
+    * データスキーマバージョンが同一であれば正常に取り込みつつ、エージェントのレコードに `version_mismatch = true` を設定し、Web UI 上に警告バッジを表示。
+  * **スキーマ非互換メジャー差異** (例: スキーマバージョンが異なる場合):
+    * `HTTP 426 Upgrade Required` エラーを返却し、データ破損を防ぐためレポートの取り込みを拒絶。エージェント側ログに即座に更新が必要な旨を出力。
+
+### 13.5 データモデル・DB設計 (`internal/db`)
+
+#### テーブル定義: `federation_agents`
+```sql
+CREATE TABLE IF NOT EXISTS federation_agents (
+    id VARCHAR(64) PRIMARY KEY,            -- エージェントUUID
+    name VARCHAR(100) NOT NULL,            -- 拠点表示名（例: "大阪支社"）
+    token_hash VARCHAR(128) NOT NULL,      -- 認証トークンのSHA-256ハッシュ
+    remote_ip VARCHAR(45) NOT NULL,        -- 接続元グローバル/ローカルIP
+    cidr VARCHAR(50),                      -- 監視対象CIDR
+    status VARCHAR(20) NOT NULL DEFAULT 'active', -- 'pending', 'active', 'suspended', 'revoked'
+    version VARCHAR(32) NOT NULL,          -- エージェントバイナリバージョン
+    schema_version INTEGER NOT NULL DEFAULT 1,
+    version_mismatch BOOLEAN NOT NULL DEFAULT 0,
+    last_seen_at DATETIME,                 -- 最終通信時刻
+    created_at DATETIME NOT NULL,
+    updated_at DATETIME NOT NULL
+);
+```
+
+#### `hosts` テーブルへのエージェント紐付け
+* `hosts` テーブルに `agent_id VARCHAR(64) DEFAULT NULL REFERENCES federation_agents(id)` カラムを追加。
+* `agent_id IS NULL` のレコードはサーバー自身のローカルスキャン端末、`agent_id IS NOT NULL` のレコードは各拠点エージェントから報告された端末として透過的に分離・集計。
+
