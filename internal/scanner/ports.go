@@ -24,12 +24,11 @@ const (
 
 var profilePortMaps = map[DeviceProfile]map[int]string{
 	ProfileAppleMac: {
-		80:   "HTTP",
-		443:  "HTTPS",
-		445:  "SMB (ファイル共有)",
-		548:  "AFP (Mac共有)",
-		5000: "AirPlay (macOS)",
-		7000: "AirPlay",
+		22:  "SSH (リモートログイン)",
+		80:  "HTTP",
+		443: "HTTPS",
+		445: "SMB (ファイル共有)",
+		548: "AFP (Mac共有)",
 	},
 	ProfileAppleMobile: {
 		// Mobile Apple devices (iOS, watchOS) run in deep stealth; no open inbound TCP ports

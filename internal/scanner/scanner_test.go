@@ -335,13 +335,16 @@ func TestDetermineDeviceProfile(t *testing.T) {
 }
 
 func TestAdaptiveTargetPorts(t *testing.T) {
-	// 1. Apple Mac must have SMB(445) and AirPlay(5000/7000), but NOT Windows RDP(3389) or Printer(9100)
+	// 1. Apple Mac must have SSH(22), SMB(445), but NOT AirPlay(5000), Windows RDP(3389) or Printer(9100)
 	macPorts := GetTargetPortsForProfile(ProfileAppleMac)
+	if _, ok := macPorts[22]; !ok {
+		t.Errorf("expected SSH(22) in Apple Mac profile")
+	}
 	if _, ok := macPorts[445]; !ok {
 		t.Errorf("expected SMB(445) in Apple Mac profile")
 	}
-	if _, ok := macPorts[5000]; !ok {
-		t.Errorf("expected AirPlay(5000) in Apple Mac profile")
+	if _, ok := macPorts[5000]; ok {
+		t.Errorf("unexpected AirPlay(5000) in Apple Mac profile")
 	}
 	if _, ok := macPorts[3389]; ok {
 		t.Errorf("unexpected Windows RDP(3389) in Apple Mac profile")
