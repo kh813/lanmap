@@ -25,7 +25,7 @@ import (
 )
 
 // Version can be overwritten at build time with -ldflags
-var Version = "v0.0.15"
+var Version = "v0.0.16"
 
 func main() {
 	if len(os.Args) > 1 {
