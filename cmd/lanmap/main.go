@@ -25,7 +25,7 @@ import (
 )
 
 // Version is injected during build via -ldflags, defaults to development
-var Version = "v0.0.13"
+var Version = "v0.0.14"
 
 func main() {
 	if len(os.Args) > 1 {

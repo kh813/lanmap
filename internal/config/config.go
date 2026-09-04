@@ -10,7 +10,7 @@ import (
 )
 
 // AppVersion represents current version of the application
-const AppVersion = "v0.0.13"
+const AppVersion = "v0.0.14"
 
 // Config represents application configuration
 type Config struct {
