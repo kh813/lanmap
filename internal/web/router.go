@@ -36,6 +36,18 @@ func NewRouter(h *Handler) http.Handler {
 	mux.HandleFunc("GET /modals/whitelist", h.HandleWhitelistModal)
 	mux.HandleFunc("GET /modals/custom_port", h.HandleCustomPortModal)
 	mux.HandleFunc("GET /modals/custom_ports_import", h.HandleCustomPortsImportModal)
+	mux.HandleFunc("GET /modals/federation", h.HandleFederationModal)
+
+	// Federation API
+	mux.HandleFunc("POST /api/federation/pair/start", h.HandleStartPairing)
+	mux.HandleFunc("POST /api/federation/pair/request", h.HandleRequestPairing)
+	mux.HandleFunc("GET /api/federation/pair/status", h.HandlePairingStatus)
+	mux.HandleFunc("POST /api/federation/pair/approve", h.HandleApprovePairing)
+	mux.HandleFunc("POST /api/federation/pair/reject", h.HandleRejectPairing)
+	mux.HandleFunc("POST /api/federation/agents/{id}/revoke", h.HandleRevokeAgent)
+	mux.HandleFunc("DELETE /api/federation/agents/{id}", h.HandleDeleteAgent)
+	mux.HandleFunc("POST /api/federation/agents/{id}/delete", h.HandleDeleteAgent)
+	mux.HandleFunc("POST /api/federation/report", h.HandleFederationReport)
 
 	// Whitelist API
 	mux.HandleFunc("POST /api/whitelist/import", h.HandleImportWhitelist)

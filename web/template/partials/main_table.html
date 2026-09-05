@@ -1,5 +1,5 @@
 <div id="main-content" class="flex-1 flex flex-col min-w-0 bg-slate-50 dark:bg-slate-900 overflow-hidden"
-     hx-get="/partials/main_table?segment_id={{.CurrentSegmentID}}&filter={{.CurrentFilter}}"
+     hx-get="/partials/main_table?segment_id={{.CurrentSegmentID}}&agent_id={{.CurrentAgentID}}&filter={{.CurrentFilter}}"
      hx-trigger="every 30s, refreshMainTable from:body"
      hx-swap="outerHTML">
     <!-- Top Action Bar -->
@@ -12,6 +12,17 @@
                     {{.SegmentCIDR}}
                 </span>
                 {{end}}
+                {{if .SelectedAgent}}
+                    {{if eq .SelectedAgent.Status "active"}}
+                    <span class="text-[10px] px-2 py-0.5 rounded font-bold bg-emerald-100 text-emerald-800 dark:bg-emerald-950/80 dark:text-emerald-300">
+                        🟢 {{t .Lang "federation_active"}}
+                    </span>
+                    {{else}}
+                    <span class="text-[10px] px-2 py-0.5 rounded font-bold bg-rose-100 text-rose-800 dark:bg-rose-950/80 dark:text-rose-300">
+                        🔴 {{t .Lang "federation_revoked"}}
+                    </span>
+                    {{end}}
+                {{end}}
             </div>
             <p id="host-count-badge" class="text-xs text-slate-500 dark:text-slate-400 mt-0.5">
                 {{tf .Lang "table_total_hosts" (len .Hosts)}}
@@ -21,22 +32,22 @@
         <div class="flex items-center space-x-2 flex-wrap gap-2">
             <!-- Filter Switch (Online, 3 Days [Default], 7 Days, All) -->
             <div class="bg-slate-200/80 dark:bg-slate-800/80 p-0.5 rounded-lg flex text-xs border border-slate-300 dark:border-slate-700">
-                <button hx-get="/partials/main_table?segment_id={{.CurrentSegmentID}}&filter=online"
+                <button hx-get="/partials/main_table?segment_id={{.CurrentSegmentID}}&agent_id={{.CurrentAgentID}}&filter=online"
                         hx-target="#main-content" hx-swap="outerHTML"
                         class="px-2.5 py-1 rounded-md font-medium transition {{if eq .CurrentFilter "online"}}bg-white text-slate-900 dark:bg-slate-900 dark:text-white shadow-sm{{else}}text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-200{{end}}">
                     {{t .Lang "table_filter_online"}}
                 </button>
-                <button hx-get="/partials/main_table?segment_id={{.CurrentSegmentID}}&filter=3d"
+                <button hx-get="/partials/main_table?segment_id={{.CurrentSegmentID}}&agent_id={{.CurrentAgentID}}&filter=3d"
                         hx-target="#main-content" hx-swap="outerHTML"
                         class="px-2.5 py-1 rounded-md font-medium transition {{if or (eq .CurrentFilter "3d") (not .CurrentFilter)}}bg-white text-slate-900 dark:bg-slate-900 dark:text-white shadow-sm{{else}}text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-200{{end}}">
                     {{t .Lang "table_filter_3d"}}
                 </button>
-                <button hx-get="/partials/main_table?segment_id={{.CurrentSegmentID}}&filter=7d"
+                <button hx-get="/partials/main_table?segment_id={{.CurrentSegmentID}}&agent_id={{.CurrentAgentID}}&filter=7d"
                         hx-target="#main-content" hx-swap="outerHTML"
                         class="px-2.5 py-1 rounded-md font-medium transition {{if eq .CurrentFilter "7d"}}bg-white text-slate-900 dark:bg-slate-900 dark:text-white shadow-sm{{else}}text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-200{{end}}">
                     {{t .Lang "table_filter_7d"}}
                 </button>
-                <button hx-get="/partials/main_table?segment_id={{.CurrentSegmentID}}&filter=all"
+                <button hx-get="/partials/main_table?segment_id={{.CurrentSegmentID}}&agent_id={{.CurrentAgentID}}&filter=all"
                         hx-target="#main-content" hx-swap="outerHTML"
                         class="px-2.5 py-1 rounded-md font-medium transition {{if eq .CurrentFilter "all"}}bg-white text-slate-900 dark:bg-slate-900 dark:text-white shadow-sm{{else}}text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-200{{end}}">
                     {{t .Lang "table_filter_all"}}
@@ -73,6 +84,13 @@
 
     <!-- Table Container -->
     <div class="flex-1 overflow-auto p-4 space-y-2">
+        {{if and .SelectedAgent .SelectedAgent.VersionMismatch}}
+        <div class="px-3.5 py-2 bg-amber-50 dark:bg-amber-950/50 border border-amber-300 dark:border-amber-700/80 rounded-lg text-xs text-amber-800 dark:text-amber-200 flex items-center space-x-2 shadow-sm">
+            <span class="text-base shrink-0">⚠️</span>
+            <span>{{tf .Lang "federation_version_mismatch_warning" .SelectedAgent.Version .SelectedAgent.Version}}</span>
+        </div>
+        {{end}}
+
         <!-- Table Guide Banner -->
         <div class="px-3.5 py-2 bg-blue-50/70 dark:bg-blue-950/40 border border-blue-200/80 dark:border-blue-800/60 rounded-lg text-[11px] text-blue-700 dark:text-blue-300 flex items-center justify-between">
             <div class="flex items-center space-x-2">
@@ -434,7 +452,14 @@
                         <td class="py-3 px-3 font-medium text-slate-800 dark:text-slate-200 cursor-pointer hover:text-blue-600 dark:hover:text-blue-400 transition-colors"
                             onmouseenter="showHostPopover(this, 'popover-{{.IPID}}')"
                             onmouseleave="hideHostPopover('popover-{{.IPID}}')">
-                            {{if .Hostname}}{{.Hostname}}{{else}}<span class="text-slate-400 dark:text-slate-600">-</span>{{end}}
+                            <div class="flex items-center space-x-1.5 flex-wrap">
+                                <span>{{if .Hostname}}{{.Hostname}}{{else}}<span class="text-slate-400 dark:text-slate-600">-</span>{{end}}</span>
+                                {{if .AgentName}}
+                                <span class="text-[10px] px-1.5 py-0.2 rounded font-medium bg-purple-50 text-purple-700 dark:bg-purple-950/60 dark:text-purple-300 border border-purple-200 dark:border-purple-800/60 shrink-0" title="Remote Site">
+                                    🏢 {{.AgentName}}
+                                </span>
+                                {{end}}
+                            </div>
                         </td>
 
                         <!-- Display Name / Conflict Badge (Hover Trigger) -->

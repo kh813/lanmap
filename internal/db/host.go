@@ -61,6 +61,8 @@ type Host struct {
 	LastPortScan      *time.Time    `json:"last_port_scan"`
 	NextPortScan      *time.Time    `json:"next_port_scan"`
 	IgnoredPorts      string        `json:"ignored_ports"`
+	AgentID           *string       `json:"agent_id"`
+	AgentName         string        `json:"agent_name"`
 	IsPreviousHost    bool          `json:"-"`
 	PingChartSVG      template.HTML `json:"-"`
 	UptimeBlocksSVG   template.HTML `json:"-"`
@@ -832,7 +834,7 @@ func (db *DB) GetHost(ip string) (*Host, error) {
 		tls_subject, tls_expiry, mdns_model, broadcast_count_1m, is_storming,
 		is_approved, is_protected, is_static_ip, is_dhcp,
 		is_monitored, is_paused, has_conflict, kuma_name, uptime_kuma_id,
-		first_seen, last_seen, last_port_scan, next_port_scan, ignored_ports
+		first_seen, last_seen, last_port_scan, next_port_scan, ignored_ports, agent_id
 	FROM hosts
 	WHERE ip = ?
 	ORDER BY CASE WHEN status = 'up' THEN 0 ELSE 1 END, last_seen DESC
@@ -852,7 +854,7 @@ func (db *DB) GetHostByID(id int64) (*Host, error) {
 		tls_subject, tls_expiry, mdns_model, broadcast_count_1m, is_storming,
 		is_approved, is_protected, is_static_ip, is_dhcp,
 		is_monitored, is_paused, has_conflict, kuma_name, uptime_kuma_id,
-		first_seen, last_seen, last_port_scan, next_port_scan, ignored_ports
+		first_seen, last_seen, last_port_scan, next_port_scan, ignored_ports, agent_id
 	FROM hosts
 	WHERE id = ?
 	`
@@ -874,7 +876,7 @@ func (db *DB) GetHostByMAC(mac string) (*Host, error) {
 		tls_subject, tls_expiry, mdns_model, broadcast_count_1m, is_storming,
 		is_approved, is_protected, is_static_ip, is_dhcp,
 		is_monitored, is_paused, has_conflict, kuma_name, uptime_kuma_id,
-		first_seen, last_seen, last_port_scan, next_port_scan, ignored_ports
+		first_seen, last_seen, last_port_scan, next_port_scan, ignored_ports, agent_id
 	FROM hosts
 	WHERE LOWER(TRIM(mac_address)) = ?
 	ORDER BY CASE WHEN status = 'up' THEN 0 ELSE 1 END, last_seen DESC
@@ -894,6 +896,14 @@ func (db *DB) ListHosts(segmentID *int64, onlineOnly bool) ([]*Host, error) {
 
 // ListHostsFiltered lists hosts with flexible filterMode ("online", "days", "all")
 func (db *DB) ListHostsFiltered(segmentID *int64, filterMode string, daysLimit int) ([]*Host, error) {
+	return db.ListHostsFilteredWithAgent(segmentID, filterMode, daysLimit, nil)
+}
+
+// ListHostsFilteredWithAgent lists hosts with agent scope:
+// - agentID == nil or *agentID == "": server local hosts only (agent_id IS NULL)
+// - agentID != nil && *agentID == "*": all hosts across all sites and server
+// - agentID != nil && *agentID != "": remote hosts for specified agent UUID
+func (db *DB) ListHostsFilteredWithAgent(segmentID *int64, filterMode string, daysLimit int, agentID *string) ([]*Host, error) {
 	var query strings.Builder
 	var args []interface{}
 
@@ -905,10 +915,17 @@ func (db *DB) ListHostsFiltered(segmentID *int64, filterMode string, daysLimit i
 		tls_subject, tls_expiry, mdns_model, broadcast_count_1m, is_storming,
 		is_approved, is_protected, is_static_ip, is_dhcp,
 		is_monitored, is_paused, has_conflict, kuma_name, uptime_kuma_id,
-		first_seen, last_seen, last_port_scan, next_port_scan, ignored_ports
+		first_seen, last_seen, last_port_scan, next_port_scan, ignored_ports, agent_id
 	FROM hosts
 	WHERE 1=1
 	`)
+
+	if agentID == nil || *agentID == "" {
+		query.WriteString(" AND agent_id IS NULL")
+	} else if *agentID != "*" {
+		query.WriteString(" AND agent_id = ?")
+		args = append(args, *agentID)
+	}
 
 	if segmentID != nil {
 		query.WriteString(" AND segment_id = ?")
@@ -948,15 +965,37 @@ func (db *DB) ListHostsFiltered(segmentID *int64, filterMode string, daysLimit i
 		hosts = append(hosts, h)
 	}
 
-	// Mark superseded hosts (offline hosts where an active host exists on the same IP)
-	onlineIPs := make(map[string]bool)
+	// Resolve agent names if any remote hosts are present
+	agents, err := db.ListAgents()
+	if err == nil && len(agents) > 0 {
+		agentNameMap := make(map[string]string)
+		for _, a := range agents {
+			agentNameMap[a.ID] = a.Name
+		}
+		for _, h := range hosts {
+			if h.AgentID != nil {
+				h.AgentName = agentNameMap[*h.AgentID]
+			}
+		}
+	}
+
+	// Mark superseded hosts (offline hosts where an active host exists on the same IP and same agent_id)
+	onlineKeys := make(map[string]bool)
 	for _, h := range hosts {
 		if h.Status == "up" {
-			onlineIPs[h.IP] = true
+			key := h.IP
+			if h.AgentID != nil {
+				key = *h.AgentID + ":" + h.IP
+			}
+			onlineKeys[key] = true
 		}
 	}
 	for _, h := range hosts {
-		if h.Status != "up" && onlineIPs[h.IP] {
+		key := h.IP
+		if h.AgentID != nil {
+			key = *h.AgentID + ":" + h.IP
+		}
+		if h.Status != "up" && onlineKeys[key] {
 			h.IsPreviousHost = true
 		}
 	}
@@ -1218,6 +1257,7 @@ func scanHost(s scannable) (*Host, error) {
 	var lastSeen, tlsExp, lastPortScan, nextPortScan sql.NullTime
 	var rtt, jitter, uptime sql.NullFloat64
 	var ignoredPorts sql.NullString
+	var agentID sql.NullString
 
 	err := s.Scan(
 		&h.ID,
@@ -1256,12 +1296,17 @@ func scanHost(s scannable) (*Host, error) {
 		&lastPortScan,
 		&nextPortScan,
 		&ignoredPorts,
+		&agentID,
 	)
 	if err != nil {
 		if err == sql.ErrNoRows {
 			return nil, nil
 		}
 		return nil, err
+	}
+
+	if agentID.Valid && agentID.String != "" {
+		h.AgentID = &agentID.String
 	}
 
 	if segID.Valid {
@@ -1324,9 +1369,9 @@ func (db *DB) GetDuePortScanHost() (*Host, error) {
 		tls_subject, tls_expiry, mdns_model, broadcast_count_1m, is_storming,
 		is_approved, is_protected, is_static_ip, is_dhcp,
 		is_monitored, is_paused, has_conflict, kuma_name, uptime_kuma_id,
-		first_seen, last_seen, last_port_scan, next_port_scan, ignored_ports
+		first_seen, last_seen, last_port_scan, next_port_scan, ignored_ports, agent_id
 	FROM hosts
-	WHERE status = 'up' AND is_paused = 0 AND (next_port_scan IS NULL OR next_port_scan <= ?)
+	WHERE status = 'up' AND is_paused = 0 AND agent_id IS NULL AND (next_port_scan IS NULL OR next_port_scan <= ?)
 	ORDER BY (CASE WHEN next_port_scan IS NULL THEN 0 ELSE 1 END), next_port_scan ASC
 	LIMIT 1
 	`

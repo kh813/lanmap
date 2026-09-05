@@ -1,6 +1,7 @@
 package web
 
 import (
+	"encoding/json"
 	"fmt"
 	"net/http"
 	"net/http/httptest"
@@ -744,5 +745,145 @@ func TestTLSVerificationEndpoints(t *testing.T) {
 		t.Errorf("expected 200 with error message on bad TLS save, got: %s", rec.Body.String())
 	}
 }
+
+func TestFederationWebRoutes(t *testing.T) {
+	_, router, database := setupTestWeb(t)
+
+	// 1. Generate PIN via API
+	startReq := httptest.NewRequest("POST", "/api/federation/pair/start", strings.NewReader("name=テスト支社"))
+	startReq.Header.Set("Content-Type", "application/x-www-form-urlencoded")
+	startReq.Header.Set("Accept", "application/json")
+	startRec := httptest.NewRecorder()
+	router.ServeHTTP(startRec, startReq)
+
+	if startRec.Code != http.StatusOK {
+		t.Fatalf("start pairing failed: %d, %s", startRec.Code, startRec.Body.String())
+	}
+
+	var startData map[string]interface{}
+	_ = json.NewDecoder(startRec.Body).Decode(&startData)
+	pin := startData["pin"].(string)
+	if len(pin) != 6 {
+		t.Fatalf("expected 6-digit pin, got %s", pin)
+	}
+
+	// 2. Request Pairing from remote agent
+	pairBody := fmt.Sprintf(`{"pin":"%s","name":"テスト支社","version":"v0.0.16","cidr":"192.168.20.0/24"}`, pin)
+	reqReq := httptest.NewRequest("POST", "/api/federation/pair/request", strings.NewReader(pairBody))
+	reqReq.Header.Set("Content-Type", "application/json")
+	reqRec := httptest.NewRecorder()
+	router.ServeHTTP(reqRec, reqReq)
+
+	if reqRec.Code != http.StatusOK {
+		t.Fatalf("pair request failed: %d, %s", reqRec.Code, reqRec.Body.String())
+	}
+
+	var reqData map[string]interface{}
+	_ = json.NewDecoder(reqRec.Body).Decode(&reqData)
+	agentID := reqData["agent_id"].(string)
+	if agentID == "" {
+		t.Fatal("expected non-empty agent_id")
+	}
+
+	// 3. Polling check (status should be 'requested')
+	statusReq := httptest.NewRequest("GET", fmt.Sprintf("/api/federation/pair/status?pin=%s&agent_id=%s", pin, agentID), nil)
+	statusRec := httptest.NewRecorder()
+	router.ServeHTTP(statusRec, statusReq)
+
+	var statData map[string]interface{}
+	_ = json.NewDecoder(statusRec.Body).Decode(&statData)
+	if statData["status"] != "requested" {
+		t.Fatalf("expected status 'requested', got %v", statData["status"])
+	}
+
+	// 4. Admin approves pairing
+	approveForm := url.Values{"pin": {pin}}
+	appReq := httptest.NewRequest("POST", "/api/federation/pair/approve", strings.NewReader(approveForm.Encode()))
+	appReq.Header.Set("Content-Type", "application/x-www-form-urlencoded")
+	appRec := httptest.NewRecorder()
+	router.ServeHTTP(appRec, appReq)
+
+	if appRec.Code != http.StatusOK {
+		t.Fatalf("approve failed: %d, %s", appRec.Code, appRec.Body.String())
+	}
+
+	// 5. Polling check (status should now be 'approved' with token)
+	statusReq2 := httptest.NewRequest("GET", fmt.Sprintf("/api/federation/pair/status?pin=%s&agent_id=%s", pin, agentID), nil)
+	statusRec2 := httptest.NewRecorder()
+	router.ServeHTTP(statusRec2, statusReq2)
+
+	var statData2 map[string]interface{}
+	_ = json.NewDecoder(statusRec2.Body).Decode(&statData2)
+	if statData2["status"] != "approved" {
+		t.Fatalf("expected status 'approved', got %v", statData2["status"])
+	}
+	token, ok := statData2["token"].(string)
+	if !ok || token == "" {
+		t.Fatal("expected non-empty token")
+	}
+
+	// 6. Submit Report with Bearer token
+	reportPayload := fmt.Sprintf(`{
+		"agent_id": "%s",
+		"agent_name": "テスト支社",
+		"agent_version": "v0.0.16",
+		"schema_version": 1,
+		"cidr": "192.168.20.0/24",
+		"hosts": [
+			{"ip": "192.168.20.10", "hostname": "remote-gw", "status": "up"}
+		]
+	}`, agentID)
+	repReq := httptest.NewRequest("POST", "/api/federation/report", strings.NewReader(reportPayload))
+	repReq.Header.Set("Content-Type", "application/json")
+	repReq.Header.Set("Authorization", "Bearer "+token)
+	repRec := httptest.NewRecorder()
+	router.ServeHTTP(repRec, repReq)
+
+	if repRec.Code != http.StatusOK {
+		t.Fatalf("report failed: %d, %s", repRec.Code, repRec.Body.String())
+	}
+
+	// Check that remote host exists and is isolated
+	remoteHosts, err := database.ListHostsFilteredWithAgent(nil, "all", 0, &agentID)
+	if err != nil || len(remoteHosts) != 1 {
+		t.Fatalf("expected 1 remote host, got %d, err=%v", len(remoteHosts), err)
+	}
+	if remoteHosts[0].IP != "192.168.20.10" || remoteHosts[0].Hostname != "remote-gw" {
+		t.Fatalf("unexpected remote host: %+v", remoteHosts[0])
+	}
+
+	// 7. Revoke Agent
+	revReq := httptest.NewRequest("POST", fmt.Sprintf("/api/federation/agents/%s/revoke", agentID), nil)
+	revRec := httptest.NewRecorder()
+	router.ServeHTTP(revRec, revReq)
+	if revRec.Code != http.StatusOK {
+		t.Fatalf("revoke failed: %d", revRec.Code)
+	}
+
+	// 8. Re-submit report should now be 401 Unauthorized
+	repReq2 := httptest.NewRequest("POST", "/api/federation/report", strings.NewReader(reportPayload))
+	repReq2.Header.Set("Content-Type", "application/json")
+	repReq2.Header.Set("Authorization", "Bearer "+token)
+	repRec2 := httptest.NewRecorder()
+	router.ServeHTTP(repRec2, repReq2)
+	if repRec2.Code != http.StatusUnauthorized {
+		t.Fatalf("expected 401 Unauthorized after revoke, got %d", repRec2.Code)
+	}
+
+	// 9. Delete Agent
+	delReq := httptest.NewRequest("DELETE", fmt.Sprintf("/api/federation/agents/%s", agentID), nil)
+	delRec := httptest.NewRecorder()
+	router.ServeHTTP(delRec, delReq)
+	if delRec.Code != http.StatusOK {
+		t.Fatalf("delete failed: %d", delRec.Code)
+	}
+
+	// Verify remote hosts also deleted
+	remoteHostsAfter, _ := database.ListHostsFilteredWithAgent(nil, "all", 0, &agentID)
+	if len(remoteHostsAfter) != 0 {
+		t.Fatalf("expected 0 remote hosts after agent deletion, got %d", len(remoteHostsAfter))
+	}
+}
+
 
 

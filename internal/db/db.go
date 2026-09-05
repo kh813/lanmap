@@ -93,6 +93,7 @@ func (db *DB) migrate() error {
 		last_port_scan DATETIME,
 		next_port_scan DATETIME,
 		ignored_ports TEXT DEFAULT '',
+		agent_id VARCHAR(64) DEFAULT NULL REFERENCES federation_agents(id),
 		FOREIGN KEY (segment_id) REFERENCES segments(id) ON DELETE SET NULL
 	);
 
@@ -147,6 +148,36 @@ func (db *DB) migrate() error {
 
 	CREATE UNIQUE INDEX IF NOT EXISTS idx_profile_port_proto ON custom_profile_ports(profile_id, protocol, port);
 	CREATE INDEX IF NOT EXISTS idx_profile_ports_lookup ON custom_profile_ports(profile_id, is_enabled);
+
+	CREATE TABLE IF NOT EXISTS federation_agents (
+		id VARCHAR(64) PRIMARY KEY,
+		name VARCHAR(100) NOT NULL,
+		token_hash VARCHAR(128) NOT NULL,
+		remote_ip VARCHAR(45) NOT NULL,
+		cidr VARCHAR(50),
+		status VARCHAR(20) NOT NULL DEFAULT 'active',
+		version VARCHAR(32) NOT NULL,
+		schema_version INTEGER NOT NULL DEFAULT 1,
+		version_mismatch BOOLEAN NOT NULL DEFAULT 0,
+		last_seen_at DATETIME,
+		created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+		updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
+	);
+
+	CREATE INDEX IF NOT EXISTS idx_federation_agents_token ON federation_agents(token_hash);
+
+	CREATE TABLE IF NOT EXISTS federation_pairing_pins (
+		pin VARCHAR(10) PRIMARY KEY,
+		agent_id VARCHAR(64),
+		agent_name VARCHAR(100),
+		agent_version VARCHAR(32),
+		agent_cidr VARCHAR(50),
+		remote_ip VARCHAR(45),
+		status VARCHAR(20) NOT NULL DEFAULT 'issued',
+		token VARCHAR(128),
+		expires_at DATETIME NOT NULL,
+		created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+	);
 	`
 	if _, err := db.Exec(schema); err != nil {
 		return err
@@ -262,6 +293,9 @@ func (db *DB) migrate() error {
 	_, _ = db.Exec("ALTER TABLE segments ADD COLUMN dhcp_range VARCHAR(100) DEFAULT '';")
 	_, _ = db.Exec("ALTER TABLE segments ADD COLUMN is_dhcp_manual BOOLEAN DEFAULT 0;")
 	_, _ = db.Exec("ALTER TABLE custom_profile_ports ADD COLUMN severity VARCHAR(20) NOT NULL DEFAULT 'info';")
+	_, _ = db.Exec("ALTER TABLE hosts ADD COLUMN agent_id VARCHAR(64) DEFAULT NULL REFERENCES federation_agents(id);")
+	_, _ = db.Exec("CREATE INDEX IF NOT EXISTS idx_hosts_agent_id ON hosts(agent_id);")
+	_, _ = db.Exec("CREATE INDEX IF NOT EXISTS idx_hosts_agent_ip ON hosts(agent_id, ip);")
 
 	return nil
 }

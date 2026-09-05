@@ -621,3 +621,45 @@
   - [x] `go test -v ./internal/web/...` PASS
   - [x] `make build` 成功確認
 
+---
+
+### 🔹 Phase 27: フェデレーション機能（拠点エージェント & マルチLAN統合監視）(完了)
+- [x] **27.1 データベース層 (`internal/db`)**
+  - [x] `federation_agents` テーブル作成 (`id`, `name`, `token_hash`, `remote_ip`, `cidr`, `status`, `version`, `schema_version`, `version_mismatch`, `last_seen_at`, `created_at`, `updated_at`)
+  - [x] `federation_pairing_pins` テーブル作成 (`pin`, `agent_id`, `agent_name`, `agent_version`, `agent_cidr`, `remote_ip`, `status`, `token`, `expires_at`, `created_at`)
+  - [x] `hosts` テーブルに `agent_id VARCHAR(64) DEFAULT NULL REFERENCES federation_agents(id)` カラム追加 & マイグレーション
+  - [x] インデックス追加 (`idx_hosts_agent_id`, `idx_hosts_agent_ip`)
+  - [x] エージェント操作 CRUD: `CreatePairingPIN`, `RequestPairing`, `ApprovePairing`, `RejectPairing`, `GetPairingStatus`, `ListAgents`, `GetAgentByID`, `GetAgentByTokenHash`, `UpdateAgentHeartbeat`, `RevokeAgent`, `DeleteAgent` 実装
+  - [x] 拠点ホスト同期 & スコープ分離: `UpsertRemoteHosts` (同一IPの拠点間重複を agent_id で完全分離), `ListHostsFiltered` への `agent_id` フィルタリング追加
+  - [x] 単体テスト (`TestFederationDBOperations`) 実装
+- [x] **27.2 サーバー側 API & 認証ミドルウェア (`internal/web`, `internal/federation`)**
+  - [x] `POST /api/federation/pair/start`: 15分有効な6桁ワンタイムPIN生成
+  - [x] `POST /api/federation/pair/request`: 拠点エージェントからのペアリング要求受付（PIN検証・待機レコード作成）
+  - [x] `GET /api/federation/pair/status`: 拠点エージェント用ポーリングエンドポイント（承認待機 3〜5分）
+  - [x] `POST /api/federation/pair/approve`: 管理者Web UIからのペアリング承認 & 永続Bearer Token発行
+  - [x] `POST /api/federation/pair/reject`: 管理者Web UIからのペアリング拒否
+  - [x] `POST /api/federation/agents/{id}/revoke`: 特定エージェントの無効化（Revoke）
+  - [x] `DELETE /api/federation/agents/{id}`: エージェント及び所属ホストの削除
+  - [x] `POST /api/federation/report`: Bearer Token認証付きレポート受信エンドポイント
+    - `Authorization: Bearer <token>` 検証
+    - バージョン整合性チェック（メジャー/マイナー不一致時 `version_mismatch=true` 記録、スキーマ非互換時 426 返却）
+    - レポートホスト一覧を `UpsertRemoteHosts` でDB一括反映
+  - [x] 単体テスト (`TestFederationAPIEndpoints`) 実装
+- [x] **27.3 Web UI テンプレート & 国際化 (`web/template`, `internal/i18n`)**
+  - [x] 日英辞書キー追加（フェデレーション、拠点追加、PIN発行、承認待ち、バージョン不一致警告、Revokeボタン等）
+  - [x] `sidebar.html`: 「🌐 拠点LAN (Remote Sites)」セクション追加、拠点一覧（ステータス・CIDR・バージョン不一致警告アイコン）、`➕ 拠点追加` ボタン
+  - [x] `federation_modal.html`: 拠点一覧、Revoke/削除、PIN発行と承認待ちリアルタイム一覧モーダル
+  - [x] `main_table.html`: `?agent_id=<uuid>` による拠点別端末絞り込み表示、バージョン不一致警告バナーの表示
+- [x] **27.4 エージェントCLI & バックグラウンド同期クライアント (`internal/federation`, `cmd/lanmap`)**
+  - [x] `lanmap agent pair --server <URL> --pin <PIN> --name <Name>` コマンド実装
+    - サーバー接続・PIN要求送信
+    - 3秒間隔で最大 3〜5分間 承認ステータスをポーリング
+    - 承認時に Token を取得しローカル設定/DBに永続化
+  - [x] `lanmap agent status` コマンド実装（親機接続状態・最終同期時刻・登録名表示）
+  - [x] `lanmap agent unpair` コマンド実装（ローカルペアリング情報の解除）
+  - [x] 定期送信クライアント: スキャン完了時（または5分毎）にローカルホスト情報を親機へ `POST /api/federation/report`
+- [x] **27.5 総合検証 & ビルド**
+  - [x] 単体テスト・結合テスト実行 (`go test -v ./...`)
+  - [x] `make build` 動作確認
+
+

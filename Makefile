@@ -3,7 +3,7 @@ CMD_DIR=./cmd/lanmap
 VERSION=v0.0.16
 BUILD_DIR=./dist
 
-.PHONY: all build clean test cross-compile package
+.PHONY: all build clean test test-federation cross-compile package
 
 all: build
 
@@ -13,7 +13,13 @@ build:
 
 test:
 	@echo "Running tests..."
-	go test -v ./...
+	go test -v ./internal/db ./internal/federation ./internal/i18n ./internal/monitor ./internal/scanner ./internal/updater ./internal/web
+
+test-federation:
+	@echo "Running federation & remote agent E2E tests..."
+	go test -v ./internal/db -run TestFederation
+	go test -v ./internal/web -run TestFederation
+	go test -v ./internal/federation/...
 
 cross-compile: clean
 	@mkdir -p $(BUILD_DIR)/tmp

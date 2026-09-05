@@ -899,7 +899,14 @@ CREATE INDEX IF NOT EXISTS idx_profile_ports_lookup ON custom_profile_ports(prof
 ## 13. フェデレーション（分散拠点・マルチLAN統合監視）設計仕様 (Multi-Site Federation & Agent Architecture)
 
 ### 13.1 アーキテクチャ概要
-中央で稼働する親機 `lanmap (server)` に対し、離れた拠点や別VLAN/AWS/GCP等に設置された子機 `lanmap-agent`（または `lanmap agent` コマンド）が、その拠点LAN内で Ping / ARP / DNS / mDNS / ポート検査 を実行し、集約したホスト情報を中央サーバーにセキュアに送信（Push型）して一元可視化する機能である。
+中央で稼働する親機 `lanmap (server)` に対し、離れた拠点や別VLAN/クラウド等に設置された `lanmap`（エージェントモード）が、その拠点LAN内で Ping / ARP / DNS / mDNS / ポート検査 を自律実行し、拠点のローカルWeb UIで可視化を行いつつ、集約したホスト情報を中央サーバーにセキュアに送信（Push型）して一元管理・可視化する機能である。
+
+* **バイナリ構成 (B案採用 & 将来A案予約)**:
+  * **現行実装 (B案)**: 単一の `lanmap` バイナリが親機（中央サーバー）と子機（拠点エージェント）の双方を兼ねる。拠点側の `lanmap` でもローカルWeb画面（HTTPS 3002）で拠点内端末を確認可能としつつ、設定により中央サーバーへ定期Push同期を行う。CLI サブコマンド `lanmap agent pair / status / unpair` も内蔵。
+  * **将来拡張 (A案予約)**: 拠点側でWeb画面が不要な環境や、Raspberry Pi・組み込みアプライアンス向けに、Web UI・アセットを削ぎ落とした超軽量収集特化バイナリ `lanmap-agent` の提供も計画。
+* **ネットワーク構成 (Mesh-VPN 前提)**:
+  * 親機 `lanmap` と拠点 `lanmap (agent)` 間の通信は **Tailscale などの Mesh-VPN 経由** で直接かつセキュアに接続される。
+  * 各拠点の `lanmap` が探索・監視する対象は、拠点マシンの **デフォルトゲートウェイ (Default Gateway) が向いている物理LAN通信経路** となる。
 
 ```
 +-------------------------------------------------------------------------+
@@ -910,14 +917,15 @@ CREATE INDEX IF NOT EXISTS idx_profile_ports_lookup ON custom_profile_ports(prof
 |  - 統合SQLite DB (全拠点の端末台帳・稼働統計を一元保持)                   |
 +-------------------------------------------------------------------------+
                                     ▲
-                                    │ HTTPS (TLS) 暗号化通信
+                                    │ Tailscale / Mesh-VPN (HTTPS 暗号化通信)
           ┌─────────────────────────┴─────────────────────────┐
           │                                                   │
 +-------------------------+                         +-------------------------+
-|   lanmap-agent (大阪)   |                         |   lanmap-agent (福岡)   |
-| - 軽量バイナリ          |                         | - 軽量バイナリ          |
+|   lanmap (大阪支社)     |                         |   lanmap (福岡営業所)   |
+| - 拠点ローカルWeb UI    |                         | - 拠点ローカルWeb UI    |
 | - 192.168.10.0/24 探索  |                         | - 172.16.0.0/24 探索    |
 | - 定期Ping / ポート検査 |                         | - 定期Ping / ポート検査 |
+| - 中央サーバーへPush    |                         | - 中央サーバーへPush    |
 +-------------------------+                         +-------------------------+
 ```
 
@@ -925,56 +933,65 @@ CREATE INDEX IF NOT EXISTS idx_profile_ports_lookup ON custom_profile_ports(prof
 
 #### 1. 左カラムサイドバーでの拠点別表示 (`sidebar.html`)
 * ローカルセグメント一覧の下部に「🌐 拠点LAN (Remote Sites)」セクションを新設。
-* ペアリング済みの各エージェント（例: `🏢 大阪支社 LAN (192.168.10.0/24)`）がメニュー項目として並ぶ。
+* ペアリング済みの各エージェント（例: `🏢 大阪支社 (192.168.10.0/24)`）がメニュー項目として並ぶ。
 * 項目をクリックすると、メイン画面の端末一覧がその拠点のホスト情報に切り替わる（`?agent_id=<uuid>`）。
 * 拠点項目には「オンライン状態インジケーター（緑丸/グレー丸）」「端末数」「最終更新日時」を表示。
+* セクション上部に「➕ 拠点追加」ボタンを設置し、クリックでエージェントペアリング管理モーダルを起動可能。
 
 #### 2. バージョン不一致警告バッジ & 警告バナー
 * サーバー（親機）とエージェント（子機）のバイナリバージョンが一致していない場合、通信やデータスキーマの不整合による事故を防ぐため、視覚的な警告を表示する。
   * **サイドバー**: 拠点名横に `⚠️ v0.0.11 (要更新)` バッジを表示。
   * **メイン画面上部**: 該当拠点選択時に警告バナーを表示:
-    > ⚠️ **エージェントのバージョン不一致**: 大阪支社エージェントのバージョン (`v0.0.11`) がサーバー (`v0.0.13`) と異なります。新機能の利用やスキーマ整合性維持のため、エージェントを最新版にアップデートしてください。
+    > ⚠️ **エージェントのバージョン不一致**: 大阪支社エージェントのバージョン (`v0.0.11`) がサーバー (`v0.0.16`) と異なります。新機能の利用やスキーマ整合性維持のため、エージェントを最新版にアップデートしてください。
 
-### 13.3 ペアリング & 承認セキュリティフロー
+#### 3. エージェント切断・失効 (Revoke) 機能
+* 中央サーバーの Web UI（フェデレーション管理画面）から、いつでも特定エージェントのアクセス権を失効（Revoke）または削除可能。
+* 失効されたエージェントからのレポート送信は `401 Unauthorized` で直ちに拒絶され、不正または不要になった拠点を瞬時に切り離すことができる。
 
-安易な不正端末からのデータ混入を防ぐため、PIN / トークンを用いた2段階ペアリング＆サーバー管理者承認フローを導入する。
+### 13.3 ペアリング & 承認セキュリティフロー (高セキュリティ・2段階承認)
+
+安易な不正端末からのデータ混入を防ぐため、ワンタイムPINを用いた2段階承認フローを導入する。
 
 ```
-[ エージェント (agent) ]                                [ サーバー (server / Web UI) ]
+[ 拠点側 lanmap (agent) ]                                [ 中央 lanmap (server / Web UI) ]
          │                                                            │
-         │                                        1. [新規エージェント追加] をクリック
-         │                                           ➔ 受付モード開始 (PIN発行: "839201")
+         │                                        1. [➕ 拠点追加] をクリック
+         │                                           ➔ 受付モード開始 (PIN発行: "839201", 15分有効)
          │                                                            │
-         │ 2. ペアリング要求 (PIN, 拠点名, IP, Version)              │
+         │ 2. ペアリング要求 (PIN, 拠点名, CIDR, Version)             │
          ├───────────────────────────────────────────────────────────>│
          │                                                            │
-         │                                        3. Web UI に参加要求ポップアップ表示
-         │                                           管理者「承認 (Approve)」をクリック
-         │                                           ➔ 永続Agent Token (Secret) 生成
-         │ 4. 承認完了 & Agent Token 発行                             │
+         │ 3. 承認待機ポーリング開始 (3〜5分間待機)                   │
+         │    GET /api/federation/pair/status                         │
+         │ ─── ─── ─── ─── ─── ─── ─── ─── ─── ─── ─── ─── ─── ─── ───>│
+         │                                                            │
+         │                                        4. Web UI に参加要求がリアルタイム表示
+         │                                           管理者「✅ 承認 (Approve)」をクリック
+         │                                           ➔ 永続Agent Token (Bearer Secret) 生成
+         │ 5. ポーリング応答で Token 取得 & 保存                      │
          │<───────────────────────────────────────────────────────────┤
          │                                                            │
-         │ 5. 以降、Agent Token を付与した暗号化通信 (TLS) で定期送信 │
+         │ 6. 以降、Agent Token を付与した暗号化通信 (TLS) で定期送信 │
          ├───────────────────────────────────────────────────────────>│
 ```
 
-1. **ステップ1 (サーバー側受付モード開始)**:
-   * サーバーの Web UI（フェデレーション管理画面）で「➕ 新規エージェントを追加」を押下。
-   * サーバーが一時的な「ワンタイムPIN（6桁数字、有効期限15分）」を発行し、受付待機状態となる。
-2. **ステップ2 (エージェントからの参加要求)**:
-   * 拠点側でエージェントコマンドを実行:
+1. **ステップ1 (サーバー側受付モード開始 & PIN発行)**:
+   * サーバーの Web UI（フェデレーション管理画面）で「➕ 拠点追加」を押下。
+   * サーバーが一時的な「ワンタイムPIN（6桁数字、有効期限15分）」を発行し、待機中画面を表示（コピー可能なCLIコマンド例を併記）。
+2. **ステップ2 (拠点エージェントからの参加要求)**:
+   * 拠点側でコマンドを実行、または拠点Web UIから親機URLとPINを入力:
      ```bash
-     $ ./lanmap-agent pair --server https://lanmap.example.com:3002 --pin 839201 --name "大阪支社"
+     $ ./lanmap agent pair --server https://lanmap.internal:3002 --pin 839201 --name "大阪支社"
      ```
    * エージェントはサーバーに対し、PIN・拠点名・ローカルCIDR・エージェントバージョンを送信。
-3. **ステップ3 (サーバー管理者による承認)**:
-   * サーバー Web UI 上に「新規エージェント参加要求: 大阪支社 (IP: 203.0.113.10, Version: v0.0.13)」が通知表示される。
-   * 管理者が内容を確認し、「承認」ボタンを押下。
-4. **ステップ4 (シークレットトークン発行)**:
-   * サーバーはエージェント専用の暗号化認証トークン（高エントロピーBearer Token）を発行。
-   * エージェントはローカル設定ファイル（`agent.json`）にトークンを安全に保存。
-5. **ステップ5 (暗号化定期通信)**:
-   * ペアリング完了後、エージェントは HTTPS 通信ヘッダーにトークンを付与し、定期スキャン結果（ホスト情報、稼働履歴、ポート情報）を `POST /api/federation/report` へ安全に送信。
+3. **ステップ3 & 4 (サーバー管理者による承認 & 3〜5分間待機)**:
+   * サーバー Web UI 上に「新規エージェント参加要求: 大阪支社 (IP: 100.64.0.5, Version: v0.0.16)」がリアルタイム通知表示される。
+   * 拠点側コマンドは 3秒間隔で最大 3〜5分間 承認をポーリング待機。
+   * 管理者が「✅ 承認」ボタンを押すと、サーバーはエージェント専用の高エントロピーBearer Token（SHA-256ハッシュをDB保存）を発行。
+4. **ステップ5 (トークン受領 & 永続化)**:
+   * 拠点側はポーリング経由でトークンを受領し、ローカル設定（DB/設定ファイル）に安全に保存してペアリング完了メッセージを出力。
+5. **ステップ6 (定期Push同期)**:
+   * 拠点側の定期スキャン完了時（または手動スキャン時）、最新のホスト一覧を `POST /api/federation/report` へ送信。
 
 ### 13.4 通信プロトコル & バージョン整合性仕様
 
@@ -1018,15 +1035,15 @@ CREATE INDEX IF NOT EXISTS idx_profile_ports_lookup ON custom_profile_ports(prof
 
 ### 13.5 データモデル・DB設計 (`internal/db`)
 
-#### テーブル定義: `federation_agents`
+#### 1. テーブル定義: `federation_agents`
 ```sql
 CREATE TABLE IF NOT EXISTS federation_agents (
     id VARCHAR(64) PRIMARY KEY,            -- エージェントUUID
     name VARCHAR(100) NOT NULL,            -- 拠点表示名（例: "大阪支社"）
     token_hash VARCHAR(128) NOT NULL,      -- 認証トークンのSHA-256ハッシュ
-    remote_ip VARCHAR(45) NOT NULL,        -- 接続元グローバル/ローカルIP
+    remote_ip VARCHAR(45) NOT NULL,        -- 接続元IP (Tailscale/Mesh-VPN IP)
     cidr VARCHAR(50),                      -- 監視対象CIDR
-    status VARCHAR(20) NOT NULL DEFAULT 'active', -- 'pending', 'active', 'suspended', 'revoked'
+    status VARCHAR(20) NOT NULL DEFAULT 'active', -- 'pending', 'active', 'revoked'
     version VARCHAR(32) NOT NULL,          -- エージェントバイナリバージョン
     schema_version INTEGER NOT NULL DEFAULT 1,
     version_mismatch BOOLEAN NOT NULL DEFAULT 0,
@@ -1036,9 +1053,29 @@ CREATE TABLE IF NOT EXISTS federation_agents (
 );
 ```
 
-#### `hosts` テーブルへのエージェント紐付け
+#### 2. テーブル定義: `federation_pairing_pins` (ワンタイムPIN & 承認待機)
+```sql
+CREATE TABLE IF NOT EXISTS federation_pairing_pins (
+    pin VARCHAR(10) PRIMARY KEY,            -- 6桁ワンタイムPIN
+    agent_id VARCHAR(64),                  -- 接続要求元エージェントUUID
+    agent_name VARCHAR(100),               -- 拠点名
+    agent_version VARCHAR(32),              -- バージョン
+    agent_cidr VARCHAR(50),                -- ローカルCIDR
+    remote_ip VARCHAR(45),                 -- 接続元IP
+    status VARCHAR(20) NOT NULL DEFAULT 'issued', -- 'issued', 'requested', 'approved', 'rejected', 'expired'
+    token VARCHAR(128),                    -- 承認時に生成される一時トークン（ポーリング引き渡し用）
+    expires_at DATETIME NOT NULL,          -- PIN有効期限（発行から15分）
+    created_at DATETIME NOT NULL
+);
+```
+
+#### 3. `hosts` テーブルへのエージェント紐付け & 拠点間IP重複の完全分離
 * `hosts` テーブルに `agent_id VARCHAR(64) DEFAULT NULL REFERENCES federation_agents(id)` カラムを追加。
-* `agent_id IS NULL` のレコードはサーバー自身のローカルスキャン端末、`agent_id IS NOT NULL` のレコードは各拠点エージェントから報告された端末として透過的に分離・集計。
+* インデックス: `idx_hosts_agent_id ON hosts(agent_id)`, `idx_hosts_agent_ip ON hosts(agent_id, ip)`
+* **拠点間IP重複の分離**:
+  * `agent_id IS NULL`: 本社ローカルサーバー自身のスキャン端末。
+  * `agent_id = ?`: 各拠点エージェントから報告された端末。
+  * 本社と大阪支社が共に `192.168.1.0/24` の同一プライベートIPレンジを使用していても、`agent_id` でスコープ化されるため、IPの衝突やデータの上書き消去は100%発生せず完全に分離・独立して管理されます。
 
 ---
 

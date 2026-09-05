@@ -86,11 +86,16 @@ func (h *Handler) HandleSidebarPartial(w http.ResponseWriter, r *http.Request) {
 		selectedID, _ = strconv.ParseInt(sIDStr, 10, 64)
 	}
 
+	agents, _ := h.db.ListAgents()
+	selectedAgentID := r.URL.Query().Get("agent_id")
+
 	unadded := h.getUnaddedLocalNetworks()
 
 	data := map[string]interface{}{
 		"Segments":          segments,
 		"SelectedSegmentID": selectedID,
+		"Agents":            agents,
+		"SelectedAgentID":   selectedAgentID,
 		"TotalHostsCount":   len(hosts),
 		"UnaddedCount":      len(unadded),
 		"Version":           h.cfg.Version,
@@ -162,6 +167,22 @@ func (h *Handler) HandleMainTablePartial(w http.ResponseWriter, r *http.Request)
 		}
 	}
 
+	agentIDParam := r.URL.Query().Get("agent_id")
+	var agentIDPtr *string
+	var selectedAgent *db.FederationAgent
+	if agentIDParam != "" {
+		agentIDPtr = &agentIDParam
+		if agentIDParam != "*" {
+			selectedAgent, _ = h.db.GetAgentByID(agentIDParam)
+			if selectedAgent != nil {
+				segTitle = "🌐 " + selectedAgent.Name
+				segCIDR = selectedAgent.CIDR
+			}
+		} else {
+			segTitle = "🌐 " + i18n.T(lang, "federation_all_sites")
+		}
+	}
+
 	filter := r.URL.Query().Get("filter")
 	if filter == "" {
 		if r.URL.Query().Get("online_only") == "true" {
@@ -192,7 +213,7 @@ func (h *Handler) HandleMainTablePartial(w http.ResponseWriter, r *http.Request)
 		daysLimit = 3
 	}
 
-	hosts, err := h.db.ListHostsFiltered(segID, filterMode, daysLimit)
+	hosts, err := h.db.ListHostsFilteredWithAgent(segID, filterMode, daysLimit, agentIDPtr)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
@@ -244,6 +265,8 @@ func (h *Handler) HandleMainTablePartial(w http.ResponseWriter, r *http.Request)
 		"SegmentTitle":     segTitle,
 		"SegmentCIDR":      segCIDR,
 		"CurrentSegmentID": curSegIDStr,
+		"CurrentAgentID":   agentIDParam,
+		"SelectedAgent":    selectedAgent,
 		"CurrentFilter":    filter,
 		"OnlineOnly":       filter == "online",
 		"Lang":             lang,

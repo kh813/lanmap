@@ -4,6 +4,7 @@ import (
 	"context"
 	"crypto/tls"
 	"errors"
+	"flag"
 	"fmt"
 	"log"
 	"net/http"
@@ -16,6 +17,7 @@ import (
 
 	"lanmap/internal/config"
 	"lanmap/internal/db"
+	"lanmap/internal/federation"
 	"lanmap/internal/monitor"
 	"lanmap/internal/notifier"
 	"lanmap/internal/scanner"
@@ -35,6 +37,9 @@ func main() {
 			return
 		case "update", "upgrade":
 			handleCLIUpdate()
+			return
+		case "agent":
+			handleCLIAgent()
 			return
 		case "service":
 			if len(os.Args) < 3 {
@@ -85,10 +90,18 @@ func printHelp() {
 
 USAGE:
   lanmap                     Start lanmap server in foreground (default)
+  lanmap agent <command>     Federation remote agent commands (pair, status, unpair, report)
   lanmap service <command>   Manage background service (install, start, stop, etc.)
   lanmap update              Check and apply update from GitHub Releases
   lanmap version             Show version information
   lanmap help                Show this help message
+
+AGENT COMMANDS (Federation):
+  pair      Pair this node as an agent to a central lanmap server
+            Flags: --server <URL> --pin <PIN> [--name <Name>] [--cidr <CIDR>]
+  status    Show current federation agent pairing status
+  unpair    Remove federation pairing from this node
+  report    Immediately push local network inventory to central server
 
 SERVICE COMMANDS:
   install     Install service into system (systemd / launchd / Windows SCM)
@@ -126,6 +139,11 @@ func runServer() {
 	}
 	defer database.Close()
 	log.Printf("[INFO] Database initialized at %s", cfg.DBPath)
+
+	agentCfg, _ := federation.LoadAgentConfig(database)
+	if agentCfg.IsPaired() {
+		log.Printf("[INFO] 🌐 Federation Agent active: paired with %s (Site: %s, ID: %s)", agentCfg.ServerURL, agentCfg.AgentName, agentCfg.AgentID)
+	}
 
 	sc := scanner.NewScanner(database, cfg)
 	_ = sc.EnsureLocalSegmentAutoRegistered()
@@ -256,6 +274,227 @@ func executeScanCycle(ctx context.Context, database *db.DB, sc *scanner.Scanner,
 		log.Printf("[WARN] 🚨 %d unapproved host(s) detected during scan! Sending alerts...", len(unapprovedAlerts))
 		_ = notif.NotifyUnapprovedHosts(ctx, unapprovedAlerts)
 	}
+
+	// Automatically push network report to central federation server if paired
+	pushFederationReportIfPaired(ctx, database)
+}
+
+func pushFederationReportIfPaired(ctx context.Context, database *db.DB) {
+	agentCfg, err := federation.LoadAgentConfig(database)
+	if err != nil || !agentCfg.IsPaired() {
+		return
+	}
+
+	hosts, err := database.ListHostsFilteredWithAgent(nil, "all", 0, nil)
+	if err != nil {
+		log.Printf("[WARN] [Federation] Failed to list hosts for report: %v", err)
+		return
+	}
+
+	var hostList []db.Host
+	for _, h := range hosts {
+		if h != nil {
+			hostList = append(hostList, *h)
+		}
+	}
+
+	payload := federation.ReportPayload{
+		AgentID:       agentCfg.AgentID,
+		AgentName:     agentCfg.AgentName,
+		AgentVersion:  Version,
+		SchemaVersion: federation.CurrentSchemaVersion,
+		ReportedAt:    time.Now(),
+		Hosts:         hostList,
+	}
+
+	resp, err := federation.PushReport(ctx, agentCfg.ServerURL, agentCfg.Token, payload)
+	if err != nil {
+		log.Printf("[WARN] [Federation] Failed to push report to %s: %v", agentCfg.ServerURL, err)
+		return
+	}
+
+	if resp.VersionMismatch {
+		log.Printf("[WARN] [Federation] ⚠️ Version mismatch reported by server: %s", resp.Message)
+	} else {
+		log.Printf("[INFO] [Federation] ✅ %s", resp.Message)
+	}
+}
+
+func handleCLIAgent() {
+	if len(os.Args) < 3 {
+		printAgentHelp()
+		os.Exit(1)
+	}
+
+	switch os.Args[2] {
+	case "pair":
+		fs := flag.NewFlagSet("pair", flag.ExitOnError)
+		serverURL := fs.String("server", "", "URL of central lanmap server (e.g. http://100.64.0.1:3002)")
+		pin := fs.String("pin", "", "6-digit pairing PIN issued by server")
+		name := fs.String("name", "", "Display name of this remote site (e.g. '大阪支社')")
+		cidr := fs.String("cidr", "", "Monitored local CIDR (optional)")
+		_ = fs.Parse(os.Args[3:])
+
+		if *serverURL == "" || *pin == "" {
+			fmt.Println("❌ Error: --server and --pin are required.")
+			fs.Usage()
+			os.Exit(1)
+		}
+		handleAgentPair(*serverURL, *pin, *name, *cidr)
+	case "status":
+		handleAgentStatus()
+	case "unpair":
+		handleAgentUnpair()
+	case "report":
+		handleAgentReport()
+	default:
+		printAgentHelp()
+		os.Exit(1)
+	}
+}
+
+func printAgentHelp() {
+	fmt.Printf(`lanmap agent - Federation Remote Agent Management
+
+USAGE:
+  lanmap agent pair --server <URL> --pin <PIN> [--name <Name>] [--cidr <CIDR>]
+  lanmap agent status
+  lanmap agent unpair
+  lanmap agent report
+
+COMMANDS:
+  pair      Pair this node as an agent with the central lanmap server
+  status    Display current pairing and synchronization status
+  unpair    Remove pairing information and stop reporting
+  report    Immediately push local inventory to central server
+`)
+}
+
+func handleAgentPair(serverURL, pin, name, cidr string) {
+	cfg, err := config.LoadConfig()
+	if err != nil {
+		log.Fatalf("❌ Failed to load configuration: %v", err)
+	}
+
+	database, err := db.Open(cfg.DBPath)
+	if err != nil {
+		log.Fatalf("❌ Failed to open database at %s: %v", cfg.DBPath, err)
+	}
+	defer database.Close()
+
+	if name == "" {
+		hname, _ := os.Hostname()
+		if hname != "" {
+			name = hname
+		} else {
+			name = "Remote Site"
+		}
+	}
+
+	if cidr == "" {
+		nets, _ := scanner.DetectLocalNetworks()
+		if len(nets) > 0 {
+			cidr = nets[0].CIDR
+		}
+	}
+
+	fmt.Printf("🔗 Requesting pairing with central server: %s\n", serverURL)
+	fmt.Printf("   Site Name: %s\n", name)
+	if cidr != "" {
+		fmt.Printf("   Local CIDR: %s\n", cidr)
+	}
+	fmt.Printf("   PIN: %s\n", pin)
+
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Minute)
+	defer cancel()
+
+	agentCfg, err := federation.Pair(ctx, serverURL, pin, name, Version, cidr, func(agentID string) {
+		fmt.Printf("\n⏳ Pairing request sent (Agent ID: %s).\n", agentID)
+		fmt.Println("👉 Please open the central server's Web UI and click 'Approve' on the pending request.")
+		fmt.Println("   Waiting for approval (up to 3 minutes)...")
+	})
+	if err != nil {
+		log.Fatalf("❌ Pairing failed: %v", err)
+	}
+
+	if err := federation.SaveAgentConfig(database, agentCfg); err != nil {
+		log.Fatalf("❌ Failed to save agent configuration: %v", err)
+	}
+
+	fmt.Println("\n🎉 Successfully paired with central server!")
+	fmt.Printf("   Agent ID:  %s\n", agentCfg.AgentID)
+	fmt.Printf("   Site Name: %s\n", agentCfg.AgentName)
+	fmt.Printf("   Server:    %s\n", agentCfg.ServerURL)
+	fmt.Println("🚀 This node will now automatically push network inventories after each scan.")
+}
+
+func handleAgentStatus() {
+	cfg, err := config.LoadConfig()
+	if err != nil {
+		log.Fatalf("❌ Failed to load configuration: %v", err)
+	}
+
+	database, err := db.Open(cfg.DBPath)
+	if err != nil {
+		log.Fatalf("❌ Failed to open database: %v", err)
+	}
+	defer database.Close()
+
+	agentCfg, err := federation.LoadAgentConfig(database)
+	if err != nil || !agentCfg.IsPaired() {
+		fmt.Println("⚪ Federation Status: Not paired")
+		fmt.Println("   Use 'lanmap agent pair --server <URL> --pin <PIN>' to pair with a central server.")
+		return
+	}
+
+	fmt.Println("🟢 Federation Status: Paired")
+	fmt.Printf("   Agent ID:  %s\n", agentCfg.AgentID)
+	fmt.Printf("   Site Name: %s\n", agentCfg.AgentName)
+	fmt.Printf("   Server:    %s\n", agentCfg.ServerURL)
+}
+
+func handleAgentUnpair() {
+	cfg, err := config.LoadConfig()
+	if err != nil {
+		log.Fatalf("❌ Failed to load configuration: %v", err)
+	}
+
+	database, err := db.Open(cfg.DBPath)
+	if err != nil {
+		log.Fatalf("❌ Failed to open database: %v", err)
+	}
+	defer database.Close()
+
+	if err := federation.ClearAgentConfig(database); err != nil {
+		log.Fatalf("❌ Failed to clear agent configuration: %v", err)
+	}
+
+	fmt.Println("✅ Successfully cleared federation agent pairing configuration.")
+}
+
+func handleAgentReport() {
+	cfg, err := config.LoadConfig()
+	if err != nil {
+		log.Fatalf("❌ Failed to load configuration: %v", err)
+	}
+
+	database, err := db.Open(cfg.DBPath)
+	if err != nil {
+		log.Fatalf("❌ Failed to open database: %v", err)
+	}
+	defer database.Close()
+
+	agentCfg, err := federation.LoadAgentConfig(database)
+	if err != nil || !agentCfg.IsPaired() {
+		log.Fatalf("❌ This node is not paired. Run 'lanmap agent pair' first.")
+	}
+
+	fmt.Printf("📡 Pushing local inventory to central server %s...\n", agentCfg.ServerURL)
+	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+	defer cancel()
+
+	pushFederationReportIfPaired(ctx, database)
+	fmt.Println("✅ Report process finished.")
 }
 
 // tlsLogFilter filters benign TLS handshake warnings from browsers rejecting self-signed certs
