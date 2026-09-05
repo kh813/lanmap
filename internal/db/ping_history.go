@@ -86,8 +86,138 @@ func (db *DB) GetBatchPingHistory7d() (map[string][]PingHistoryItem, error) {
 	return result, rows.Err()
 }
 
+// PingGapThreshold defines the inactivity duration (20m) beyond which chart lines will not be connected.
+const PingGapThreshold = 20 * time.Minute
+
+type pingChartPoint struct {
+	x float64
+	y float64
+}
+
+type pingChartSegment struct {
+	points []pingChartPoint
+	startX float64
+	endX   float64
+}
+
+// buildPingChartSegments partitions time-series ping records into continuous segments.
+// Gaps larger than PingGapThreshold (such as machine sleep or server downtime) break into separate segments.
+func buildPingChartSegments(items []PingHistoryItem, windowStart time.Time, duration time.Duration, padLeft, plotWidth, baselineY, plotHeight, maxRTT, padTop float64) []pingChartSegment {
+	var segments []pingChartSegment
+	var currentSeg []pingChartPoint
+	var lastTime time.Time
+	var segStartX, segEndX float64
+
+	for i, item := range items {
+		ratio := item.CreatedAt.Sub(windowStart).Seconds() / duration.Seconds()
+		if ratio < 0 {
+			ratio = 0
+		}
+		if ratio > 1.0 {
+			ratio = 1.0
+		}
+		x := padLeft + (ratio * plotWidth)
+
+		y := baselineY
+		if item.Status == "up" && item.RTTMs != nil && *item.RTTMs >= 0 {
+			val := *item.RTTMs
+			normalized := val / maxRTT
+			if normalized > 1.0 {
+				normalized = 1.0
+			}
+			y = baselineY - (normalized * plotHeight)
+		} else {
+			// Down / packet loss
+			y = padTop
+		}
+
+		pt := pingChartPoint{x: x, y: y}
+
+		if i > 0 && item.CreatedAt.Sub(lastTime) > PingGapThreshold {
+			if len(currentSeg) > 0 {
+				segments = append(segments, pingChartSegment{
+					points: currentSeg,
+					startX: segStartX,
+					endX:   segEndX,
+				})
+			}
+			currentSeg = nil
+		}
+
+		if len(currentSeg) == 0 {
+			segStartX = x
+		}
+		segEndX = x
+		currentSeg = append(currentSeg, pt)
+		lastTime = item.CreatedAt
+	}
+
+	if len(currentSeg) > 0 {
+		segments = append(segments, pingChartSegment{
+			points: currentSeg,
+			startX: segStartX,
+			endX:   segEndX,
+		})
+	}
+
+	return segments
+}
+
+// renderSegmentsSVG renders dashed baseline gaps, filled gradient areas, and polyline/point elements.
+func renderSegmentsSVG(segments []pingChartSegment, padLeft, plotWidth, baselineY float64, gradID string, strokeWidth float64) (dashedLines string, areaPolygons string, polylines string) {
+	var dashed strings.Builder
+	var areas strings.Builder
+	var lines strings.Builder
+
+	rightEdge := padLeft + plotWidth
+
+	// 1. Initial unmonitored period (from padLeft to first sample)
+	if len(segments) > 0 && segments[0].startX > padLeft+4.0 {
+		dashed.WriteString(fmt.Sprintf(`<line x1="%.1f" y1="%.1f" x2="%.1f" y2="%.1f" stroke="#94A3B8" stroke-dasharray="3,3" stroke-width="1.2" opacity="0.35" />`,
+			padLeft, baselineY, segments[0].startX, baselineY))
+	}
+
+	for i, seg := range segments {
+		// Gap to next segment (e.g. machine sleep / downtime)
+		if i < len(segments)-1 {
+			nextStart := segments[i+1].startX
+			if nextStart > seg.endX+1.0 {
+				dashed.WriteString(fmt.Sprintf(`<line x1="%.1f" y1="%.1f" x2="%.1f" y2="%.1f" stroke="#94A3B8" stroke-dasharray="3,3" stroke-width="1.2" opacity="0.35" />`,
+					seg.endX, baselineY, nextStart, baselineY))
+			}
+		}
+
+		if len(seg.points) >= 2 {
+			var areaPts []string
+			areaPts = append(areaPts, fmt.Sprintf("%.1f,%.1f", seg.startX, baselineY))
+			var linePts []string
+			for _, pt := range seg.points {
+				coord := fmt.Sprintf("%.1f,%.1f", pt.x, pt.y)
+				areaPts = append(areaPts, coord)
+				linePts = append(linePts, coord)
+			}
+			areaPts = append(areaPts, fmt.Sprintf("%.1f,%.1f", seg.endX, baselineY))
+
+			areas.WriteString(fmt.Sprintf(`<polygon points="%s" fill="url(#%s)" />`, strings.Join(areaPts, " "), gradID))
+			lines.WriteString(fmt.Sprintf(`<polyline fill="none" stroke="#3B82F6" stroke-width="%.1f" stroke-linecap="round" stroke-linejoin="round" points="%s" />`,
+				strokeWidth, strings.Join(linePts, " ")))
+		} else if len(seg.points) == 1 {
+			pt := seg.points[0]
+			lines.WriteString(fmt.Sprintf(`<circle cx="%.1f" cy="%.1f" r="2.5" fill="#3B82F6" />`, pt.x, pt.y))
+		}
+	}
+
+	// 2. Trailing unmonitored period (from last sample to current time)
+	if len(segments) > 0 && segments[len(segments)-1].endX < rightEdge-4.0 {
+		dashed.WriteString(fmt.Sprintf(`<line x1="%.1f" y1="%.1f" x2="%.1f" y2="%.1f" stroke="#94A3B8" stroke-dasharray="3,3" stroke-width="1.2" opacity="0.35" />`,
+			segments[len(segments)-1].endX, baselineY, rightEdge, baselineY))
+	}
+
+	return dashed.String(), areas.String(), lines.String()
+}
+
 // RenderSparkline24hSVG generates a time-proportional SVG sparkline for the past 24 hours.
-// If data was only collected recently, the left side remains empty/dashed to accurately reflect the no-data period.
+// Inactivity/sleep periods are rendered as dashed unmonitored lines on baseline without false connecting lines.
 func RenderSparkline24hSVG(items []PingHistoryItem, width, height int) template.HTML {
 	if width <= 0 {
 		width = 280
@@ -143,57 +273,8 @@ func RenderSparkline24hSVG(items []PingHistoryItem, width, height int) template.
 		maxRTT = 2.0
 	}
 
-	var points []string
-	var areaPoints []string
-
-	firstItem := items24h[0]
-	firstRatio := firstItem.CreatedAt.Sub(windowStart).Seconds() / duration.Seconds()
-	if firstRatio < 0 {
-		firstRatio = 0
-	}
-	firstX := firstRatio * float64(width)
-
-	lastX := firstX
-	areaPoints = append(areaPoints, fmt.Sprintf("%.1f,%.1f", firstX, baselineY))
-
-	for _, item := range items24h {
-		ratio := item.CreatedAt.Sub(windowStart).Seconds() / duration.Seconds()
-		if ratio < 0 {
-			ratio = 0
-		}
-		if ratio > 1.0 {
-			ratio = 1.0
-		}
-		x := ratio * float64(width)
-
-		y := baselineY
-		if item.Status == "up" && item.RTTMs != nil && *item.RTTMs >= 0 {
-			val := *item.RTTMs
-			normalized := val / maxRTT
-			if normalized > 1.0 {
-				normalized = 1.0
-			}
-			y = baselineY - (normalized * plotHeight)
-		} else {
-			// Down / loss
-			y = padTop
-		}
-
-		points = append(points, fmt.Sprintf("%.1f,%.1f", x, y))
-		areaPoints = append(areaPoints, fmt.Sprintf("%.1f,%.1f", x, y))
-		lastX = x
-	}
-	areaPoints = append(areaPoints, fmt.Sprintf("%.1f,%.1f", lastX, baselineY))
-
-	pointsStr := strings.Join(points, " ")
-	areaStr := strings.Join(areaPoints, " ")
-
-	// If data collection started recently, show dashed baseline for the past unrecorded period
-	var noDataLine string
-	if firstX > 3.0 {
-		noDataLine = fmt.Sprintf(`<line x1="0" y1="%.1f" x2="%.1f" y2="%.1f" stroke="#94A3B8" stroke-dasharray="3,3" stroke-width="1.2" opacity="0.35" />`,
-			baselineY, firstX, baselineY)
-	}
+	segments := buildPingChartSegments(items24h, windowStart, duration, 0.0, float64(width), baselineY, plotHeight, maxRTT, padTop)
+	dashedLines, areaPolygons, polylines := renderSegmentsSVG(segments, 0.0, float64(width), baselineY, "chartGrad", 1.8)
 
 	svg := fmt.Sprintf(`<svg viewBox="0 0 %d %d" class="w-full h-8 overflow-visible" preserveAspectRatio="none">
 		<defs>
@@ -203,9 +284,9 @@ func RenderSparkline24hSVG(items []PingHistoryItem, width, height int) template.
 			</linearGradient>
 		</defs>
 		%s
-		<polygon points="%s" fill="url(#chartGrad)" />
-		<polyline fill="none" stroke="#3B82F6" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" points="%s" />
-	</svg>`, width, height, noDataLine, areaStr, pointsStr)
+		%s
+		%s
+	</svg>`, width, height, dashedLines, areaPolygons, polylines)
 
 	return template.HTML(svg)
 }
@@ -530,58 +611,9 @@ func RenderSparkline7dSVG(items []PingHistoryItem, width, height int) template.H
 	gridLines.WriteString(fmt.Sprintf(`<line x1="%.1f" y1="%.1f" x2="%.1f" y2="%.1f" stroke="#94A3B8" stroke-width="1.2" opacity="0.4" />`,
 		padLeft, baselineY, padLeft+plotWidth, baselineY))
 
-	// 2. Data points
-	var points []string
-	var areaPoints []string
-
-	firstItem := items7d[0]
-	firstRatio := firstItem.CreatedAt.Sub(windowStart).Seconds() / duration.Seconds()
-	if firstRatio < 0 {
-		firstRatio = 0
-	}
-	firstX := padLeft + (firstRatio * plotWidth)
-
-	lastX := firstX
-	areaPoints = append(areaPoints, fmt.Sprintf("%.1f,%.1f", firstX, baselineY))
-
-	for _, item := range items7d {
-		ratio := item.CreatedAt.Sub(windowStart).Seconds() / duration.Seconds()
-		if ratio < 0 {
-			ratio = 0
-		}
-		if ratio > 1.0 {
-			ratio = 1.0
-		}
-		x := padLeft + (ratio * plotWidth)
-
-		y := baselineY
-		if item.Status == "up" && item.RTTMs != nil && *item.RTTMs >= 0 {
-			val := *item.RTTMs
-			normalized := val / maxRTT
-			if normalized > 1.0 {
-				normalized = 1.0
-			}
-			y = baselineY - (normalized * plotHeight)
-		} else {
-			// Down / packet loss
-			y = padTop
-		}
-
-		points = append(points, fmt.Sprintf("%.1f,%.1f", x, y))
-		areaPoints = append(areaPoints, fmt.Sprintf("%.1f,%.1f", x, y))
-		lastX = x
-	}
-	areaPoints = append(areaPoints, fmt.Sprintf("%.1f,%.1f", lastX, baselineY))
-
-	pointsStr := strings.Join(points, " ")
-	areaStr := strings.Join(areaPoints, " ")
-
-	// If data collection started recently, dashed baseline for uncollected past
-	var noDataLine string
-	if firstX > padLeft+6.0 {
-		noDataLine = fmt.Sprintf(`<line x1="%.1f" y1="%.1f" x2="%.1f" y2="%.1f" stroke="#94A3B8" stroke-dasharray="3,3" stroke-width="1.2" opacity="0.3" />`,
-			padLeft, baselineY, firstX, baselineY)
-	}
+	// 2. Data points and gap-aware segments
+	segments := buildPingChartSegments(items7d, windowStart, duration, padLeft, plotWidth, baselineY, plotHeight, maxRTT, padTop)
+	dashedLines, areaPolygons, polylines := renderSegmentsSVG(segments, padLeft, plotWidth, baselineY, "chartGrad7d", 2.4)
 
 	svg := fmt.Sprintf(`<svg viewBox="0 0 %d %d" class="w-full h-48 md:h-56 overflow-visible" preserveAspectRatio="none">
 		<defs>
@@ -592,9 +624,9 @@ func RenderSparkline7dSVG(items []PingHistoryItem, width, height int) template.H
 		</defs>
 		%s
 		%s
-		<polygon points="%s" fill="url(#chartGrad7d)" />
-		<polyline fill="none" stroke="#3B82F6" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" points="%s" />
-	</svg>`, width, height, gridLines.String(), noDataLine, areaStr, pointsStr)
+		%s
+		%s
+	</svg>`, width, height, gridLines.String(), dashedLines, areaPolygons, polylines)
 
 	return template.HTML(svg)
 }

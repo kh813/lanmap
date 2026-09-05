@@ -3,6 +3,7 @@ package db
 import (
 	"net"
 	"path/filepath"
+	"strings"
 	"testing"
 	"time"
 )
@@ -601,6 +602,51 @@ func TestPingHistoryAndSVGRendering(t *testing.T) {
 	err = db.PurgeOldPingHistory(7)
 	if err != nil {
 		t.Fatalf("PurgeOldPingHistory failed: %v", err)
+	}
+}
+
+func TestPingHistorySleepGapPartitioning(t *testing.T) {
+	now := time.Now().UTC()
+	rtt1 := 1.2
+	rtt2 := 1.5
+	rtt3 := 2.0
+	rtt4 := 1.8
+
+	// Create items with an 8-hour sleep gap in between
+	items := []PingHistoryItem{
+		// Before sleep: 10h ago
+		{ID: 1, HostIP: "192.168.1.50", RTTMs: &rtt1, Status: "up", CreatedAt: now.Add(-10 * time.Hour)},
+		{ID: 2, HostIP: "192.168.1.50", RTTMs: &rtt2, Status: "up", CreatedAt: now.Add(-9 * time.Hour - 55*time.Minute)},
+		// Sleep gap: 8 hours without data...
+		// After wake: 1h ago
+		{ID: 3, HostIP: "192.168.1.50", RTTMs: &rtt3, Status: "up", CreatedAt: now.Add(-1 * time.Hour)},
+		{ID: 4, HostIP: "192.168.1.50", RTTMs: &rtt4, Status: "up", CreatedAt: now.Add(-55 * time.Minute)},
+	}
+
+	// 7-day SVG
+	svg7d := string(RenderSparkline7dSVG(items, 920, 200))
+	// Count polylines (must be 2 distinct segments, NOT 1 continuous line)
+	polylineCount := strings.Count(svg7d, "<polyline")
+	if polylineCount != 2 {
+		t.Errorf("expected 2 distinct polyline segments due to sleep gap, got %d", polylineCount)
+	}
+	polygonCount := strings.Count(svg7d, "<polygon")
+	if polygonCount != 2 {
+		t.Errorf("expected 2 distinct filled polygons, got %d", polygonCount)
+	}
+	// Must have dashed line for the gap
+	if !strings.Contains(svg7d, `stroke-dasharray="3,3"`) {
+		t.Error("expected dashed line for unmeasured sleep gap")
+	}
+
+	// 24-hour SVG
+	svg24h := string(RenderSparkline24hSVG(items, 280, 36))
+	polylineCount24h := strings.Count(svg24h, "<polyline")
+	if polylineCount24h != 2 {
+		t.Errorf("expected 2 distinct polyline segments in 24h chart, got %d", polylineCount24h)
+	}
+	if !strings.Contains(svg24h, `stroke-dasharray="3,3"`) {
+		t.Error("expected dashed line for sleep gap in 24h chart")
 	}
 }
 
