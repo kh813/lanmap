@@ -138,6 +138,7 @@ func (db *DB) migrate() error {
 		port INTEGER NOT NULL,
 		protocol_name VARCHAR(100) NOT NULL,
 		description TEXT DEFAULT '',
+		severity VARCHAR(20) NOT NULL DEFAULT 'info',
 		is_enabled BOOLEAN DEFAULT 1,
 		is_builtin BOOLEAN DEFAULT 0,
 		created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
@@ -260,6 +261,7 @@ func (db *DB) migrate() error {
 	_, _ = db.Exec("CREATE INDEX IF NOT EXISTS idx_hosts_next_port_scan ON hosts(next_port_scan);")
 	_, _ = db.Exec("ALTER TABLE segments ADD COLUMN dhcp_range VARCHAR(100) DEFAULT '';")
 	_, _ = db.Exec("ALTER TABLE segments ADD COLUMN is_dhcp_manual BOOLEAN DEFAULT 0;")
+	_, _ = db.Exec("ALTER TABLE custom_profile_ports ADD COLUMN severity VARCHAR(20) NOT NULL DEFAULT 'info';")
 
 	return nil
 }

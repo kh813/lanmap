@@ -9,13 +9,18 @@ import (
 	"sort"
 	"strconv"
 	"strings"
+	"sync"
 	"time"
 )
 
-// PortInfo represents a detected open port and service name
+// PortInfo represents a detected open port, service name, and security severity
 type PortInfo struct {
-	Port    int    `json:"port"`
-	Service string `json:"service"`
+	Port       int    `json:"port"`
+	Service    string `json:"service"`
+	Severity   string `json:"severity"` // "info", "warning", "danger"
+	Icon       string `json:"icon"`     // "ℹ️", "⚠️", "🚨"
+	BadgeClass string `json:"badge_class"`
+	DotClass   string `json:"dot_class"`
 }
 
 // Host represents a discovered or monitored network host
@@ -371,6 +376,53 @@ func (h *Host) PingRTTLevel() string {
 	return "slow"
 }
 
+var (
+	portSeverityResolverMu sync.RWMutex
+	portSeverityResolver   func(port int) string
+)
+
+// SetPortSeverityResolver sets a dynamic resolver function for open port severity
+func SetPortSeverityResolver(fn func(port int) string) {
+	portSeverityResolverMu.Lock()
+	defer portSeverityResolverMu.Unlock()
+	portSeverityResolver = fn
+}
+
+// resolvePortSeverity determines severity for a given port number
+func resolvePortSeverity(port int) (severity, icon, badgeClass, dotClass string) {
+	portSeverityResolverMu.RLock()
+	fn := portSeverityResolver
+	portSeverityResolverMu.RUnlock()
+
+	sev := ""
+	if fn != nil {
+		sev = fn(port)
+	}
+
+	if sev == "" {
+		switch port {
+		case 1194, 1723, 5555, 5938, 7070:
+			sev = "danger"
+		case 23, 3389, 5900:
+			sev = "warning"
+		default:
+			sev = "info"
+		}
+	}
+
+	switch sev {
+	case "danger":
+		return "danger", "🚨", "bg-rose-50 dark:bg-rose-950/60 text-rose-700 dark:text-rose-300 border border-rose-300 dark:border-rose-800 font-bold", "bg-rose-500"
+	case "warning":
+		return "warning", "⚠️", "bg-amber-50 dark:bg-amber-950/60 text-amber-800 dark:text-amber-300 border border-amber-300 dark:border-amber-800 font-semibold", "bg-amber-500"
+	default:
+		if port == 22 {
+			return "info", "ℹ️", "bg-sky-50 dark:bg-sky-950/60 text-sky-800 dark:text-sky-300 border border-sky-300 dark:border-sky-800 font-medium", "bg-sky-500"
+		}
+		return "info", "ℹ️", "bg-blue-50 dark:bg-blue-950/60 text-blue-700 dark:text-blue-300 border border-blue-200 dark:border-blue-800/60 font-medium", "bg-emerald-500"
+	}
+}
+
 // OpenPortsList parses comma-separated "port:service" string into slice of PortInfo
 func (h *Host) OpenPortsList() []PortInfo {
 	if strings.TrimSpace(h.OpenPorts) == "" {
@@ -387,7 +439,15 @@ func (h *Host) OpenPortsList() []PortInfo {
 				if len(kv) == 2 {
 					svcName = kv[1]
 				}
-				list = append(list, PortInfo{Port: portNum, Service: svcName})
+				sev, icon, badgeClass, dotClass := resolvePortSeverity(portNum)
+				list = append(list, PortInfo{
+					Port:       portNum,
+					Service:    svcName,
+					Severity:   sev,
+					Icon:       icon,
+					BadgeClass: badgeClass,
+					DotClass:   dotClass,
+				})
 			}
 		}
 	}

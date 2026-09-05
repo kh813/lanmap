@@ -94,16 +94,29 @@
         </div>
     </main>
 
-    <!-- Global Modal Container -->
+    <!-- Global Modal Containers (main modal + nested submodal) -->
     <div id="modal-container"></div>
+    <div id="submodal-container"></div>
 
     <script>
+        function closeSubmodal() {
+            const container = document.getElementById('submodal-container');
+            if (container) container.innerHTML = '';
+        }
         function closeModal() {
+            closeSubmodal();
             const container = document.getElementById('modal-container');
             if (container) container.innerHTML = '';
         }
         document.addEventListener('keydown', function(e) {
-            if (e.key === 'Escape') closeModal();
+            if (e.key === 'Escape') {
+                const submodal = document.getElementById('submodal-container');
+                if (submodal && submodal.innerHTML.trim() !== '') {
+                    closeSubmodal();
+                } else {
+                    closeModal();
+                }
+            }
         });
 
         // Smart Popover Positioning (prevents clipping outside viewport)

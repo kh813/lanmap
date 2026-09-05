@@ -583,3 +583,41 @@
 - [x] **25.6 検証 & ビルド**
   - [x] `go test -count=1 ./...` 全パッケージテスト PASS
   - [x] `make build` 成功確認
+
+---
+
+### 🔹 Phase 26: UI改善・TLS事前検証・監視ポート重要度・モーダルネスト修正 (完了)
+- [x] **26.1 (1) 表記統一: 「🔵 DHCP動的」➔「🔵 DHCP」**
+  - [x] `internal/i18n`: `badge_dhcp_dynamic`, `filter_approval_dhcp`, `action_toggle_dhcp_mark` を「🔵 DHCP」「🔵 DHCP端末としてマーク」に更新
+  - [x] ドキュメント（`README.md`, `lanmap_design.md`）の表記同期
+- [x] **26.2 (2) カスタム TLS 証明書の事前検証機能**
+  - [x] `internal/web/handler.go`: `HandleTLSVerify` 実装（証明書パース、有効期限、SAN/CN、発行者の解析・表示）
+  - [x] `internal/web/handler.go`: `HandleSaveSettings` 内で不正・不整合な証明書/鍵パスの保存ブロック
+  - [x] `internal/web/router.go`: `POST /api/tls/verify` ルート登録
+  - [x] `settings_modal.html`: 「🔍 証明書を検証」ボタンと結果フィードバック表示エリア設置
+  - [x] 単体テスト (`TestTLSVerificationEndpoints`) 実装
+- [x] **26.3 (3) 設定画面レイアウト再編（テーマ表示 & システムアップデートを各 1/2 幅化）**
+  - [x] `settings_modal.html`: 2段カラムレイアウトを再編し、テーマ設定・システムアップデートをそれぞれ横幅 1/2 の独立カードとして配置
+  - [x] スキャンモード (1/2) | データ保持期間 (1/2)
+  - [x] テーマ表示 (1/2) | システムアップデート (1/2)
+  - [x] Webhook通知 (1/2) | カスタムTLS証明書 (1/2)
+- [x] **26.4 (4) 監視ポートへの重要度（Severity: Info / Warning / Danger）追加 & 動的反映**
+  - [x] `internal/db`: `custom_profile_ports` テーブルに `severity` 列追加 & マイグレーション
+  - [x] `internal/db`: 組み込みポートプリセットに重要度設定、CSV入出力対応
+  - [x] `internal/db`: `GetPortSeverityMap()` & `SetPortSeverityResolver` 実装
+  - [x] `internal/db/host.go`: `PortInfo` 構造体に `Severity`, `Icon`, `BadgeClass`, `DotClass` を保持
+  - [x] `custom_ports_table.html`: 重要度列追加（`🚨 Danger`, `⚠️ Warning`, `ℹ️ Info`）
+  - [x] `custom_port_modal.html`: 重要度選択ドロップダウン追加
+  - [x] `main_table.html` & `host_detail_modal.html`: ポートバッジを動的スタイル（アイコン・カラー）に完全移行
+  - [x] 単体テスト（DB・Web）に重要度アサーション追加
+- [x] **26.5 (5) 監視ポート編集時のモーダルネスト問題修正**
+  - [x] `index.html`: グローバルに `<div id="submodal-container"></div>` および `closeSubmodal()` を追加
+  - [x] `index.html`: Escapeキー押下時に子モーダル（submodal）を優先して閉じる階層制御を実装
+  - [x] `settings_modal.html`: ポート追加・CSVインポートのターゲットを `#submodal-container` に変更
+  - [x] `custom_ports_table.html`: ポート編集ボタンのターゲットを `#submodal-container` に変更
+  - [x] `custom_port_modal.html`, `custom_ports_import_modal.html`: 子モーダルを閉じても親の設定画面が維持されるよう修正
+- [x] **26.6 検証 & ビルド**
+  - [x] `go test -v ./internal/db/...` PASS
+  - [x] `go test -v ./internal/web/...` PASS
+  - [x] `make build` 成功確認
+

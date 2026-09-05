@@ -554,6 +554,7 @@ func TestCustomPortsWebRoutes(t *testing.T) {
 		"port":          {"9090"},
 		"protocol_name": {"Test App"},
 		"description":   {"Test Description"},
+		"severity":      {"danger"},
 		"is_enabled":    {"1"},
 	}
 	reqCreate := httptest.NewRequest("POST", "/api/ports", strings.NewReader(form.Encode()))
@@ -563,8 +564,8 @@ func TestCustomPortsWebRoutes(t *testing.T) {
 	if recCreate.Code != http.StatusOK {
 		t.Fatalf("expected 200 for POST /api/ports, got %d", recCreate.Code)
 	}
-	if !strings.Contains(recCreate.Body.String(), "9090") || !strings.Contains(recCreate.Body.String(), "Test App") {
-		t.Errorf("expected created port 9090 in response table")
+	if !strings.Contains(recCreate.Body.String(), "9090") || !strings.Contains(recCreate.Body.String(), "Test App") || !strings.Contains(recCreate.Body.String(), "Danger") {
+		t.Errorf("expected created port 9090 and Danger badge in response table")
 	}
 
 	// Fetch created port ID from DB
@@ -578,6 +579,9 @@ func TestCustomPortsWebRoutes(t *testing.T) {
 	}
 	if targetPort == nil {
 		t.Fatalf("created port 9090 not found in database")
+	}
+	if targetPort.Severity != "danger" {
+		t.Errorf("expected severity 'danger', got '%s'", targetPort.Severity)
 	}
 
 	// 4. GET /modals/custom_port?id=... (edit modal)
@@ -610,6 +614,7 @@ func TestCustomPortsWebRoutes(t *testing.T) {
 		"port":          {"9091"},
 		"protocol_name": {"Updated App"},
 		"description":   {"Updated Description"},
+		"severity":      {"warning"},
 		"is_enabled":    {"1"},
 	}
 	reqUpdate := httptest.NewRequest("POST", fmt.Sprintf("/api/ports/%d/update", targetPort.ID), strings.NewReader(updateForm.Encode()))
@@ -620,7 +625,7 @@ func TestCustomPortsWebRoutes(t *testing.T) {
 		t.Fatalf("expected 200 for update, got %d", recUpdate.Code)
 	}
 	pAfterUpdate, _ := database.GetCustomPort(targetPort.ID)
-	if pAfterUpdate.Port != 9091 || pAfterUpdate.ProfileID != "windows" {
+	if pAfterUpdate.Port != 9091 || pAfterUpdate.ProfileID != "windows" || pAfterUpdate.Severity != "warning" {
 		t.Errorf("unexpected updated port: %+v", pAfterUpdate)
 	}
 
@@ -683,4 +688,61 @@ func TestCustomPortsWebRoutes(t *testing.T) {
 		t.Errorf("expected %d default ports after reset, got %d", len(db.BuiltinDefaultPorts), len(allAfterReset))
 	}
 }
+
+func TestTLSVerificationEndpoints(t *testing.T) {
+	_, router, _ := setupTestWeb(t)
+
+	// 1. Empty verify
+	emptyForm := url.Values{
+		"tls_cert_path": {""},
+		"tls_key_path":  {""},
+	}
+	req := httptest.NewRequest("POST", "/api/tls/verify", strings.NewReader(emptyForm.Encode()))
+	req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
+	rec := httptest.NewRecorder()
+	router.ServeHTTP(rec, req)
+	if rec.Code != http.StatusOK || !strings.Contains(rec.Body.String(), "ℹ️") {
+		t.Errorf("expected 200 with info badge for empty verify, got %d: %s", rec.Code, rec.Body.String())
+	}
+
+	// 2. Incomplete verify (cert provided, key empty)
+	incompForm := url.Values{
+		"tls_cert_path": {"/nonexistent/cert.pem"},
+		"tls_key_path":  {""},
+	}
+	req = httptest.NewRequest("POST", "/api/tls/verify", strings.NewReader(incompForm.Encode()))
+	req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
+	rec = httptest.NewRecorder()
+	router.ServeHTTP(rec, req)
+	if rec.Code != http.StatusOK || !strings.Contains(rec.Body.String(), "❌") {
+		t.Errorf("expected 200 with error badge for incomplete verify, got %d: %s", rec.Code, rec.Body.String())
+	}
+
+	// 3. Nonexistent files
+	nonExistForm := url.Values{
+		"tls_cert_path": {"/nonexistent/cert.pem"},
+		"tls_key_path":  {"/nonexistent/key.pem"},
+	}
+	req = httptest.NewRequest("POST", "/api/tls/verify", strings.NewReader(nonExistForm.Encode()))
+	req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
+	rec = httptest.NewRecorder()
+	router.ServeHTTP(rec, req)
+	if rec.Code != http.StatusOK || !strings.Contains(rec.Body.String(), "❌") {
+		t.Errorf("expected 200 with error badge for nonexistent files, got %d: %s", rec.Code, rec.Body.String())
+	}
+
+	// 4. Save settings with invalid cert path should fail safely
+	saveForm := url.Values{
+		"tls_cert_path": {"/nonexistent/cert.pem"},
+		"tls_key_path":  {"/nonexistent/key.pem"},
+	}
+	req = httptest.NewRequest("POST", "/api/settings", strings.NewReader(saveForm.Encode()))
+	req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
+	rec = httptest.NewRecorder()
+	router.ServeHTTP(rec, req)
+	if rec.Code != http.StatusOK || !strings.Contains(rec.Body.String(), "❌") {
+		t.Errorf("expected 200 with error message on bad TLS save, got: %s", rec.Body.String())
+	}
+}
+
 

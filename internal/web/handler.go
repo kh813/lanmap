@@ -2,6 +2,8 @@ package web
 
 import (
 	"context"
+	"crypto/tls"
+	"crypto/x509"
 	"fmt"
 	"html"
 	"html/template"
@@ -40,6 +42,13 @@ func NewHandler(database *db.DB, cfg *config.Config, sc *scanner.Scanner, notif 
 	}).ParseFS(web.WebFS, "template/*.html", "template/partials/*.html")
 	if err != nil {
 		return nil, fmt.Errorf("failed to parse templates: %w", err)
+	}
+
+	if database != nil {
+		db.SetPortSeverityResolver(func(port int) string {
+			m := database.GetPortSeverityMap()
+			return m[port]
+		})
 	}
 
 	return &Handler{
@@ -834,6 +843,36 @@ func (h *Handler) HandleSetLanguage(w http.ResponseWriter, r *http.Request) {
 func (h *Handler) HandleSaveSettings(w http.ResponseWriter, r *http.Request) {
 	_ = r.ParseForm()
 
+	certPath := strings.TrimSpace(r.FormValue("tls_cert_path"))
+	keyPath := strings.TrimSpace(r.FormValue("tls_key_path"))
+	if (certPath != "" && keyPath == "") || (certPath == "" && keyPath != "") {
+		w.Header().Set("Content-Type", "text/html; charset=utf-8")
+		_, _ = w.Write([]byte(`
+			<div class="p-3 bg-red-50 dark:bg-red-950/60 border border-red-300 dark:border-red-700 rounded-lg text-red-800 dark:text-red-300 text-xs animate-fade-in">
+				<div class="flex items-center space-x-1.5 font-bold">
+					<span>❌</span>
+					<span>TLS 証明書の設定エラー: 証明書ファイルと秘密鍵ファイルの両方を指定してください。</span>
+				</div>
+			</div>
+		`))
+		return
+	}
+	if certPath != "" && keyPath != "" {
+		if _, err := tls.LoadX509KeyPair(certPath, keyPath); err != nil {
+			w.Header().Set("Content-Type", "text/html; charset=utf-8")
+			_, _ = w.Write([]byte(fmt.Sprintf(`
+				<div class="p-3 bg-red-50 dark:bg-red-950/60 border border-red-300 dark:border-red-700 rounded-lg text-red-800 dark:text-red-300 text-xs space-y-1 animate-fade-in">
+					<div class="flex items-center space-x-1.5 font-bold">
+						<span>❌</span>
+						<span>TLS 証明書または秘密鍵の検証に失敗したため保存を中止しました:</span>
+					</div>
+					<div class="text-[11px] font-mono text-red-600 dark:text-red-400 break-all">%s</div>
+				</div>
+			`, template.HTMLEscapeString(err.Error()))))
+			return
+		}
+	}
+
 	fields := []string{
 		"retention_days",
 		"scan_mode",
@@ -873,6 +912,134 @@ func (h *Handler) HandleSaveSettings(w http.ResponseWriter, r *http.Request) {
 			<button type="button" onclick="closeModal()" class="px-2.5 py-1 bg-emerald-600 hover:bg-emerald-700 text-white rounded text-[11px] font-bold">閉じる</button>
 		</div>
 	`))
+}
+
+// HandleTLSVerify verifies user-provided TLS certificate and private key files
+func (h *Handler) HandleTLSVerify(w http.ResponseWriter, r *http.Request) {
+	_ = r.ParseForm()
+	certPath := strings.TrimSpace(r.FormValue("tls_cert_path"))
+	keyPath := strings.TrimSpace(r.FormValue("tls_key_path"))
+	lang := i18n.DetectLanguage(r)
+	w.Header().Set("Content-Type", "text/html; charset=utf-8")
+
+	if certPath == "" && keyPath == "" {
+		msg := i18n.T(lang, "settings_tls_verify_empty")
+		_, _ = w.Write([]byte(fmt.Sprintf(`
+			<div class="mt-2 p-2.5 bg-blue-50 dark:bg-blue-950/40 border border-blue-200 dark:border-blue-800 rounded-lg text-blue-700 dark:text-blue-300 text-xs flex items-center space-x-1.5 animate-fade-in">
+				<span>ℹ️</span>
+				<span>%s</span>
+			</div>
+		`, msg)))
+		return
+	}
+
+	if certPath == "" || keyPath == "" {
+		msg := i18n.T(lang, "settings_tls_verify_incomplete")
+		_, _ = w.Write([]byte(fmt.Sprintf(`
+			<div class="mt-2 p-2.5 bg-red-50 dark:bg-red-950/40 border border-red-200 dark:border-red-800 rounded-lg text-red-700 dark:text-red-300 text-xs flex items-center space-x-1.5 animate-fade-in">
+				<span>❌</span>
+				<span>%s</span>
+			</div>
+		`, msg)))
+		return
+	}
+
+	cert, err := tls.LoadX509KeyPair(certPath, keyPath)
+	if err != nil {
+		_, _ = w.Write([]byte(fmt.Sprintf(`
+			<div class="mt-2 p-2.5 bg-red-50 dark:bg-red-950/40 border border-red-200 dark:border-red-800 rounded-lg text-red-700 dark:text-red-300 text-xs space-y-1 animate-fade-in">
+				<div class="flex items-center space-x-1.5 font-bold">
+					<span>❌</span>
+					<span>証明書または秘密鍵の読み込みに失敗しました</span>
+				</div>
+				<div class="text-[11px] font-mono text-red-600 dark:text-red-400 break-all">%s</div>
+			</div>
+		`, template.HTMLEscapeString(err.Error()))))
+		return
+	}
+
+	if len(cert.Certificate) == 0 {
+		_, _ = w.Write([]byte(`
+			<div class="mt-2 p-2.5 bg-red-50 dark:bg-red-950/40 border border-red-200 dark:border-red-800 rounded-lg text-red-700 dark:text-red-300 text-xs flex items-center space-x-1.5 animate-fade-in">
+				<span>❌</span>
+				<span>証明書データが見つかりません</span>
+			</div>
+		`))
+		return
+	}
+
+	x509Cert, err := x509.ParseCertificate(cert.Certificate[0])
+	if err != nil {
+		_, _ = w.Write([]byte(fmt.Sprintf(`
+			<div class="mt-2 p-2.5 bg-red-50 dark:bg-red-950/40 border border-red-200 dark:border-red-800 rounded-lg text-red-700 dark:text-red-300 text-xs animate-fade-in">
+				<span>❌ 証明書のパースに失敗しました: %s</span>
+			</div>
+		`, template.HTMLEscapeString(err.Error()))))
+		return
+	}
+
+	now := time.Now()
+	if now.After(x509Cert.NotAfter) {
+		_, _ = w.Write([]byte(fmt.Sprintf(`
+			<div class="mt-2 p-2.5 bg-red-50 dark:bg-red-950/40 border border-red-200 dark:border-red-800 rounded-lg text-red-700 dark:text-red-300 text-xs space-y-1 animate-fade-in">
+				<div class="flex items-center space-x-1.5 font-bold">
+					<span>❌</span>
+					<span>証明書の有効期限が切れています</span>
+				</div>
+				<div class="text-[11px] text-red-600 dark:text-red-400">有効期限: %s (現在: %s)</div>
+			</div>
+		`, x509Cert.NotAfter.Format("2006-01-02 15:04:05 MST"), now.Format("2006-01-02 15:04:05 MST"))))
+		return
+	}
+
+	if now.Before(x509Cert.NotBefore) {
+		_, _ = w.Write([]byte(fmt.Sprintf(`
+			<div class="mt-2 p-2.5 bg-amber-50 dark:bg-amber-950/40 border border-amber-200 dark:border-amber-800 rounded-lg text-amber-700 dark:text-amber-300 text-xs space-y-1 animate-fade-in">
+				<div class="flex items-center space-x-1.5 font-bold">
+					<span>⚠️</span>
+					<span>証明書の有効期間前です（開始日時が未来）</span>
+				</div>
+				<div class="text-[11px] text-amber-600 dark:text-amber-400">有効開始: %s</div>
+			</div>
+		`, x509Cert.NotBefore.Format("2006-01-02 15:04:05 MST"))))
+		return
+	}
+
+	var sans []string
+	if x509Cert.Subject.CommonName != "" {
+		sans = append(sans, x509Cert.Subject.CommonName)
+	}
+	sans = append(sans, x509Cert.DNSNames...)
+	for _, ip := range x509Cert.IPAddresses {
+		sans = append(sans, ip.String())
+	}
+	namesStr := strings.Join(sans, ", ")
+	if namesStr == "" {
+		namesStr = "(なし)"
+	}
+
+	issuer := x509Cert.Issuer.CommonName
+	if issuer == "" && len(x509Cert.Issuer.Organization) > 0 {
+		issuer = x509Cert.Issuer.Organization[0]
+	}
+	if issuer == "" {
+		issuer = "Unknown"
+	}
+
+	successMsg := i18n.T(lang, "settings_tls_verify_success")
+	_, _ = w.Write([]byte(fmt.Sprintf(`
+		<div class="mt-2 p-3 bg-emerald-50 dark:bg-emerald-950/50 border border-emerald-300 dark:border-emerald-700 rounded-lg text-emerald-800 dark:text-emerald-200 text-xs space-y-1 animate-fade-in">
+			<div class="flex items-center space-x-1.5 font-bold">
+				<span>✅</span>
+				<span>%s</span>
+			</div>
+			<div class="text-[11px] text-emerald-700 dark:text-emerald-300 font-mono space-y-0.5">
+				<div>対象 (SAN/CN): <span class="font-sans font-medium text-slate-800 dark:text-slate-100">%s</span></div>
+				<div>有効期限: %s 〜 %s</div>
+				<div>発行者: %s</div>
+			</div>
+		</div>
+	`, successMsg, template.HTMLEscapeString(namesStr), x509Cert.NotBefore.Format("2006-01-02"), x509Cert.NotAfter.Format("2006-01-02 15:04:05"), template.HTMLEscapeString(issuer))))
 }
 
 // HandleTestWebhook sends a test notification to the specified webhook provider
@@ -1119,6 +1286,7 @@ func (h *Handler) HandleCreateCustomPort(w http.ResponseWriter, r *http.Request)
 		Port:         portNum,
 		ProtocolName: r.FormValue("protocol_name"),
 		Description:  r.FormValue("description"),
+		Severity:     r.FormValue("severity"),
 		IsEnabled:    isEnabled,
 	}
 
@@ -1140,8 +1308,9 @@ func (h *Handler) HandleUpdateCustomPort(w http.ResponseWriter, r *http.Request,
 	protocol := r.FormValue("protocol")
 	name := r.FormValue("protocol_name")
 	desc := r.FormValue("description")
+	severity := r.FormValue("severity")
 
-	if err := h.db.UpdateCustomPort(id, profileID, protocol, portNum, name, desc, isEnabled); err != nil {
+	if err := h.db.UpdateCustomPort(id, profileID, protocol, portNum, name, desc, severity, isEnabled); err != nil {
 		http.Error(w, err.Error(), http.StatusBadRequest)
 		return
 	}

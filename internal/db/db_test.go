@@ -1166,11 +1166,11 @@ func TestCustomPortsOperations(t *testing.T) {
 	}
 
 	// 5. Update custom port
-	if err := db.UpdateCustomPort(newPort.ID, "all", "TCP", 8088, "Global App", "Updated desc", true); err != nil {
+	if err := db.UpdateCustomPort(newPort.ID, "all", "TCP", 8088, "Global App", "Updated desc", "warning", true); err != nil {
 		t.Fatalf("UpdateCustomPort failed: %v", err)
 	}
 	updated, _ := db.GetCustomPort(newPort.ID)
-	if updated.ProfileID != "all" || updated.ProtocolName != "Global App" {
+	if updated.ProfileID != "all" || updated.ProtocolName != "Global App" || updated.Severity != "warning" {
 		t.Errorf("update failed, got: %+v", updated)
 	}
 

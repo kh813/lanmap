@@ -6,6 +6,7 @@
                 <th class="py-2 px-2.5">{{t .Lang "ports_col_protocol"}}</th>
                 <th class="py-2 px-3">{{t .Lang "ports_col_port"}}</th>
                 <th class="py-2 px-3">{{t .Lang "ports_col_service"}}</th>
+                <th class="py-2 px-2.5 text-center">{{t .Lang "ports_col_severity"}}</th>
                 <th class="py-2 px-3">{{t .Lang "ports_col_desc"}}</th>
                 <th class="py-2 px-3 text-center">{{t .Lang "ports_col_status"}}</th>
                 <th class="py-2 px-3 text-right">{{t .Lang "ports_col_actions"}}</th>
@@ -14,7 +15,7 @@
         <tbody class="divide-y divide-slate-100 dark:divide-slate-800/60">
             {{if not .Ports}}
             <tr>
-                <td colspan="7" class="py-8 text-center text-slate-400 dark:text-slate-500">
+                <td colspan="8" class="py-8 text-center text-slate-400 dark:text-slate-500">
                     {{t .Lang "ports_empty"}}
                 </td>
             </tr>
@@ -57,6 +58,16 @@
                     </span>
                     {{end}}
                 </td>
+                <td class="py-2 px-2.5 text-center whitespace-nowrap">
+                    <span class="inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-medium
+                        {{if eq .Severity "danger"}}bg-rose-100 text-rose-800 dark:bg-rose-950/70 dark:text-rose-300 border border-rose-200 dark:border-rose-800
+                        {{else if eq .Severity "warning"}}bg-amber-100 text-amber-800 dark:bg-amber-950/70 dark:text-amber-300 border border-amber-200 dark:border-amber-800
+                        {{else}}bg-blue-50 text-blue-700 dark:bg-blue-950/60 dark:text-blue-300 border border-blue-200 dark:border-blue-800{{end}}">
+                        {{if eq .Severity "danger"}}🚨 Danger
+                        {{else if eq .Severity "warning"}}⚠️ Warning
+                        {{else}}ℹ️ Info{{end}}
+                    </span>
+                </td>
                 <td class="py-2 px-3 text-slate-500 dark:text-slate-400 text-[11px] max-w-xs truncate" title="{{.Description}}">
                     {{.Description}}
                 </td>
@@ -73,7 +84,7 @@
                 <td class="py-2 px-3 text-right space-x-1.5 whitespace-nowrap">
                     <button type="button"
                             hx-get="/modals/custom_port?id={{.ID}}"
-                            hx-target="#modal-container"
+                            hx-target="#submodal-container"
                             class="text-blue-600 dark:text-blue-400 hover:underline text-[11px] font-medium cursor-pointer">
                         ✏️
                     </button>

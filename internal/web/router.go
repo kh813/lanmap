@@ -113,8 +113,9 @@ func NewRouter(h *Handler) http.Handler {
 		h.HandleToggleSegmentEnabled(w, r, id)
 	})
 
-	// Settings, Webhook Test, Update, Scan & Language
+	// Settings, Webhook Test, TLS Verify, Update, Scan & Language
 	mux.HandleFunc("POST /api/settings", h.HandleSaveSettings)
+	mux.HandleFunc("POST /api/tls/verify", h.HandleTLSVerify)
 	mux.HandleFunc("POST /api/webhooks/test", h.HandleTestWebhook)
 	mux.HandleFunc("GET /api/system/update/check", h.HandleCheckUpdate)
 	mux.HandleFunc("POST /api/system/update/apply", h.HandleApplyUpdate)
