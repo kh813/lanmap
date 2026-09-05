@@ -151,18 +151,18 @@ func (n *Notifier) NotifyUnapprovedHosts(ctx context.Context, hosts []*db.Host) 
 	}
 
 	/*
-	// LINE Notify (Uncomment if needed)
-	lineToken := strings.TrimSpace(settings["webhook_line_token"])
-	lineURL := strings.TrimSpace(settings["webhook_line_url"])
-	if lineToken != "" {
-		if err := n.sendLINENotify(ctx, lineToken, hosts); err != nil {
-			errs = append(errs, fmt.Sprintf("LINE Notify: %v", err))
+		// LINE Notify (Uncomment if needed)
+		lineToken := strings.TrimSpace(settings["webhook_line_token"])
+		lineURL := strings.TrimSpace(settings["webhook_line_url"])
+		if lineToken != "" {
+			if err := n.sendLINENotify(ctx, lineToken, hosts); err != nil {
+				errs = append(errs, fmt.Sprintf("LINE Notify: %v", err))
+			}
+		} else if lineURL != "" {
+			if err := n.sendSlack(ctx, lineURL, hosts); err != nil {
+				errs = append(errs, fmt.Sprintf("LINE Webhook: %v", err))
+			}
 		}
-	} else if lineURL != "" {
-		if err := n.sendSlack(ctx, lineURL, hosts); err != nil {
-			errs = append(errs, fmt.Sprintf("LINE Webhook: %v", err))
-		}
-	}
 	*/
 
 	if len(errs) > 0 {
@@ -247,11 +247,11 @@ func FormatDiscordPayload(hosts []*db.Host) map[string]interface{} {
 		"content": title,
 		"embeds": []map[string]interface{}{
 			{
-				"title":       "未承認端末リスト (要確認)",
-				"color":       15158332, // Red
-				"fields":      fields,
-				"footer":      map[string]string{"text": "lanmap Security Monitor"},
-				"timestamp":   time.Now().UTC().Format(time.RFC3339),
+				"title":     "未承認端末リスト (要確認)",
+				"color":     15158332, // Red
+				"fields":    fields,
+				"footer":    map[string]string{"text": "lanmap Security Monitor"},
+				"timestamp": time.Now().UTC().Format(time.RFC3339),
 			},
 		},
 	}
@@ -453,10 +453,53 @@ func (n *Notifier) NotifyBroadcastStorm(ctx context.Context, host *db.Host, coun
 	}
 
 	/*
-	if lineToken := settings["webhook_line_token"]; lineToken != "" {
-		_ = n.postLineRawMessage(ctx, lineToken, fmt.Sprintf("\n%s\n%s", title, body))
-	}
+		if lineToken := settings["webhook_line_token"]; lineToken != "" {
+			_ = n.postLineRawMessage(ctx, lineToken, fmt.Sprintf("\n%s\n%s", title, body))
+		}
 	*/
+
+	return nil
+}
+
+// NotifyRogueRA sends high-priority alerts when an unauthorized IPv6 Router Advertisement is detected
+func (n *Notifier) NotifyRogueRA(ctx context.Context, rogueMAC, rogueIP string) error {
+	settings, err := n.db.GetAllSettings()
+	if err != nil {
+		return err
+	}
+
+	title := fmt.Sprintf("🚨 【lanmap 警戒アラート】不正ルーター広告(Rogue RA)を検知 (%s)", rogueIP)
+	body := fmt.Sprintf("未承認の端末 (MAC: %s, IPv6: %s) がIPv6ルーター広告(RA)を送出していることを検知しました。\n中間者攻撃(MITM)、通信傍受、またはネットワーク障害(意図しないデフォルトゲートウェイ偽装)の危険があります。",
+		rogueMAC, rogueIP)
+
+	if gchatURL := settings["webhook_gchat_url"]; gchatURL != "" {
+		_ = n.postJSON(ctx, gchatURL, map[string]interface{}{
+			"text": fmt.Sprintf("*%s*\n%s", title, body),
+		})
+	}
+
+	if slackURL := settings["webhook_slack_url"]; slackURL != "" {
+		_ = n.postJSON(ctx, slackURL, map[string]interface{}{
+			"text": fmt.Sprintf("*%s*\n%s", title, body),
+		})
+	}
+
+	if teamsURL := settings["webhook_teams_url"]; teamsURL != "" {
+		_ = n.postJSON(ctx, teamsURL, map[string]interface{}{
+			"@type":      "MessageCard",
+			"@context":   "http://schema.org/extensions",
+			"summary":    title,
+			"themeColor": "DC2626",
+			"title":      title,
+			"text":       body,
+		})
+	}
+
+	if discordURL := settings["webhook_discord_url"]; discordURL != "" {
+		_ = n.postJSON(ctx, discordURL, map[string]interface{}{
+			"content": fmt.Sprintf("**%s**\n%s", title, body),
+		})
+	}
 
 	return nil
 }

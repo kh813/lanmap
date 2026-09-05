@@ -403,7 +403,7 @@ func (db *DB) UpsertRemoteHosts(agentID string, hosts []Host) error {
 		tls_subject, tls_expiry, mdns_model,
 		is_approved, is_protected, is_static_ip, is_dhcp,
 		is_monitored, is_paused, has_conflict,
-		first_seen, last_seen
+		first_seen, last_seen, ipv6_addresses
 	) VALUES (
 		?, ?, ?, ?, ?, ?,
 		?, ?, ?, ?, ?,
@@ -411,7 +411,7 @@ func (db *DB) UpsertRemoteHosts(agentID string, hosts []Host) error {
 		?, ?, ?,
 		?, ?, ?, ?,
 		?, ?, ?,
-		COALESCE(?, CURRENT_TIMESTAMP), CURRENT_TIMESTAMP
+		COALESCE(?, CURRENT_TIMESTAMP), CURRENT_TIMESTAMP, ?
 	)
 	ON CONFLICT(id) DO NOTHING
 	`
@@ -436,7 +436,7 @@ func (db *DB) UpsertRemoteHosts(agentID string, hosts []Host) error {
 				h.TLSSubject, h.TLSExpiry, h.MDNSModel,
 				h.IsApproved, h.IsProtected, h.IsStaticIP, h.IsDHCP,
 				h.IsMonitored, h.IsPaused, h.HasConflict,
-				h.FirstSeen,
+				h.FirstSeen, h.IPv6Addresses,
 			)
 			if err != nil {
 				return fmt.Errorf("failed to insert remote host %s: %w", h.IP, err)
@@ -457,7 +457,7 @@ func (db *DB) UpsertRemoteHosts(agentID string, hosts []Host) error {
 					h.TLSSubject, h.TLSExpiry, h.MDNSModel,
 					h.IsApproved, h.IsProtected, h.IsStaticIP, h.IsDHCP,
 					h.IsMonitored, h.IsPaused, h.HasConflict,
-					time.Now(),
+					time.Now(), h.IPv6Addresses,
 				)
 				if err != nil {
 					return fmt.Errorf("failed to replace remote host %s: %w", h.IP, err)
@@ -484,6 +484,7 @@ func (db *DB) UpsertRemoteHosts(agentID string, hosts []Host) error {
 					tls_expiry = ?,
 					mdns_model = ?,
 					is_dhcp = ?,
+					ipv6_addresses = COALESCE(NULLIF(?, ''), ipv6_addresses),
 					last_seen = CURRENT_TIMESTAMP
 				WHERE id = ?
 				`
@@ -492,6 +493,7 @@ func (db *DB) UpsertRemoteHosts(agentID string, hosts []Host) error {
 					h.Status, h.PingRTTMs, h.PingJitterMs, h.UptimePct,
 					h.OpenPorts, h.HTTPTitle, h.UPnPName, h.UPnPModel, h.UPnPSerial,
 					h.TLSSubject, h.TLSExpiry, h.MDNSModel, h.IsDHCP,
+					h.IPv6Addresses,
 					existingID,
 				)
 				if err != nil {

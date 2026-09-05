@@ -25,48 +25,49 @@ type PortInfo struct {
 
 // Host represents a discovered or monitored network host
 type Host struct {
-	ID                int64         `json:"id"`
-	IP                string        `json:"ip"`
-	SegmentID         *int64        `json:"segment_id"`
-	MACAddress        string        `json:"mac_address"`
-	Hostname          string        `json:"hostname"`
-	VendorModel       string        `json:"vendor_model"`
-	DisplayName       string        `json:"display_name"`
-	OSVendor          string        `json:"os_vendor"`
-	Status            string        `json:"status"`
-	PingRTTMs         *float64      `json:"ping_rtt_ms"`
-	PingJitterMs      *float64      `json:"ping_jitter_ms"`
-	UptimePct         float64       `json:"uptime_pct"`
-	OpenPorts         string        `json:"open_ports"`
-	HTTPTitle         string        `json:"http_title"`
-	UPnPName          string        `json:"upnp_name"`
-	UPnPModel         string        `json:"upnp_model"`
-	UPnPSerial        string        `json:"upnp_serial"`
-	TLSSubject        string        `json:"tls_subject"`
-	TLSExpiry         *time.Time    `json:"tls_expiry"`
-	MDNSModel         string        `json:"mdns_model"`
-	BroadcastCount1m  int           `json:"broadcast_count_1m"`
-	IsStorming        bool          `json:"is_storming"`
-	IsApproved        bool          `json:"is_approved"`
-	IsProtected       bool          `json:"is_protected"`
-	IsStaticIP        bool          `json:"is_static_ip"`
-	IsDHCP            bool          `json:"is_dhcp"`
-	IsMonitored       bool          `json:"is_monitored"`
-	IsPaused          bool          `json:"is_paused"`
-	HasConflict       bool          `json:"has_conflict"`
-	KumaName          string        `json:"kuma_name"`
-	UptimeKumaID      *int64        `json:"uptime_kuma_id"`
-	FirstSeen         time.Time     `json:"first_seen"`
-	LastSeen          *time.Time    `json:"last_seen"`
-	LastPortScan      *time.Time    `json:"last_port_scan"`
-	NextPortScan      *time.Time    `json:"next_port_scan"`
-	IgnoredPorts      string        `json:"ignored_ports"`
-	AgentID           *string       `json:"agent_id"`
-	AgentName         string        `json:"agent_name"`
-	IsPreviousHost    bool          `json:"-"`
-	PingChartSVG      template.HTML `json:"-"`
-	UptimeBlocksSVG   template.HTML `json:"-"`
-	PingStats7d       string        `json:"-"`
+	ID               int64         `json:"id"`
+	IP               string        `json:"ip"`
+	SegmentID        *int64        `json:"segment_id"`
+	MACAddress       string        `json:"mac_address"`
+	Hostname         string        `json:"hostname"`
+	VendorModel      string        `json:"vendor_model"`
+	DisplayName      string        `json:"display_name"`
+	OSVendor         string        `json:"os_vendor"`
+	Status           string        `json:"status"`
+	PingRTTMs        *float64      `json:"ping_rtt_ms"`
+	PingJitterMs     *float64      `json:"ping_jitter_ms"`
+	UptimePct        float64       `json:"uptime_pct"`
+	OpenPorts        string        `json:"open_ports"`
+	HTTPTitle        string        `json:"http_title"`
+	UPnPName         string        `json:"upnp_name"`
+	UPnPModel        string        `json:"upnp_model"`
+	UPnPSerial       string        `json:"upnp_serial"`
+	TLSSubject       string        `json:"tls_subject"`
+	TLSExpiry        *time.Time    `json:"tls_expiry"`
+	MDNSModel        string        `json:"mdns_model"`
+	BroadcastCount1m int           `json:"broadcast_count_1m"`
+	IsStorming       bool          `json:"is_storming"`
+	IsApproved       bool          `json:"is_approved"`
+	IsProtected      bool          `json:"is_protected"`
+	IsStaticIP       bool          `json:"is_static_ip"`
+	IsDHCP           bool          `json:"is_dhcp"`
+	IsMonitored      bool          `json:"is_monitored"`
+	IsPaused         bool          `json:"is_paused"`
+	HasConflict      bool          `json:"has_conflict"`
+	KumaName         string        `json:"kuma_name"`
+	UptimeKumaID     *int64        `json:"uptime_kuma_id"`
+	FirstSeen        time.Time     `json:"first_seen"`
+	LastSeen         *time.Time    `json:"last_seen"`
+	LastPortScan     *time.Time    `json:"last_port_scan"`
+	NextPortScan     *time.Time    `json:"next_port_scan"`
+	IgnoredPorts     string        `json:"ignored_ports"`
+	AgentID          *string       `json:"agent_id"`
+	AgentName        string        `json:"agent_name"`
+	IPv6Addresses    string        `json:"ipv6_addresses"`
+	IsPreviousHost   bool          `json:"-"`
+	PingChartSVG     template.HTML `json:"-"`
+	UptimeBlocksSVG  template.HTML `json:"-"`
+	PingStats7d      string        `json:"-"`
 }
 
 // RiskBadge represents a visual security risk indicator for ports
@@ -84,6 +85,234 @@ type ServiceBadge struct {
 	Port       int
 	Service    string
 	BadgeClass string
+}
+
+// IPv6Type represents the classification of an IPv6 address
+type IPv6Type string
+
+const (
+	IPv6TypeLLA   IPv6Type = "LLA"   // Link-Local Address (fe80::/10)
+	IPv6TypeGUA   IPv6Type = "GUA"   // Global Unicast Address (2000::/3)
+	IPv6TypeULA   IPv6Type = "ULA"   // Unique Local Address (fc00::/7)
+	IPv6TypeOther IPv6Type = "Other" // Multicast, Loopback, Unspecified, etc.
+)
+
+// IPv6Info represents a structured IPv6 address associated with a host
+type IPv6Info struct {
+	Address    string   `json:"address"`
+	Type       IPv6Type `json:"type"`
+	TypeDesc   string   `json:"type_desc"`
+	BadgeClass string   `json:"badge_class"`
+}
+
+func isIPv4(ipStr string) bool {
+	ip := net.ParseIP(strings.TrimSpace(ipStr))
+	return ip != nil && ip.To4() != nil
+}
+
+func isIPv6(ipStr string) bool {
+	clean := strings.TrimSpace(ipStr)
+	if idx := strings.Index(clean, "%"); idx != -1 {
+		clean = clean[:idx]
+	}
+	ip := net.ParseIP(clean)
+	return ip != nil && ip.To4() == nil
+}
+
+// ClassifyIPv6 inspects an IPv6 address string and returns its type and human-readable metadata.
+func ClassifyIPv6(addrStr string) IPv6Info {
+	clean := strings.TrimSpace(addrStr)
+	ipOnly := clean
+	if idx := strings.Index(ipOnly, "%"); idx != -1 {
+		ipOnly = ipOnly[:idx]
+	}
+
+	ip := net.ParseIP(ipOnly)
+	if ip == nil || ip.To4() != nil {
+		return IPv6Info{
+			Address:    clean,
+			Type:       IPv6TypeOther,
+			TypeDesc:   "その他 / IPv4",
+			BadgeClass: "bg-slate-100 text-slate-700 border-slate-300 dark:bg-slate-800 dark:text-slate-300 dark:border-slate-700",
+		}
+	}
+
+	if ip.IsLinkLocalUnicast() {
+		return IPv6Info{
+			Address:    clean,
+			Type:       IPv6TypeLLA,
+			TypeDesc:   "リンクローカル (fe80::)",
+			BadgeClass: "bg-purple-100 text-purple-800 border-purple-300 dark:bg-purple-950/70 dark:text-purple-300 dark:border-purple-800",
+		}
+	}
+
+	// ULA is fc00::/7
+	if (ip[0] & 0xfe) == 0xfc {
+		return IPv6Info{
+			Address:    clean,
+			Type:       IPv6TypeULA,
+			TypeDesc:   "ユニークローカル (fc00::)",
+			BadgeClass: "bg-amber-100 text-amber-800 border-amber-300 dark:bg-amber-950/70 dark:text-amber-300 dark:border-amber-800",
+		}
+	}
+
+	// GUA is 2000::/3 (ip[0] & 0xe0 == 0x20)
+	if (ip[0] & 0xe0) == 0x20 {
+		return IPv6Info{
+			Address:    clean,
+			Type:       IPv6TypeGUA,
+			TypeDesc:   "グローバル (2000::)",
+			BadgeClass: "bg-blue-100 text-blue-800 border-blue-300 dark:bg-blue-950/70 dark:text-blue-300 dark:border-blue-800",
+		}
+	}
+
+	return IPv6Info{
+		Address:    clean,
+		Type:       IPv6TypeOther,
+		TypeDesc:   "その他 IPv6",
+		BadgeClass: "bg-slate-100 text-slate-700 border-slate-300 dark:bg-slate-800 dark:text-slate-300 dark:border-slate-700",
+	}
+}
+
+// mergeIPv6Addresses combines multiple comma-separated or single IPv6 address strings,
+// deduplicating them and sorting with priority: GUA (2000::/3), ULA (fc00::/7), LLA (fe80::/10), others.
+func mergeIPv6Addresses(addrs ...string) string {
+	seen := make(map[string]bool)
+	var list []string
+
+	for _, addrStr := range addrs {
+		if addrStr == "" {
+			continue
+		}
+		for _, part := range strings.Split(addrStr, ",") {
+			trimmed := strings.TrimSpace(part)
+			if trimmed == "" {
+				continue
+			}
+			clean := trimmed
+			if idx := strings.Index(clean, "%"); idx != -1 {
+				clean = clean[:idx]
+			}
+			ip := net.ParseIP(clean)
+			if ip == nil || ip.To4() != nil {
+				continue
+			}
+			canonical := strings.ToLower(ip.String())
+			if !seen[canonical] {
+				seen[canonical] = true
+				list = append(list, canonical)
+			}
+		}
+	}
+
+	sort.SliceStable(list, func(i, j int) bool {
+		ti := ClassifyIPv6(list[i]).Type
+		tj := ClassifyIPv6(list[j]).Type
+		order := map[IPv6Type]int{
+			IPv6TypeGUA:   1,
+			IPv6TypeULA:   2,
+			IPv6TypeLLA:   3,
+			IPv6TypeOther: 4,
+		}
+		if order[ti] != order[tj] {
+			return order[ti] < order[tj]
+		}
+		return list[i] < list[j]
+	})
+
+	return strings.Join(list, ", ")
+}
+
+// MergeIPv6Addresses combines multiple comma-separated or single IPv6 address strings,
+// deduplicating them and sorting with priority: GUA (2000::/3), ULA (fc00::/7), LLA (fe80::/10), others.
+func MergeIPv6Addresses(addrs ...string) string {
+	return mergeIPv6Addresses(addrs...)
+}
+
+// GetIPv6List returns parsed and classified IPv6 addresses associated with this host
+func (h *Host) GetIPv6List() []IPv6Info {
+	var list []string
+	if h.IPv6Addresses != "" {
+		for _, p := range strings.Split(h.IPv6Addresses, ",") {
+			t := strings.TrimSpace(p)
+			if t != "" {
+				list = append(list, t)
+			}
+		}
+	}
+	// If primary IP is pure IPv6 and not in list, include it
+	if isIPv6(h.IP) {
+		cleanPrimary := strings.TrimSpace(h.IP)
+		found := false
+		for _, s := range list {
+			if strings.EqualFold(s, cleanPrimary) {
+				found = true
+				break
+			}
+		}
+		if !found && cleanPrimary != "" {
+			list = append([]string{cleanPrimary}, list...)
+		}
+	}
+
+	var res []IPv6Info
+	seen := make(map[string]bool)
+	for _, addr := range list {
+		clean := strings.ToLower(strings.TrimSpace(addr))
+		if clean == "" || seen[clean] {
+			continue
+		}
+		seen[clean] = true
+		res = append(res, ClassifyIPv6(addr))
+	}
+	return res
+}
+
+// HasIPv6 returns true if the host has any IPv6 addresses or primary IP is IPv6
+func (h *Host) HasIPv6() bool {
+	if strings.TrimSpace(h.IPv6Addresses) != "" {
+		return true
+	}
+	return isIPv6(h.IP)
+}
+
+// IsPureIPv6 returns true if primary IP is IPv6 (i.e. no IPv4 address)
+func (h *Host) IsPureIPv6() bool {
+	return isIPv6(h.IP)
+}
+
+// PrimaryLinkLocalIPv6 returns the primary link-local (fe80::) address if available
+func (h *Host) PrimaryLinkLocalIPv6() string {
+	for _, info := range h.GetIPv6List() {
+		if info.Type == IPv6TypeLLA {
+			return info.Address
+		}
+	}
+	return ""
+}
+
+// PrimaryIPv6 returns the preferred IPv6 address (GUA preferred, then ULA, then LLA)
+func (h *Host) PrimaryIPv6() string {
+	list := h.GetIPv6List()
+	for _, info := range list {
+		if info.Type == IPv6TypeGUA {
+			return info.Address
+		}
+	}
+	for _, info := range list {
+		if info.Type == IPv6TypeULA {
+			return info.Address
+		}
+	}
+	for _, info := range list {
+		if info.Type == IPv6TypeLLA {
+			return info.Address
+		}
+	}
+	if len(list) > 0 {
+		return list[0].Address
+	}
+	return ""
 }
 
 // IsPortIgnored returns true if the port is in the host's ignored/suppressed ports list
@@ -668,6 +897,11 @@ func (db *DB) UpsertHostOnScan(h *Host) (isNew bool, isReplaced bool, err error)
 			_, _ = db.Exec("UPDATE hosts SET status = 'down' WHERE id = ?", prevHostOnIP.ID)
 		}
 
+		initialIPv6 := h.IPv6Addresses
+		if isIPv6(h.IP) {
+			initialIPv6 = mergeIPv6Addresses(initialIPv6, h.IP)
+		}
+
 		query := `
 		INSERT INTO hosts (
 			ip, segment_id, mac_address, hostname, vendor_model, display_name,
@@ -676,7 +910,7 @@ func (db *DB) UpsertHostOnScan(h *Host) (isNew bool, isReplaced bool, err error)
 			tls_subject, tls_expiry, mdns_model, broadcast_count_1m, is_storming,
 			is_approved, is_protected, is_static_ip, is_dhcp,
 			is_monitored, is_paused, has_conflict, kuma_name, uptime_kuma_id,
-			first_seen, last_seen
+			first_seen, last_seen, ipv6_addresses
 		) VALUES (
 			?, ?, ?, ?, ?, ?,
 			?, ?, ?, ?, 100.0,
@@ -684,7 +918,7 @@ func (db *DB) UpsertHostOnScan(h *Host) (isNew bool, isReplaced bool, err error)
 			?, ?, ?, 0, 0,
 			?, 0, 0, ?,
 			0, 0, 0, '', NULL,
-			?, ?
+			?, ?, ?
 		)
 		`
 		status := h.Status
@@ -696,15 +930,42 @@ func (db *DB) UpsertHostOnScan(h *Host) (isNew bool, isReplaced bool, err error)
 			h.OSVendor, status, h.PingRTTMs, h.PingJitterMs,
 			h.OpenPorts, h.HTTPTitle, h.UPnPName, h.UPnPModel, h.UPnPSerial,
 			h.TLSSubject, h.TLSExpiry, h.MDNSModel,
-			h.IsApproved, h.IsDHCP, now, now,
+			h.IsApproved, h.IsDHCP, now, now, initialIPv6,
 		)
 		return true, isReplaced, err
 	}
 
+	existingIsV4 := isIPv4(existing.IP)
+	incomingIsV4 := isIPv4(h.IP)
+
+	targetIP := existing.IP
+	var mergedIPv6 string
+
+	if incomingIsV4 {
+		targetIP = h.IP
+		mergedIPv6 = mergeIPv6Addresses(existing.IPv6Addresses, h.IPv6Addresses)
+		if !existingIsV4 && existing.IP != "" {
+			mergedIPv6 = mergeIPv6Addresses(mergedIPv6, existing.IP)
+		}
+	} else {
+		// Incoming is IPv6
+		if existingIsV4 {
+			// Existing has IPv4, keep existing IPv4 as primary IP
+			targetIP = existing.IP
+			mergedIPv6 = mergeIPv6Addresses(existing.IPv6Addresses, h.IP, h.IPv6Addresses)
+		} else {
+			// Both or existing is IPv6
+			if h.IP != "" {
+				targetIP = h.IP
+			}
+			mergedIPv6 = mergeIPv6Addresses(existing.IPv6Addresses, h.IP, h.IPv6Addresses)
+		}
+	}
+
 	// Host with this MAC (or IP fallback) exists.
-	// Check if this host is moving to a new IP where another host previously was.
-	if existing.IP != h.IP {
-		prevHostOnTargetIP, _ := db.GetHost(h.IP)
+	// Check if this host is moving to a new IPv4 where another host previously was.
+	if incomingIsV4 && existingIsV4 && existing.IP != targetIP {
+		prevHostOnTargetIP, _ := db.GetHost(targetIP)
 		if prevHostOnTargetIP != nil && prevHostOnTargetIP.ID != existing.ID {
 			// Mark that host on target IP as down
 			isReplaced = true
@@ -811,15 +1072,16 @@ func (db *DB) UpsertHostOnScan(h *Host) (isNew bool, isReplaced bool, err error)
 		is_approved = ?,
 		is_dhcp = ?,
 		first_seen = ?,
-		last_seen = ?
+		last_seen = ?,
+		ipv6_addresses = ?
 	WHERE id = ?
 	`
 	_, err = db.Exec(query,
-		h.IP, h.SegmentID, mac, hostname, vendorModel, displayName,
+		targetIP, h.SegmentID, mac, hostname, vendorModel, displayName,
 		osVendor, status, pingRTT, jitter, openPorts,
 		httpTitle, upnpName, upnpModel, upnpSerial,
 		tlsSubj, tlsExp, mdnsModel,
-		isApproved, isDHCP, firstSeen, now, existing.ID,
+		isApproved, isDHCP, firstSeen, now, mergedIPv6, existing.ID,
 	)
 	return false, isReplaced, err
 }
@@ -834,14 +1096,48 @@ func (db *DB) GetHost(ip string) (*Host, error) {
 		tls_subject, tls_expiry, mdns_model, broadcast_count_1m, is_storming,
 		is_approved, is_protected, is_static_ip, is_dhcp,
 		is_monitored, is_paused, has_conflict, kuma_name, uptime_kuma_id,
-		first_seen, last_seen, last_port_scan, next_port_scan, ignored_ports, agent_id
+		first_seen, last_seen, last_port_scan, next_port_scan, ignored_ports, agent_id, ipv6_addresses
 	FROM hosts
 	WHERE ip = ?
 	ORDER BY CASE WHEN status = 'up' THEN 0 ELSE 1 END, last_seen DESC
 	LIMIT 1
 	`
 	row := db.QueryRow(query, ip)
-	return scanHost(row)
+	h, err := scanHost(row)
+	if err == nil && h != nil {
+		return h, nil
+	}
+
+	clean := strings.ToLower(strings.TrimSpace(ip))
+	if idx := strings.Index(clean, "%"); idx != -1 {
+		clean = clean[:idx]
+	}
+	parsed := net.ParseIP(clean)
+	if parsed != nil && parsed.To4() == nil {
+		v6Query := `
+		SELECT
+			id, ip, segment_id, mac_address, hostname, vendor_model, display_name,
+			os_vendor, status, ping_rtt_ms, ping_jitter_ms, uptime_pct,
+			open_ports, http_title, upnp_name, upnp_model, upnp_serial,
+			tls_subject, tls_expiry, mdns_model, broadcast_count_1m, is_storming,
+			is_approved, is_protected, is_static_ip, is_dhcp,
+			is_monitored, is_paused, has_conflict, kuma_name, uptime_kuma_id,
+			first_seen, last_seen, last_port_scan, next_port_scan, ignored_ports, agent_id, ipv6_addresses
+		FROM hosts
+		WHERE instr(LOWER(ipv6_addresses), ?) > 0
+		ORDER BY CASE WHEN status = 'up' THEN 0 ELSE 1 END, last_seen DESC
+		LIMIT 1
+		`
+		row = db.QueryRow(v6Query, parsed.String())
+		return scanHost(row)
+	}
+
+	return h, err
+}
+
+// GetHostByIP fetches a host by IP address (alias for GetHost)
+func (db *DB) GetHostByIP(ip string) (*Host, error) {
+	return db.GetHost(ip)
 }
 
 // GetHostByID fetches a host by internal primary key ID
@@ -854,7 +1150,7 @@ func (db *DB) GetHostByID(id int64) (*Host, error) {
 		tls_subject, tls_expiry, mdns_model, broadcast_count_1m, is_storming,
 		is_approved, is_protected, is_static_ip, is_dhcp,
 		is_monitored, is_paused, has_conflict, kuma_name, uptime_kuma_id,
-		first_seen, last_seen, last_port_scan, next_port_scan, ignored_ports, agent_id
+		first_seen, last_seen, last_port_scan, next_port_scan, ignored_ports, agent_id, ipv6_addresses
 	FROM hosts
 	WHERE id = ?
 	`
@@ -876,7 +1172,7 @@ func (db *DB) GetHostByMAC(mac string) (*Host, error) {
 		tls_subject, tls_expiry, mdns_model, broadcast_count_1m, is_storming,
 		is_approved, is_protected, is_static_ip, is_dhcp,
 		is_monitored, is_paused, has_conflict, kuma_name, uptime_kuma_id,
-		first_seen, last_seen, last_port_scan, next_port_scan, ignored_ports, agent_id
+		first_seen, last_seen, last_port_scan, next_port_scan, ignored_ports, agent_id, ipv6_addresses
 	FROM hosts
 	WHERE LOWER(TRIM(mac_address)) = ?
 	ORDER BY CASE WHEN status = 'up' THEN 0 ELSE 1 END, last_seen DESC
@@ -915,7 +1211,7 @@ func (db *DB) ListHostsFilteredWithAgent(segmentID *int64, filterMode string, da
 		tls_subject, tls_expiry, mdns_model, broadcast_count_1m, is_storming,
 		is_approved, is_protected, is_static_ip, is_dhcp,
 		is_monitored, is_paused, has_conflict, kuma_name, uptime_kuma_id,
-		first_seen, last_seen, last_port_scan, next_port_scan, ignored_ports, agent_id
+		first_seen, last_seen, last_port_scan, next_port_scan, ignored_ports, agent_id, ipv6_addresses
 	FROM hosts
 	WHERE 1=1
 	`)
@@ -1201,6 +1497,10 @@ func togglePortInList(ignored string, port int) string {
 func (db *DB) CreateManualHost(h *Host) error {
 	now := time.Now()
 	normMAC := strings.ToLower(strings.TrimSpace(h.MACAddress))
+	initialIPv6 := h.IPv6Addresses
+	if isIPv6(h.IP) {
+		initialIPv6 = mergeIPv6Addresses(initialIPv6, h.IP)
+	}
 	query := `
 	INSERT INTO hosts (
 		ip, segment_id, mac_address, hostname, vendor_model, display_name,
@@ -1209,7 +1509,7 @@ func (db *DB) CreateManualHost(h *Host) error {
 		tls_subject, tls_expiry, mdns_model, broadcast_count_1m, is_storming,
 		is_approved, is_protected, is_static_ip, is_dhcp,
 		is_monitored, is_paused, has_conflict, kuma_name, uptime_kuma_id,
-		first_seen, last_seen, ignored_ports
+		first_seen, last_seen, ignored_ports, ipv6_addresses
 	) VALUES (
 		?, ?, ?, ?, ?, ?,
 		?, ?, ?, ?, 100.0,
@@ -1217,7 +1517,7 @@ func (db *DB) CreateManualHost(h *Host) error {
 		?, ?, ?, ?, ?,
 		?, ?, ?, ?,
 		?, ?, ?, ?, ?,
-		?, ?, ?
+		?, ?, ?, ?
 	)
 	`
 	_, err := db.Exec(query,
@@ -1227,7 +1527,7 @@ func (db *DB) CreateManualHost(h *Host) error {
 		h.TLSSubject, h.TLSExpiry, h.MDNSModel, h.BroadcastCount1m, h.IsStorming,
 		h.IsApproved, h.IsProtected, h.IsStaticIP, h.IsDHCP,
 		h.IsMonitored, h.IsPaused, h.HasConflict, h.KumaName, h.UptimeKumaID,
-		now, now, h.IgnoredPorts,
+		now, now, h.IgnoredPorts, initialIPv6,
 	)
 	return err
 }
@@ -1258,6 +1558,7 @@ func scanHost(s scannable) (*Host, error) {
 	var rtt, jitter, uptime sql.NullFloat64
 	var ignoredPorts sql.NullString
 	var agentID sql.NullString
+	var ipv6Addrs sql.NullString
 
 	err := s.Scan(
 		&h.ID,
@@ -1297,6 +1598,7 @@ func scanHost(s scannable) (*Host, error) {
 		&nextPortScan,
 		&ignoredPorts,
 		&agentID,
+		&ipv6Addrs,
 	)
 	if err != nil {
 		if err == sql.ErrNoRows {
@@ -1326,6 +1628,7 @@ func scanHost(s scannable) (*Host, error) {
 	h.TLSSubject = tlsSubj.String
 	h.MDNSModel = mdnsModel.String
 	h.IgnoredPorts = ignoredPorts.String
+	h.IPv6Addresses = ipv6Addrs.String
 
 	if rtt.Valid {
 		h.PingRTTMs = &rtt.Float64
@@ -1369,7 +1672,7 @@ func (db *DB) GetDuePortScanHost() (*Host, error) {
 		tls_subject, tls_expiry, mdns_model, broadcast_count_1m, is_storming,
 		is_approved, is_protected, is_static_ip, is_dhcp,
 		is_monitored, is_paused, has_conflict, kuma_name, uptime_kuma_id,
-		first_seen, last_seen, last_port_scan, next_port_scan, ignored_ports, agent_id
+		first_seen, last_seen, last_port_scan, next_port_scan, ignored_ports, agent_id, ipv6_addresses
 	FROM hosts
 	WHERE status = 'up' AND is_paused = 0 AND agent_id IS NULL AND (next_port_scan IS NULL OR next_port_scan <= ?)
 	ORDER BY (CASE WHEN next_port_scan IS NULL THEN 0 ELSE 1 END), next_port_scan ASC
@@ -1851,4 +2154,3 @@ func (db *DB) UpdateHostExtendedProbes(ip string, openPorts, httpTitle, upnpName
 	)
 	return err
 }
-

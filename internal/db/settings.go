@@ -125,3 +125,48 @@ func (db *DB) SetPortScanEnabled(enabled bool) error {
 	return db.SetScanMode(ScanModeStealth)
 }
 
+// GetIPVersionSettings returns whether IPv4 and IPv6 monitoring are enabled.
+// Default: IPv4 = true, IPv6 = false (Beta).
+func (db *DB) GetIPVersionSettings() (ipv4 bool, ipv6 bool, err error) {
+	v4Val, err := db.GetSetting("enable_ipv4")
+	if err != nil {
+		return true, false, err
+	}
+	v6Val, err := db.GetSetting("enable_ipv6")
+	if err != nil {
+		return true, false, err
+	}
+
+	ipv4 = true
+	if v4Val == "false" || v4Val == "0" {
+		ipv4 = false
+	}
+
+	ipv6 = false
+	if v6Val == "true" || v6Val == "1" {
+		ipv6 = true
+	}
+
+	return ipv4, ipv6, nil
+}
+
+// SetIPVersionSettings sets IPv4 and IPv6 monitoring flags.
+// Returns an error if both are set to false.
+func (db *DB) SetIPVersionSettings(ipv4 bool, ipv6 bool) error {
+	if !ipv4 && !ipv6 {
+		return fmt.Errorf("cannot disable both IPv4 and IPv6 monitoring")
+	}
+	v4Str := "false"
+	if ipv4 {
+		v4Str = "true"
+	}
+	v6Str := "false"
+	if ipv6 {
+		v6Str = "true"
+	}
+
+	if err := db.SetSetting("enable_ipv4", v4Str); err != nil {
+		return err
+	}
+	return db.SetSetting("enable_ipv6", v6Str)
+}

@@ -378,8 +378,8 @@ func TestWebFiltersAndPreviousHost(t *testing.T) {
 	// 1. Insert an active DHCP host
 	_, _, err = database.UpsertHostOnScan(&db.Host{
 		IP:          "10.0.0.20",
-		MACAddress: "aa:bb:cc:11:22:33",
-		Hostname:   "pc-alice",
+		MACAddress:  "aa:bb:cc:11:22:33",
+		Hostname:    "pc-alice",
 		DisplayName: "Alice PC",
 		SegmentID:   &seg.ID,
 		IsDHCP:      true,
@@ -404,8 +404,8 @@ func TestWebFiltersAndPreviousHost(t *testing.T) {
 	// 2. Now a new host (different MAC) arrives on the same IP 10.0.0.20
 	_, _, err = database.UpsertHostOnScan(&db.Host{
 		IP:          "10.0.0.20",
-		MACAddress: "aa:bb:cc:44:55:66",
-		Hostname:   "pc-bob",
+		MACAddress:  "aa:bb:cc:44:55:66",
+		Hostname:    "pc-bob",
 		DisplayName: "Bob PC",
 		SegmentID:   &seg.ID,
 		IsDHCP:      true,
@@ -885,5 +885,144 @@ func TestFederationWebRoutes(t *testing.T) {
 	}
 }
 
+func TestIPVersionSettingsWebAPI(t *testing.T) {
+	tempDir := t.TempDir()
+	dbPath := filepath.Join(tempDir, "test_ip_ver_web.db")
+	database, err := db.Open(dbPath)
+	if err != nil {
+		t.Fatalf("failed to open db: %v", err)
+	}
+	defer database.Close()
 
+	cfg := &config.Config{
+		HTTPPort:     8443,
+		ScanInterval: 60 * time.Second,
+	}
+	sc := scanner.NewScanner(database, cfg)
+	notif := notifier.NewNotifier(database)
 
+	handler, err := NewHandler(database, cfg, sc, notif)
+	if err != nil {
+		t.Fatalf("NewHandler failed: %v", err)
+	}
+	router := NewRouter(handler)
+
+	// 1. Enable both IPv4 and IPv6
+	form := url.Values{}
+	form.Set("ip_version_submitted", "1")
+	form.Set("enable_ipv4", "true")
+	form.Set("enable_ipv6", "true")
+
+	req := httptest.NewRequest("POST", "/api/settings", strings.NewReader(form.Encode()))
+	req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
+	rec := httptest.NewRecorder()
+	router.ServeHTTP(rec, req)
+
+	if rec.Code != http.StatusOK {
+		t.Fatalf("expected 200, got %d (body: %s)", rec.Code, rec.Body.String())
+	}
+
+	v4, v6, err := database.GetIPVersionSettings()
+	if err != nil || !v4 || !v6 {
+		t.Fatalf("expected v4=true, v6=true; got v4=%v, v6=%v (err: %v)", v4, v6, err)
+	}
+
+	// 2. Reject disabling both
+	formDis := url.Values{}
+	formDis.Set("ip_version_submitted", "1")
+	// Neither enable_ipv4 nor enable_ipv6 is sent (both unchecked)
+
+	req = httptest.NewRequest("POST", "/api/settings", strings.NewReader(formDis.Encode()))
+	req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
+	rec = httptest.NewRecorder()
+	router.ServeHTTP(rec, req)
+
+	if rec.Code != http.StatusBadRequest {
+		t.Fatalf("expected 400 Bad Request when disabling both, got %d", rec.Code)
+	}
+	if !strings.Contains(rec.Body.String(), "IPv4") {
+		t.Fatalf("expected error message mentioning IPv4/IPv6, got: %s", rec.Body.String())
+	}
+}
+
+func TestIPv6WebUIBadges(t *testing.T) {
+	tempDir := t.TempDir()
+	dbPath := filepath.Join(tempDir, "test_ipv6_badges.db")
+	database, err := db.Open(dbPath)
+	if err != nil {
+		t.Fatalf("failed to open db: %v", err)
+	}
+	defer database.Close()
+
+	cfg := &config.Config{
+		HTTPPort:     8443,
+		ScanInterval: 60 * time.Second,
+	}
+	sc := scanner.NewScanner(database, cfg)
+	notif := notifier.NewNotifier(database)
+
+	handler, err := NewHandler(database, cfg, sc, notif)
+	if err != nil {
+		t.Fatalf("NewHandler failed: %v", err)
+	}
+	router := NewRouter(handler)
+
+	// Create dual-stack host
+	hDual := &db.Host{
+		IP:            "192.168.1.100",
+		MACAddress:    "aa:bb:cc:dd:ee:01",
+		Hostname:      "dual-stack-pc",
+		Status:        "up",
+		IPv6Addresses: "fe80::1, 2001:db8::100",
+	}
+	_, _, err = database.UpsertHostOnScan(hDual)
+	if err != nil {
+		t.Fatalf("failed to upsert dual-stack host: %v", err)
+	}
+
+	// Create pure IPv6 host
+	hPure := &db.Host{
+		IP:         "fe80::200",
+		MACAddress: "aa:bb:cc:dd:ee:02",
+		Hostname:   "pure-v6-sensor",
+		Status:     "up",
+	}
+	_, _, err = database.UpsertHostOnScan(hPure)
+	if err != nil {
+		t.Fatalf("failed to upsert pure IPv6 host: %v", err)
+	}
+
+	// 1. Check main table rendering
+	req := httptest.NewRequest("GET", "/partials/main_table", nil)
+	rec := httptest.NewRecorder()
+	router.ServeHTTP(rec, req)
+
+	if rec.Code != http.StatusOK {
+		t.Fatalf("expected 200 from main_table, got %d", rec.Code)
+	}
+
+	body := rec.Body.String()
+	if !strings.Contains(body, "192.168.1.100") {
+		t.Errorf("main table should contain 192.168.1.100")
+	}
+	if !strings.Contains(body, "IPv6") {
+		t.Errorf("main table should contain IPv6 badge for dual stack host")
+	}
+	if !strings.Contains(body, "fe80::200") {
+		t.Errorf("main table should contain pure IPv6 host fe80::200")
+	}
+
+	// 2. Check host detail modal rendering
+	reqModal := httptest.NewRequest("GET", "/modals/host_detail?ip=192.168.1.100", nil)
+	recModal := httptest.NewRecorder()
+	router.ServeHTTP(recModal, reqModal)
+
+	if recModal.Code != http.StatusOK {
+		t.Fatalf("expected 200 from host_detail modal, got %d", recModal.Code)
+	}
+
+	modalBody := recModal.Body.String()
+	if !strings.Contains(modalBody, "fe80::1") || !strings.Contains(modalBody, "2001:db8::100") {
+		t.Errorf("host detail modal should display IPv6 addresses fe80::1 and 2001:db8::100, got: %s", modalBody)
+	}
+}

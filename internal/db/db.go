@@ -94,6 +94,7 @@ func (db *DB) migrate() error {
 		next_port_scan DATETIME,
 		ignored_ports TEXT DEFAULT '',
 		agent_id VARCHAR(64) DEFAULT NULL REFERENCES federation_agents(id),
+		ipv6_addresses TEXT DEFAULT '',
 		FOREIGN KEY (segment_id) REFERENCES segments(id) ON DELETE SET NULL
 	);
 
@@ -296,6 +297,7 @@ func (db *DB) migrate() error {
 	_, _ = db.Exec("ALTER TABLE hosts ADD COLUMN agent_id VARCHAR(64) DEFAULT NULL REFERENCES federation_agents(id);")
 	_, _ = db.Exec("CREATE INDEX IF NOT EXISTS idx_hosts_agent_id ON hosts(agent_id);")
 	_, _ = db.Exec("CREATE INDEX IF NOT EXISTS idx_hosts_agent_ip ON hosts(agent_id, ip);")
+	_, _ = db.Exec("ALTER TABLE hosts ADD COLUMN ipv6_addresses TEXT DEFAULT '';")
 
 	return nil
 }
@@ -334,6 +336,16 @@ func (db *DB) seed() error {
 
 	if err := db.SeedDefaultCustomPorts(); err != nil {
 		return fmt.Errorf("failed to seed default custom ports: %w", err)
+	}
+
+	var v4Count int
+	if err := db.QueryRow("SELECT COUNT(*) FROM settings WHERE key = 'enable_ipv4'").Scan(&v4Count); err == nil && v4Count == 0 {
+		_, _ = db.Exec("INSERT INTO settings (key, value) VALUES ('enable_ipv4', 'true')")
+	}
+
+	var v6Count int
+	if err := db.QueryRow("SELECT COUNT(*) FROM settings WHERE key = 'enable_ipv6'").Scan(&v6Count); err == nil && v6Count == 0 {
+		_, _ = db.Exec("INSERT INTO settings (key, value) VALUES ('enable_ipv6', 'false')")
 	}
 
 	return nil

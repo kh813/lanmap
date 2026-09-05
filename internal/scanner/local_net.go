@@ -104,3 +104,17 @@ func DetectLocalNetworks() ([]DetectedNetwork, error) {
 
 	return networks, nil
 }
+
+// GetDefaultInterface returns the primary network interface used for the default route
+func GetDefaultInterface() (*net.Interface, error) {
+	networks, err := DetectLocalNetworks()
+	if err != nil || len(networks) == 0 {
+		return nil, fmt.Errorf("no active network interfaces found")
+	}
+	for _, n := range networks {
+		if n.IsDefault {
+			return net.InterfaceByName(n.Name)
+		}
+	}
+	return net.InterfaceByName(networks[0].Name)
+}

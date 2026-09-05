@@ -104,28 +104,53 @@ func (s *Scanner) ScanAll(ctx context.Context) ([]*ScanReport, error) {
 
 	_ = s.EnsureLocalSegmentAutoRegistered()
 
+	ipv4Enabled, ipv6Enabled, _ := s.db.GetIPVersionSettings()
+
 	segments, err := s.db.ListSegments()
 	if err != nil {
 		return nil, fmt.Errorf("failed to list segments: %w", err)
 	}
 
 	var allReports []*ScanReport
-	for _, seg := range segments {
-		if !seg.IsEnabled || seg.CIDR == "" {
-			continue
-		}
-		select {
-		case <-ctx.Done():
-			return allReports, ctx.Err()
-		default:
-		}
 
-		reports, err := s.scanSegmentInternal(ctx, seg)
-		if err != nil {
-			log.Printf("[WARN] Scanner: error scanning segment %s (%s): %v", seg.Name, seg.CIDR, err)
-			continue
+	if ipv4Enabled {
+		for _, seg := range segments {
+			if !seg.IsEnabled || seg.CIDR == "" {
+				continue
+			}
+			select {
+			case <-ctx.Done():
+				return allReports, ctx.Err()
+			default:
+			}
+
+			reports, err := s.scanSegmentInternal(ctx, seg)
+			if err != nil {
+				log.Printf("[WARN] Scanner: error scanning segment %s (%s): %v", seg.Name, seg.CIDR, err)
+				continue
+			}
+			allReports = append(allReports, reports...)
 		}
-		allReports = append(allReports, reports...)
+	}
+
+	if ipv6Enabled {
+		for _, seg := range segments {
+			if !seg.IsEnabled {
+				continue
+			}
+			select {
+			case <-ctx.Done():
+				return allReports, ctx.Err()
+			default:
+			}
+
+			reports, err := ScanIPv6Segment(ctx, seg, s.db)
+			if err != nil {
+				log.Printf("[WARN] Scanner: IPv6 scan error on segment %s: %v", seg.Name, err)
+				continue
+			}
+			allReports = append(allReports, reports...)
+		}
 	}
 
 	// Perform daily low-noise security patrol for 1 due online host (sequential & randomized)
@@ -139,7 +164,27 @@ func (s *Scanner) ScanSegment(ctx context.Context, seg *db.Segment) ([]*ScanRepo
 	s.mu.Lock()
 	defer s.mu.Unlock()
 
-	return s.scanSegmentInternal(ctx, seg)
+	ipv4Enabled, ipv6Enabled, _ := s.db.GetIPVersionSettings()
+	var allReports []*ScanReport
+
+	if ipv4Enabled && seg.CIDR != "" {
+		reports, err := s.scanSegmentInternal(ctx, seg)
+		if err != nil {
+			return nil, err
+		}
+		allReports = append(allReports, reports...)
+	}
+
+	if ipv6Enabled {
+		reports, err := ScanIPv6Segment(ctx, seg, s.db)
+		if err != nil {
+			log.Printf("[WARN] Scanner: IPv6 scan error on segment %s: %v", seg.Name, err)
+		} else {
+			allReports = append(allReports, reports...)
+		}
+	}
+
+	return allReports, nil
 }
 
 func (s *Scanner) scanSegmentInternal(ctx context.Context, seg *db.Segment) ([]*ScanReport, error) {
@@ -493,5 +538,3 @@ func (s *Scanner) performDailyLowNoisePatrol(ctx context.Context) {
 			dueHost.IP, profile, openPorts, nextScan.Format("2006-01-02 15:04"))
 	}
 }
-
-

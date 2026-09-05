@@ -27,7 +27,7 @@ import (
 )
 
 // Version can be overwritten at build time with -ldflags
-var Version = "v0.0.18"
+var Version = "v0.0.19"
 
 func main() {
 	if len(os.Args) > 1 {
@@ -165,6 +165,9 @@ func runServer() {
 
 	dhcpMon := monitor.NewDHCPMonitor(database, notif)
 	dhcpMon.Start(ctx)
+
+	ipv6Mon := monitor.NewIPv6Monitor(database, notif)
+	ipv6Mon.Start(ctx)
 
 	// Background Periodic Scanner & Retention Cleanup Task
 	go runBackgroundTasks(ctx, cfg, database, sc, notif)

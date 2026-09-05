@@ -57,6 +57,35 @@
                         </div>
                     </div>
 
+                    <!-- Row: 監視プロトコル (IPv4 / IPv6 Beta) -->
+                    <input type="hidden" name="ip_version_submitted" value="1">
+                    <div class="p-3.5 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                        <div>
+                            <label class="block font-bold text-slate-800 dark:text-slate-200">
+                                {{t .Lang "settings_ip_version_label"}}
+                            </label>
+                            <p class="text-slate-500 dark:text-slate-400 text-[11px] mt-0.5">
+                                {{t .Lang "settings_ip_version_help"}}
+                            </p>
+                        </div>
+                        <div class="flex flex-col sm:flex-row sm:items-center gap-3 shrink-0">
+                            <label class="inline-flex items-center space-x-2 cursor-pointer select-none">
+                                <input type="checkbox" name="enable_ipv4" value="true"
+                                       class="rounded text-blue-600 focus:ring-blue-500 h-4 w-4 border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-900 cursor-pointer"
+                                       {{if or (eq .Settings.enable_ipv4 "true") (eq .Settings.enable_ipv4 "1") (not .Settings.enable_ipv4)}}checked{{end}}>
+                                <span class="font-medium text-slate-700 dark:text-slate-300 text-xs">{{t .Lang "settings_enable_ipv4"}}</span>
+                            </label>
+                            <label class="inline-flex items-center space-x-2 cursor-pointer select-none">
+                                <input type="checkbox" name="enable_ipv6" value="true"
+                                       class="rounded text-purple-600 focus:ring-purple-500 h-4 w-4 border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-900 cursor-pointer"
+                                       {{if or (eq .Settings.enable_ipv6 "true") (eq .Settings.enable_ipv6 "1")}}checked{{end}}>
+                                <span class="font-medium text-slate-700 dark:text-slate-300 text-xs flex items-center space-x-1">
+                                    <span>{{t .Lang "settings_enable_ipv6"}}</span>
+                                </span>
+                            </label>
+                        </div>
+                    </div>
+
                     <!-- Row 2: データ保持期間 -->
                     <div class="p-3.5 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
                         <div>
@@ -91,7 +120,7 @@
                                     {{t .Lang "settings_update_label"}}
                                 </label>
                                 <span class="text-[10px] font-mono px-2 py-0.5 rounded bg-blue-50 text-blue-700 dark:bg-blue-950/60 dark:text-blue-300 border border-blue-200 dark:border-blue-800/60">
-                                    {{or .CurrentVersion "v0.0.18"}}
+                                    {{or .CurrentVersion "v0.0.19"}}
                                 </span>
                             </div>
                             <button type="button"

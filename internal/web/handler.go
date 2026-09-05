@@ -503,7 +503,6 @@ func (h *Handler) HandleHostFullScan(w http.ResponseWriter, r *http.Request, ip 
 	})
 }
 
-
 // HandleSegmentModal renders segment add/edit modal
 func (h *Handler) HandleSegmentModal(w http.ResponseWriter, r *http.Request) {
 	var seg *db.Segment
@@ -919,6 +918,28 @@ func (h *Handler) HandleSaveSettings(w http.ResponseWriter, r *http.Request) {
 	scanModeVal := strings.TrimSpace(r.FormValue("scan_mode"))
 	if scanModeVal != "" {
 		_ = h.db.SetScanMode(scanModeVal)
+	}
+
+	// IP Version Monitoring Settings (IPv4 / IPv6 Beta)
+	if r.Form.Has("ip_version_submitted") || r.Form.Has("enable_ipv4") || r.Form.Has("enable_ipv6") {
+		enableV4 := r.FormValue("enable_ipv4") == "true" || r.FormValue("enable_ipv4") == "1" || r.FormValue("enable_ipv4") == "on"
+		enableV6 := r.FormValue("enable_ipv6") == "true" || r.FormValue("enable_ipv6") == "1" || r.FormValue("enable_ipv6") == "on"
+
+		if err := h.db.SetIPVersionSettings(enableV4, enableV6); err != nil {
+			lang := i18n.DetectLanguage(r)
+			errMsg := i18n.T(lang, "settings_ip_version_error")
+			w.Header().Set("Content-Type", "text/html; charset=utf-8")
+			w.WriteHeader(http.StatusBadRequest)
+			_, _ = w.Write([]byte(fmt.Sprintf(`
+				<div class="p-3 bg-red-50 dark:bg-red-950/60 border border-red-300 dark:border-red-700 rounded-lg text-red-800 dark:text-red-300 text-xs animate-fade-in">
+					<div class="flex items-center space-x-1.5 font-bold">
+						<span>❌</span>
+						<span>%s</span>
+					</div>
+				</div>
+			`, template.HTMLEscapeString(errMsg))))
+			return
+		}
 	}
 
 	// Trigger sidebar and main table refresh on body

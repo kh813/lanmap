@@ -188,6 +188,46 @@
                     {{end}}
                 </div>
 
+                <!-- IPv6 Addresses (Dual-Stack) -->
+                {{if .Host.HasIPv6}}
+                <div class="sm:col-span-2 space-y-2 p-3 bg-purple-50/50 dark:bg-purple-950/30 rounded-xl border border-purple-200/80 dark:border-purple-800/60">
+                    <div class="flex items-center justify-between">
+                        <div class="flex items-center space-x-1.5">
+                            <span class="text-sm">🔗</span>
+                            <span class="font-bold text-xs text-purple-900 dark:text-purple-300">{{t .Lang "ipv6_modal_section_title"}}</span>
+                        </div>
+                        <span class="text-[10px] text-purple-600 dark:text-purple-400 font-medium">デュアルスタック自動集約</span>
+                    </div>
+                    <div class="overflow-x-auto">
+                        <table class="w-full text-left text-xs">
+                            <thead>
+                                <tr class="text-[10px] text-slate-400 border-b border-purple-200/50 dark:border-purple-800/40">
+                                    <th class="pb-1 font-medium">{{t .Lang "ipv6_modal_addr_col"}}</th>
+                                    <th class="pb-1 font-medium">{{t .Lang "ipv6_modal_type_col"}}</th>
+                                    <th class="pb-1 font-medium">{{t .Lang "ipv6_modal_desc_col"}}</th>
+                                    <th class="pb-1 text-right font-medium"></th>
+                                </tr>
+                            </thead>
+                            <tbody class="divide-y divide-purple-100 dark:divide-purple-900/40 font-mono">
+                                {{range .Host.GetIPv6List}}
+                                <tr class="hover:bg-purple-100/40 dark:hover:bg-purple-900/30">
+                                    <td class="py-1.5 text-[11px] font-semibold text-slate-800 dark:text-slate-200 select-all">{{.Address}}</td>
+                                    <td class="py-1.5"><span class="px-1.5 py-0.2 rounded text-[9px] border {{.BadgeClass}} font-bold">{{.Type}}</span></td>
+                                    <td class="py-1.5 text-[10px] font-sans text-slate-600 dark:text-slate-400">{{.TypeDesc}}</td>
+                                    <td class="py-1.5 text-right font-sans">
+                                        <button type="button" onclick="navigator.clipboard.writeText('{{.Address}}'); this.textContent='✓'; setTimeout(() => this.textContent='{{t $.Lang "ipv6_copy_btn"}}', 1500)"
+                                                class="px-2 py-0.5 rounded bg-white dark:bg-slate-800 hover:bg-slate-100 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-300 border border-slate-300 dark:border-slate-700 text-[10px] cursor-pointer shadow-xs transition">
+                                            {{t $.Lang "ipv6_copy_btn"}}
+                                        </button>
+                                    </td>
+                                </tr>
+                                {{end}}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+                {{end}}
+
                 {{template "ports_container" .}}
 
                 <!-- Detection History Dates -->
