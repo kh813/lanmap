@@ -17,6 +17,7 @@ import (
 
 	"lanmap/internal/config"
 	"lanmap/internal/db"
+	"lanmap/internal/federation"
 	"lanmap/internal/i18n"
 	"lanmap/internal/notifier"
 	"lanmap/internal/scanner"
@@ -308,10 +309,30 @@ func (h *Handler) HandleSettingsModal(w http.ResponseWriter, r *http.Request) {
 		settings["scan_mode"] = mode
 	}
 
+	lang := i18n.DetectLanguage(r)
+	agentCfg, _ := federation.LoadAgentConfig(h.db)
+	lastSync, _ := h.db.GetSetting("agent_last_sync")
+	agentStatus := "standalone"
+	if agentCfg != nil && agentCfg.IsPaired() {
+		agentStatus = "connected"
+	}
+
+	initialTab := r.URL.Query().Get("tab")
+	if initialTab == "" {
+		initialTab = "system"
+	}
+
 	_ = h.tmpl.ExecuteTemplate(w, "settings_modal.html", map[string]interface{}{
 		"Settings":       settings,
 		"CurrentVersion": h.cfg.Version,
-		"Lang":           i18n.DetectLanguage(r),
+		"Lang":           lang,
+		"InitialTab":     initialTab,
+		"AgentData": AgentTabViewModel{
+			Lang:          lang,
+			Status:        agentStatus,
+			AgentConfig:   agentCfg,
+			AgentLastSync: lastSync,
+		},
 	})
 }
 

@@ -18,6 +18,10 @@
                     class="px-4 py-2 border-b-2 font-medium text-xs transition border-transparent text-slate-500 hover:text-slate-700 dark:text-slate-400 dark:hover:text-slate-200 cursor-pointer">
                 {{t .Lang "settings_tab_ports"}}
             </button>
+            <button type="button" id="tab-btn-agent" onclick="switchSettingsTab('agent')"
+                    class="px-4 py-2 border-b-2 font-medium text-xs transition border-transparent text-slate-500 hover:text-slate-700 dark:text-slate-400 dark:hover:text-slate-200 cursor-pointer">
+                {{t .Lang "settings_tab_agent"}}
+            </button>
         </div>
 
         <!-- TAB 1: System Settings Form -->
@@ -120,7 +124,7 @@
                                     {{t .Lang "settings_update_label"}}
                                 </label>
                                 <span class="text-[10px] font-mono px-2 py-0.5 rounded bg-blue-50 text-blue-700 dark:bg-blue-950/60 dark:text-blue-300 border border-blue-200 dark:border-blue-800/60">
-                                    {{or .CurrentVersion "v0.0.19"}}
+                                    {{or .CurrentVersion "v0.0.20"}}
                                 </span>
                             </div>
                             <button type="button"
@@ -402,10 +406,15 @@
             <!-- Close button footer -->
             <div class="flex items-center justify-end space-x-2 pt-2 border-t border-slate-200 dark:border-slate-800">
                 <button type="button" onclick="closeModal()"
-                        class="px-4 py-1.5 rounded-lg bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-300 font-medium transition text-xs">
+                        class="px-4 py-1.5 rounded-lg bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-300 font-medium transition text-xs cursor-pointer">
                     {{t .Lang "close"}}
                 </button>
             </div>
+        </div>
+
+        <!-- TAB 3: Federation Agent Settings -->
+        <div id="tab-content-agent" class="hidden">
+            {{template "agent_settings_tab.html" .AgentData}}
         </div>
     </div>
 </div>
@@ -414,23 +423,39 @@
 function switchSettingsTab(tab) {
     const sysBtn = document.getElementById('tab-btn-system');
     const portsBtn = document.getElementById('tab-btn-ports');
+    const agentBtn = document.getElementById('tab-btn-agent');
     const sysContent = document.getElementById('tab-content-system');
     const portsContent = document.getElementById('tab-content-ports');
+    const agentContent = document.getElementById('tab-content-agent');
+
+    const activeClass = "px-4 py-2 border-b-2 font-bold text-xs transition border-blue-600 text-blue-600 dark:text-blue-400 cursor-pointer";
+    const inactiveClass = "px-4 py-2 border-b-2 font-medium text-xs transition border-transparent text-slate-500 hover:text-slate-700 dark:text-slate-400 dark:hover:text-slate-200 cursor-pointer";
 
     if (tab === 'system') {
-        sysBtn.className = "px-4 py-2 border-b-2 font-bold text-xs transition border-blue-600 text-blue-600 dark:text-blue-400 cursor-pointer";
-        portsBtn.className = "px-4 py-2 border-b-2 font-medium text-xs transition border-transparent text-slate-500 hover:text-slate-700 dark:text-slate-400 dark:hover:text-slate-200 cursor-pointer";
+        sysBtn.className = activeClass;
+        portsBtn.className = inactiveClass;
+        agentBtn.className = inactiveClass;
         sysContent.classList.remove('hidden');
         portsContent.classList.add('hidden');
-    } else {
-        portsBtn.className = "px-4 py-2 border-b-2 font-bold text-xs transition border-blue-600 text-blue-600 dark:text-blue-400 cursor-pointer";
-        sysBtn.className = "px-4 py-2 border-b-2 font-medium text-xs transition border-transparent text-slate-500 hover:text-slate-700 dark:text-slate-400 dark:hover:text-slate-200 cursor-pointer";
-        sysContent.classList.add('hidden');
+        agentContent.classList.add('hidden');
+    } else if (tab === 'ports') {
+        portsBtn.className = activeClass;
+        sysBtn.className = inactiveClass;
+        agentBtn.className = inactiveClass;
         portsContent.classList.remove('hidden');
+        sysContent.classList.add('hidden');
+        agentContent.classList.add('hidden');
         // Load ports table on tab switch
         const filter = document.getElementById('profile-filter');
         const profile = filter ? filter.value : 'all_profiles';
         filterCustomPorts(profile);
+    } else if (tab === 'agent') {
+        agentBtn.className = activeClass;
+        sysBtn.className = inactiveClass;
+        portsBtn.className = inactiveClass;
+        agentContent.classList.remove('hidden');
+        sysContent.classList.add('hidden');
+        portsContent.classList.add('hidden');
     }
 }
 
@@ -440,4 +465,13 @@ function filterCustomPorts(profile) {
         swap: 'innerHTML'
     });
 }
+
+(function() {
+    const initTab = '{{.InitialTab}}';
+    if (initTab === 'agent') {
+        switchSettingsTab('agent');
+    } else if (initTab === 'ports') {
+        switchSettingsTab('ports');
+    }
+})();
 </script>

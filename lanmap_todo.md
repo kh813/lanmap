@@ -411,65 +411,65 @@
 
 ---
 
-### 🔹 Phase 20: OS別 監視ポートカスタマイズ & CSVインポート/エクスポート機能
-- [ ] **20.1 データベース層 (`internal/db`)**
-  - [ ] `custom_profile_ports` テーブル追加 & マイグレーション (`id`, `profile_id`, `protocol`, `port`, `protocol_name`, `description`, `is_enabled`, `is_builtin`, `created_at`, `updated_at`)
-  - [ ] 組み込みデフォルトポート一覧の初期シード投入ロジック
-  - [ ] ポート定義 CRUD メソッド (`ListProfilePorts`, `CreateProfilePort`, `UpdateProfilePort`, `DeleteProfilePort`, `ToggleProfilePort`, `ResetProfilePortsToDefault`)
-  - [ ] DB層単体テスト作成 & 実行
-- [ ] **20.2 スキャナー連動 & 動的ポートマップ解決 (`internal/scanner`)**
-  - [ ] `internal/scanner/ports.go` のリファクタリング: 静的 `profilePortMaps` から DB 連携の動的マップ取得への移行
-  - [ ] ポート設定のインメモリキャッシュ機構 (`sync.RWMutex`)
-  - [ ] プロファイル別適応型ポートスキャンでの動的ポート定義適用テスト
-- [ ] **20.3 CSV インポート & エクスポート (`internal/ports` または `internal/web`)**
-  - [ ] CSVエクスポート処理（ヘッダー: `TargetOS,Protocol,Port,ProtocolName,Description,Enabled`）
-  - [ ] CSVパーサー & バリデーション（OS種別、プロトコル、ポート番号範囲 1-65535、文字数制限）
-  - [ ] インポート時のマージ / 完全置換処理
-- [ ] **20.4 Web UI & タブコンポーネント (`web/template`, `internal/web`)**
-  - [ ] `settings_modal.html` のタブ化（`[ ⚙️ システム設定 ]` / `[ 🎯 監視ポート設定 ]`）
-  - [ ] 監視ポート設定タブ UI 実装（OSプロファイル別フィルター、ポート一覧テーブル、編集/削除ボタン、有効/無効トグル）
-  - [ ] 新規ポート追加モーダル / フォーム
-  - [ ] `[ 📥 CSVエクスポート ]` & `[ 📤 CSVインポート ]` ボタンおよびファイルアップロードハンドラー
-  - [ ] `[ 🔄 デフォルトにリセット ]` 機能
-  - [ ] 日英（EN/JA）辞書キー追加 (`internal/i18n`)
-- [ ] **20.5 単体テスト & 総合検証**
-  - [ ] CSVインポート/エクスポート、UI操作、スキャナー連動のテスト
-  - [ ] `make test` & コミット
+### 🔹 Phase 20: OS別 監視ポートカスタマイズ & CSVインポート/エクスポート機能 (Phase 25にて完全実装・完了)
+- [x] **20.1 データベース層 (`internal/db`)** (完了 -> Phase 25.1 参照)
+  - [x] `custom_profile_ports` テーブル追加 & マイグレーション (`id`, `profile_id`, `protocol`, `port`, `protocol_name`, `description`, `is_enabled`, `is_builtin`, `created_at`, `updated_at`)
+  - [x] 組み込みデフォルトポート一覧の初期シード投入ロジック
+  - [x] ポート定義 CRUD メソッド (`ListProfilePorts`, `CreateProfilePort`, `UpdateProfilePort`, `DeleteProfilePort`, `ToggleProfilePort`, `ResetProfilePortsToDefault`)
+  - [x] DB層単体テスト作成 & 実行
+- [x] **20.2 スキャナー連動 & 動的ポートマップ解決 (`internal/scanner`)** (完了 -> Phase 25.2 参照)
+  - [x] `internal/scanner/ports.go` のリファクタリング: 静的 `profilePortMaps` から DB 連携の動的マップ取得への移行
+  - [x] ポート設定のインメモリキャッシュ機構 (`sync.RWMutex`)
+  - [x] プロファイル別適応型ポートスキャンでの動的ポート定義適用テスト
+- [x] **20.3 CSV インポート & エクスポート (`internal/ports` または `internal/web`)** (完了 -> Phase 25.3 参照)
+  - [x] CSVエクスポート処理（ヘッダー: `TargetOS,Protocol,Port,ProtocolName,Description,Enabled`）
+  - [x] CSVパーサー & バリデーション（OS種別、プロトコル、ポート番号範囲 1-65535、文字数制限）
+  - [x] インポート時のマージ / 完全置換処理
+- [x] **20.4 Web UI & タブコンポーネント (`web/template`, `internal/web`)** (完了 -> Phase 25.4 参照)
+  - [x] `settings_modal.html` のタブ化（`[ ⚙️ システム設定 ]` / `[ 🎯 監視ポート設定 ]`）
+  - [x] 監視ポート設定タブ UI 実装（OSプロファイル別フィルター、ポート一覧テーブル、編集/削除ボタン、有効/無効トグル）
+  - [x] 新規ポート追加モーダル / フォーム
+  - [x] `[ 📥 CSVエクスポート ]` & `[ 📤 CSVインポート ]` ボタンおよびファイルアップロードハンドラー
+  - [x] `[ 🔄 デフォルトにリセット ]` 機能
+  - [x] 日英（EN/JA）辞書キー追加 (`internal/i18n`)
+- [x] **20.5 単体テスト & 総合検証** (完了 -> Phase 25.5 参照)
+  - [x] CSVインポート/エクスポート、UI操作、スキャナー連動のテスト
+  - [x] `make test` & コミット
 
 ---
 
-### 🔹 Phase 21: フェデレーション機能 (分散拠点・マルチLAN統合監視 & `lanmap-agent`)
-- [ ] **21.1 アーキテクチャ & 通信プロトコル設計 (`internal/federation`)**
-  - [ ] Agent-Server 間のデータペイロード定義 (`AgentReport`, `AgentHostInfo`, `AgentMetadata`)
-  - [ ] 暗号化通信仕様（TLS + Bearer Token + SHA-256署名）
-  - [ ] セマンティックバージョニング照合 & スキーマ互換性ネゴシエーション仕様
-- [ ] **21.2 データベース層 (`internal/db`)**
-  - [ ] `federation_agents` テーブル追加 & マイグレーション (`id`, `name`, `token_hash`, `remote_ip`, `cidr`, `status`, `version`, `schema_version`, `version_mismatch`, `last_seen_at`)
-  - [ ] `hosts` テーブルに `agent_id` カラム追加 & インデックス作成
-  - [ ] エージェント管理 CRUD メソッド (`CreateAgentPairingPIN`, `VerifyAndRegisterAgent`, `ListAgents`, `UpdateAgentStatus`, `DeleteAgent`, `UpdateAgentHeartbeat`)
-  - [ ] リモートホスト一括 Upsert メソッド (`UpsertRemoteHosts(agentID, hosts)`)
-- [ ] **21.3 Server 側 Web API & ペアリング処理 (`internal/web`, `internal/federation`)**
-  - [ ] `POST /api/federation/pair/start`: 受付モード開始 & ワンタイムPIN (6桁, 15分有効) 発行
-  - [ ] `POST /api/federation/pair/request`: Agentからの参加要求受付 & 保留リスト登録
-  - [ ] `POST /api/federation/pair/approve`: Web UI からの管理者承認 & 永続トークン発行
-  - [ ] `POST /api/federation/report`: Agentからの定期JSONレポート受信、バージョン検証、DB反映
-  - [ ] スキーマ非互換時の `426 Upgrade Required` 拒絶ハンドリング
-- [ ] **20.4 Agent 側バイナリ・サブコマンド (`cmd/lanmap-agent` または `lanmap agent`)**
-  - [ ] 軽量エージェントバイナリの実装（Web GUIなし、低フットプリント）
-  - [ ] ペアリングCLIコマンド (`lanmap-agent pair --server <URL> --pin <PIN> --name <Name>`)
-  - [ ] ローカル設定ファイル（`agent.json`）の暗号化/安全な永続化
-  - [ ] バックグラウンド定期LAN探索 (Ping, ARP, DNS, ポート検査) & HTTPS Push 送信
-  - [ ] 通信ヘッダーへのバージョンメタデータ付与 (`X-Lanmap-Agent-Version`, `X-Lanmap-Schema-Version`)
-- [ ] **20.5 Web UI 表示 & バージョン整合性警告 (`web/template`, `internal/web`)**
-  - [ ] 左サイドバー (`sidebar.html`) に「🌐 拠点LAN (Remote Sites)」セクション追加
-  - [ ] 拠点クリックによるメインテーブル表示切替（リモートホスト一覧フィルタリング）
-  - [ ] サーバー・エージェント間のバージョン不一致警告バッジ（サイドバー: `⚠️ v0.0.11 (要更新)`）
-  - [ ] メイン画面上部のバージョン不一致警告バナー表示（アップデート案内）
-  - [ ] 設定モーダル内に「🌐 フェデレーション管理」画面（エージェント追加、PIN発行、承認/拒否、ステータス一覧）追加
-  - [ ] 日英（EN/JA）辞書キー追加 (`internal/i18n`)
-- [ ] **20.6 単体テスト & 統合検証**
-  - [ ] ペアリングフロー、トークン認証、レポート受信、バージョン照合、UI表示のテスト
-  - [ ] `make test` & コミット
+### 🔹 Phase 21: フェデレーション機能 (分散拠点・マルチLAN統合監視 & `lanmap-agent`) (Phase 27にて完全実装・完了)
+- [x] **21.1 アーキテクチャ & 通信プロトコル設計 (`internal/federation`)** (完了 -> Phase 27.1 参照)
+  - [x] Agent-Server 間のデータペイロード定義 (`AgentReport`, `AgentHostInfo`, `AgentMetadata`)
+  - [x] 暗号化通信仕様（TLS + Bearer Token + SHA-256署名）
+  - [x] セマンティックバージョニング照合 & スキーマ互換性ネゴシエーション仕様
+- [x] **21.2 データベース層 (`internal/db`)** (完了 -> Phase 27.1 参照)
+  - [x] `federation_agents` テーブル追加 & マイグレーション (`id`, `name`, `token_hash`, `remote_ip`, `cidr`, `status`, `version`, `schema_version`, `version_mismatch`, `last_seen_at`)
+  - [x] `hosts` テーブルに `agent_id` カラム追加 & インデックス作成
+  - [x] エージェント管理 CRUD メソッド (`CreateAgentPairingPIN`, `VerifyAndRegisterAgent`, `ListAgents`, `UpdateAgentStatus`, `DeleteAgent`, `UpdateAgentHeartbeat`)
+  - [x] リモートホスト一括 Upsert メソッド (`UpsertRemoteHosts(agentID, hosts)`)
+- [x] **21.3 Server 側 Web API & ペアリング処理 (`internal/web`, `internal/federation`)** (完了 -> Phase 27.2 参照)
+  - [x] `POST /api/federation/pair/start`: 受付モード開始 & ワンタイムPIN (6桁, 15分有効) 発行
+  - [x] `POST /api/federation/pair/request`: Agentからの参加要求受付 & 保留リスト登録
+  - [x] `POST /api/federation/pair/approve`: Web UI からの管理者承認 & 永続トークン発行
+  - [x] `POST /api/federation/report`: Agentからの定期JSONレポート受信、バージョン検証、DB反映
+  - [x] スキーマ非互換時の `426 Upgrade Required` 拒絶ハンドリング
+- [x] **21.4 Agent 側バイナリ・サブコマンド (`cmd/lanmap-agent` または `lanmap agent`)** (完了 -> Phase 27.4 参照)
+  - [x] 軽量エージェントバイナリの実装（Web GUIなし、低フットプリント）
+  - [x] ペアリングCLIコマンド (`lanmap agent pair --server <URL> --pin <PIN> --name <Name>`)
+  - [x] ローカル設定ファイル（`agent.json`）の暗号化/安全な永続化
+  - [x] バックグラウンド定期LAN探索 (Ping, ARP, DNS, ポート検査) & HTTPS Push 送信
+  - [x] 通信ヘッダーへのバージョンメタデータ付与 (`X-Lanmap-Agent-Version`, `X-Lanmap-Schema-Version`)
+- [x] **21.5 Web UI 表示 & バージョン整合性警告 (`web/template`, `internal/web`)** (完了 -> Phase 27.3 参照)
+  - [x] 左サイドバー (`sidebar.html`) に「🌐 拠点LAN (Remote Sites)」セクション追加
+  - [x] 拠点クリックによるメインテーブル表示切替（リモートホスト一覧フィルタリング）
+  - [x] サーバー・エージェント間のバージョン不一致警告バッジ（サイドバー: `⚠️ v0.0.11 (要更新)`）
+  - [x] メイン画面上部のバージョン不一致警告バナー表示（アップデート案内）
+  - [x] 設定モーダル内に「🌐 フェデレーション管理」画面（エージェント追加、PIN発行、承認/拒否、ステータス一覧）追加
+  - [x] 日英（EN/JA）辞書キー追加 (`internal/i18n`)
+- [x] **21.6 単体テスト & 統合検証** (完了 -> Phase 27.5 参照)
+  - [x] ペアリングフロー、トークン認証、レポート受信、バージョン照合、UI表示のテスト
+  - [x] `make test` & コミット
 
 ---
 
@@ -682,5 +682,25 @@
 - [x] **28.3 ビルド & 検証**
   - [x] `make test` 全テスト通過確認
   - [x] `make build` 成功確認
+
+---
+
+### 🔹 Phase 29: Web管理画面での拠点エージェント（フェデレーション）設定機能 (完了)
+- [x] **29.1 サーバー側 API エンドポイント (`internal/web`)**
+  - [x] `POST /api/federation/agent/pair`: 親機サーバーへ参加要求送信 & 承認待機開始
+  - [x] `GET /api/federation/agent/poll`: 承認ステータスポーリング & トークン受領・ローカル設定保存
+  - [x] `POST /api/federation/agent/unpair`: 親機連携解除（ローカル設定消去）
+  - [x] `POST /api/federation/agent/report`: 手動即時レポート送信トリガー
+- [x] **29.2 Web UI テンプレート & 国際化 (`web/template`, `internal/i18n`)**
+  - [x] `settings_modal.html`: 第3タブ「`[ 🌐 拠点エージェント (Agent) ]`」追加 & タブ切替ロジック
+  - [x] 未連携（Standalone）フォーム: 親機URL、ワンタイムPIN、拠点名入力 & ペアリング開始ボタン
+  - [x] 承認待機中表示: スピナー、承認待ちメッセージ、自動HTMXポーリング
+  - [x] 連携中（Agent）カード: 接続状態、親機URL、拠点名、エージェントID、即時レポート送信ボタン、連携解除ボタン
+  - [x] 日英辞書キー追加 (`internal/i18n`)
+- [x] **29.3 単体テスト & 総合検証**
+  - [x] Webハンドラー単体テスト (`internal/web/web_test.go`)
+  - [x] `go test ./...` PASS確認
+  - [x] `make build` 動作確認
+
 
 

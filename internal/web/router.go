@@ -49,6 +49,13 @@ func NewRouter(h *Handler) http.Handler {
 	mux.HandleFunc("POST /api/federation/agents/{id}/delete", h.HandleDeleteAgent)
 	mux.HandleFunc("POST /api/federation/report", h.HandleFederationReport)
 
+	// Federation Agent (Client / Local Node) API
+	mux.HandleFunc("POST /api/federation/agent/pair", h.HandleAgentPairRequest)
+	mux.HandleFunc("GET /api/federation/agent/poll", h.HandleAgentPairPoll)
+	mux.HandleFunc("POST /api/federation/agent/unpair", h.HandleAgentUnpair)
+	mux.HandleFunc("POST /api/federation/agent/cancel", h.HandleAgentCancel)
+	mux.HandleFunc("POST /api/federation/agent/report", h.HandleAgentManualReport)
+
 	// Whitelist API
 	mux.HandleFunc("POST /api/whitelist/import", h.HandleImportWhitelist)
 	mux.HandleFunc("DELETE /api/whitelist", h.HandleClearWhitelist)

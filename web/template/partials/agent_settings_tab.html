@@ -1,0 +1,232 @@
+{{if eq .Status "waiting"}}
+<!-- 1. 承認待機中 (Waiting for Approval) -->
+<div class="space-y-4 animate-fade-in text-xs">
+    <div class="p-4 bg-amber-50 dark:bg-amber-950/50 border border-amber-300 dark:border-amber-700/70 rounded-xl space-y-3 shadow-xs">
+        <div class="flex items-center space-x-2.5">
+            <div class="w-5 h-5 border-2 border-amber-600 border-t-transparent dark:border-amber-400 dark:border-t-transparent rounded-full animate-spin shrink-0"></div>
+            <h3 class="font-bold text-sm text-amber-900 dark:text-amber-200">
+                {{t .Lang "agent_waiting_title"}}
+            </h3>
+        </div>
+        <p class="text-amber-800 dark:text-amber-300 text-[11.5px] leading-relaxed">
+            {{t .Lang "agent_waiting_desc"}}
+        </p>
+
+        <div class="bg-white/80 dark:bg-slate-900/80 rounded-lg p-3 border border-amber-200 dark:border-amber-900/60 font-mono text-[11px] grid grid-cols-1 sm:grid-cols-2 gap-2 text-slate-700 dark:text-slate-300">
+            <div>
+                <span class="text-slate-400 dark:text-slate-500 block text-[10px] uppercase">{{t .Lang "agent_server_url"}}</span>
+                <span class="font-semibold select-all">{{.ServerURL}}</span>
+            </div>
+            <div>
+                <span class="text-slate-400 dark:text-slate-500 block text-[10px] uppercase">{{t .Lang "agent_pin_label"}}</span>
+                <span class="font-bold tracking-widest text-amber-600 dark:text-amber-400">{{.PIN}}</span>
+            </div>
+            <div>
+                <span class="text-slate-400 dark:text-slate-500 block text-[10px] uppercase">{{t .Lang "agent_name_label"}}</span>
+                <span class="font-semibold">{{.AgentName}}</span>
+            </div>
+            <div>
+                <span class="text-slate-400 dark:text-slate-500 block text-[10px] uppercase">{{t .Lang "agent_id_label"}}</span>
+                <span class="font-mono text-[10px] text-slate-500 select-all">{{.AgentID}}</span>
+            </div>
+        </div>
+
+        <div class="flex items-center justify-between pt-1">
+            <!-- HTMX Auto-Polling: checks status every 3s -->
+            <div hx-get="/api/federation/agent/poll?server_url={{.ServerURL}}&pin={{.PIN}}&agent_id={{.AgentID}}&name={{.AgentName}}&elapsed={{.PollElapsed}}"
+                 hx-trigger="every 3s"
+                 hx-target="#tab-content-agent"
+                 hx-swap="innerHTML"
+                 class="flex items-center space-x-2 text-[11px] text-amber-700 dark:text-amber-400">
+                <span class="inline-block w-2 h-2 rounded-full bg-amber-500 animate-ping"></span>
+                <span>親機の承認を自動待機中... (経過: {{.PollElapsed}}秒 / 最大180秒)</span>
+            </div>
+
+            <button type="button"
+                    hx-post="/api/federation/agent/cancel"
+                    hx-target="#tab-content-agent"
+                    hx-swap="innerHTML"
+                    class="px-3 py-1 bg-white dark:bg-slate-900 border border-slate-300 dark:border-slate-700 hover:border-slate-400 text-slate-700 dark:text-slate-300 rounded text-[11px] font-medium transition cursor-pointer">
+                {{t .Lang "agent_btn_cancel"}}
+            </button>
+        </div>
+    </div>
+</div>
+
+{{else if eq .Status "connected"}}
+<!-- 2. 連携中 (Connected / Agent Mode) -->
+<div class="space-y-4 animate-fade-in text-xs">
+    {{if .Message}}
+    <div class="p-3 bg-emerald-50 dark:bg-emerald-950/60 border border-emerald-300 dark:border-emerald-800 rounded-xl text-emerald-800 dark:text-emerald-200 text-xs flex items-center space-x-2 animate-fade-in shadow-xs">
+        <span class="text-base">✅</span>
+        <span class="font-medium">{{.Message}}</span>
+    </div>
+    {{end}}
+
+    {{if .ErrorMessage}}
+    <div class="p-3 bg-red-50 dark:bg-red-950/60 border border-red-300 dark:border-red-800 rounded-xl text-red-800 dark:text-red-200 text-xs flex items-center space-x-2 animate-fade-in shadow-xs">
+        <span class="text-base">❌</span>
+        <span class="font-medium">{{.ErrorMessage}}</span>
+    </div>
+    {{end}}
+
+    <div class="bg-slate-50 dark:bg-slate-950/60 rounded-xl border border-emerald-300/80 dark:border-emerald-800/80 p-4 space-y-3.5 shadow-xs">
+        <div class="flex items-center justify-between pb-2 border-b border-slate-200/70 dark:border-slate-800/70">
+            <div class="flex items-center space-x-2">
+                <span class="text-base">🏢</span>
+                <h3 class="font-bold text-slate-800 dark:text-slate-200 text-xs">
+                    {{t .Lang "agent_settings_title"}}
+                </h3>
+            </div>
+            <span class="px-2.5 py-0.5 rounded-full text-[10.5px] font-bold bg-emerald-100 text-emerald-800 dark:bg-emerald-950/70 dark:text-emerald-300 border border-emerald-300 dark:border-emerald-800 flex items-center space-x-1">
+                <span class="w-1.5 h-1.5 rounded-full bg-emerald-500 inline-block animate-pulse"></span>
+                <span>{{t .Lang "agent_status_connected"}}</span>
+            </span>
+        </div>
+
+        <p class="text-slate-500 dark:text-slate-400 text-[11px] leading-relaxed">
+            このサーバーは拠点エージェントとして中央サーバーに接続されており、定期スキャン完了時にローカル端末インベントリを自動 Push 同期します。
+        </p>
+
+        <!-- Details Grid -->
+        <div class="grid grid-cols-1 sm:grid-cols-2 gap-3 bg-white dark:bg-slate-900 p-3.5 rounded-lg border border-slate-200 dark:border-slate-800 font-mono text-[11px]">
+            <div>
+                <span class="text-slate-400 dark:text-slate-500 block text-[10px] font-sans font-semibold uppercase">{{t .Lang "agent_server_url"}}</span>
+                <span class="font-semibold text-slate-800 dark:text-slate-200 select-all">{{.AgentConfig.ServerURL}}</span>
+            </div>
+            <div>
+                <span class="text-slate-400 dark:text-slate-500 block text-[10px] font-sans font-semibold uppercase">{{t .Lang "agent_name_label"}}</span>
+                <span class="font-bold text-blue-600 dark:text-blue-400">{{.AgentConfig.AgentName}}</span>
+            </div>
+            <div>
+                <span class="text-slate-400 dark:text-slate-500 block text-[10px] font-sans font-semibold uppercase">{{t .Lang "agent_id_label"}}</span>
+                <span class="text-slate-600 dark:text-slate-400 text-[10px] select-all">{{.AgentConfig.AgentID}}</span>
+            </div>
+            <div>
+                <span class="text-slate-400 dark:text-slate-500 block text-[10px] font-sans font-semibold uppercase">{{t .Lang "agent_last_sync"}}</span>
+                <span class="font-semibold text-slate-700 dark:text-slate-300">
+                    {{if .AgentLastSync}}{{.AgentLastSync}}{{else}}{{t .Lang "agent_never_synced"}}{{end}}
+                </span>
+            </div>
+        </div>
+
+        <!-- Actions -->
+        <div class="pt-2 flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-2.5">
+            <button type="button"
+                    hx-post="/api/federation/agent/report"
+                    hx-target="#tab-content-agent"
+                    hx-swap="innerHTML"
+                    class="px-3.5 py-1.5 rounded-lg text-xs font-semibold bg-blue-600 hover:bg-blue-700 text-white transition flex items-center justify-center space-x-1.5 shadow-xs cursor-pointer">
+                <span>⚡</span>
+                <span>{{t .Lang "agent_btn_report_now"}}</span>
+            </button>
+
+            <button type="button"
+                    hx-post="/api/federation/agent/unpair"
+                    hx-target="#tab-content-agent"
+                    hx-swap="innerHTML"
+                    hx-confirm="{{t .Lang "agent_confirm_unpair"}}"
+                    class="px-3.5 py-1.5 rounded-lg text-xs font-semibold bg-white dark:bg-slate-900 border border-red-300 dark:border-red-800 text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-950/40 transition flex items-center justify-center space-x-1.5 shadow-xs cursor-pointer">
+                <span>❌</span>
+                <span>{{t .Lang "agent_btn_unpair"}}</span>
+            </button>
+        </div>
+    </div>
+</div>
+
+{{else}}
+<!-- 3. 未連携 (Standalone Mode / Not Paired) -->
+<div class="space-y-4 animate-fade-in text-xs">
+    {{if .Message}}
+    <div class="p-3 bg-blue-50 dark:bg-blue-950/60 border border-blue-200 dark:border-blue-800 rounded-xl text-blue-800 dark:text-blue-200 text-xs flex items-center space-x-2 animate-fade-in shadow-xs">
+        <span class="text-base">ℹ️</span>
+        <span class="font-medium">{{.Message}}</span>
+    </div>
+    {{end}}
+
+    {{if .ErrorMessage}}
+    <div class="p-3 bg-red-50 dark:bg-red-950/60 border border-red-300 dark:border-red-800 rounded-xl text-red-800 dark:text-red-200 text-xs flex items-center space-x-2 animate-fade-in shadow-xs">
+        <span class="text-base">❌</span>
+        <span class="font-medium">{{.ErrorMessage}}</span>
+    </div>
+    {{end}}
+
+    <div class="bg-slate-50 dark:bg-slate-950/60 rounded-xl border border-slate-200 dark:border-slate-800 p-4 space-y-4 shadow-xs">
+        <div class="flex items-center justify-between pb-2 border-b border-slate-200/70 dark:border-slate-800/70">
+            <div class="flex items-center space-x-2">
+                <span class="text-base">🏢</span>
+                <h3 class="font-bold text-slate-800 dark:text-slate-200 text-xs">
+                    {{t .Lang "agent_settings_title"}}
+                </h3>
+            </div>
+            <span class="px-2.5 py-0.5 rounded-full text-[10.5px] font-medium bg-slate-200/80 text-slate-600 dark:bg-slate-800 dark:text-slate-400 border border-slate-300 dark:border-slate-700">
+                ⚪ {{t .Lang "agent_status_standalone"}}
+            </span>
+        </div>
+
+        <p class="text-slate-500 dark:text-slate-400 text-[11px] leading-relaxed">
+            {{t .Lang "agent_settings_desc"}}
+        </p>
+
+        <form hx-post="/api/federation/agent/pair"
+              hx-target="#tab-content-agent"
+              hx-swap="innerHTML"
+              class="space-y-3.5">
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-3.5">
+                <!-- 親機URL -->
+                <div>
+                    <label class="block font-semibold text-slate-700 dark:text-slate-300 text-[11px] mb-1">
+                        {{t .Lang "agent_server_url_label"}}
+                    </label>
+                    <input type="text" name="server_url" value="{{.ServerURL}}"
+                           placeholder="{{t .Lang "agent_server_url_ph"}}"
+                           required
+                           class="w-full bg-white dark:bg-slate-900 border border-slate-300 dark:border-slate-700 rounded-lg px-2.5 py-1.5 text-slate-800 dark:text-slate-200 focus:outline-none focus:border-blue-500 font-mono text-[11px]">
+                    <span class="text-[10px] text-slate-400 mt-0.5 block">※ 親機の管理画面URL (HTTPS推奨、Tailscale等のVPN経由)</span>
+                </div>
+
+                <!-- 6桁PIN -->
+                <div>
+                    <label class="block font-semibold text-slate-700 dark:text-slate-300 text-[11px] mb-1">
+                        {{t .Lang "agent_pin_label"}}
+                    </label>
+                    <input type="text" name="pin" value="{{.PIN}}"
+                           placeholder="{{t .Lang "agent_pin_ph"}}"
+                           maxlength="10"
+                           required
+                           class="w-full bg-white dark:bg-slate-900 border border-slate-300 dark:border-slate-700 rounded-lg px-2.5 py-1.5 text-slate-800 dark:text-slate-200 focus:outline-none focus:border-blue-500 font-mono text-center tracking-widest text-sm font-bold">
+                    <span class="text-[10px] text-slate-400 mt-0.5 block">※ 親機の「➕ 拠点追加」で発行された有効期限15分のPIN</span>
+                </div>
+
+                <!-- 拠点表示名 -->
+                <div>
+                    <label class="block font-semibold text-slate-700 dark:text-slate-300 text-[11px] mb-1">
+                        {{t .Lang "agent_name_label"}}
+                    </label>
+                    <input type="text" name="name" value="{{.AgentName}}"
+                           placeholder="{{t .Lang "agent_name_ph"}}"
+                           class="w-full bg-white dark:bg-slate-900 border border-slate-300 dark:border-slate-700 rounded-lg px-2.5 py-1.5 text-slate-800 dark:text-slate-200 focus:outline-none focus:border-blue-500 text-[11px]">
+                </div>
+
+                <!-- 監視CIDR (任意) -->
+                <div>
+                    <label class="block font-semibold text-slate-700 dark:text-slate-300 text-[11px] mb-1">
+                        {{t .Lang "agent_cidr_label"}}
+                    </label>
+                    <input type="text" name="cidr" value="{{.CIDR}}"
+                           placeholder="{{t .Lang "agent_cidr_ph"}}"
+                           class="w-full bg-white dark:bg-slate-900 border border-slate-300 dark:border-slate-700 rounded-lg px-2.5 py-1.5 text-slate-800 dark:text-slate-200 focus:outline-none focus:border-blue-500 font-mono text-[11px]">
+                </div>
+            </div>
+
+            <div class="pt-2 flex items-center justify-end">
+                <button type="submit"
+                        class="px-4 py-2 rounded-lg text-xs font-bold bg-blue-600 hover:bg-blue-700 text-white transition flex items-center space-x-1.5 shadow-sm cursor-pointer">
+                    <span>🔗</span>
+                    <span>{{t .Lang "agent_btn_pair"}}</span>
+                </button>
+            </div>
+        </form>
+    </div>
+</div>
+{{end}}

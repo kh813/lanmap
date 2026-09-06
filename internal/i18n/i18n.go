@@ -356,6 +356,7 @@ var translations = map[string]map[string]string{
 		// Settings Tabs
 		"settings_tab_system": "⚙️ System Settings",
 		"settings_tab_ports":  "🎯 Monitored Ports",
+		"settings_tab_agent":  "🌐 Federation Agent",
 
 		// Device Profiles
 		"profile_all":        "🌐 All Devices (Common)",
@@ -513,6 +514,34 @@ var translations = map[string]map[string]string{
 		"federation_hosts_count":              "%d hosts (%d online)",
 		"federation_confirm_revoke":           "Are you sure you want to revoke this agent? It will no longer be able to push reports.",
 		"federation_confirm_delete":           "Are you sure you want to delete this agent and all its remote host records?",
+
+		// Agent Settings & Pairing
+		"agent_settings_title":    "Remote Site Federation Agent",
+		"agent_settings_desc":     "Configure this lanmap instance as a remote agent to push local device inventory to a central parent server.",
+		"agent_status_standalone": "Standalone (Not Paired)",
+		"agent_status_connected":  "Connected (Active Agent)",
+		"agent_server_url_label":  "Central Server URL *",
+		"agent_server_url_ph":     "https://central-lanmap:3002 or Tailscale IP",
+		"agent_pin_label":         "6-Digit Pairing PIN *",
+		"agent_pin_ph":            "e.g. 839201",
+		"agent_name_label":        "Remote Site Name",
+		"agent_name_ph":           "e.g. Osaka Branch (Default: this hostname)",
+		"agent_cidr_label":        "Monitored CIDR (Optional)",
+		"agent_cidr_ph":           "e.g. 192.168.10.0/24",
+		"agent_btn_pair":          "🔗 Start Pairing",
+		"agent_waiting_title":     "⏳ Waiting for Server Approval...",
+		"agent_waiting_desc":      "Pairing request sent. Please approve this agent in the central server's Web UI (Remote Sites > Approve).",
+		"agent_btn_cancel":        "Cancel",
+		"agent_btn_unpair":        "❌ Disconnect / Unpair",
+		"agent_confirm_unpair":    "Are you sure you want to disconnect this agent from the central server? Periodic report sync will stop.",
+		"agent_btn_report_now":    "⚡ Sync Report Now",
+		"agent_server_url":        "Server URL",
+		"agent_id_label":          "Agent ID",
+		"agent_last_sync":         "Last Synced",
+		"agent_never_synced":      "Never (Pending scan cycle)",
+		"agent_report_success":    "✅ Report successfully pushed to central server (%d hosts)",
+		"agent_report_failed":     "❌ Report submission failed: %s",
+		"agent_unpaired_success":  "Federation agent disconnected. Running in standalone mode.",
 
 		// Language Switcher
 		"lang_en": "EN",
@@ -772,6 +801,7 @@ var translations = map[string]map[string]string{
 		// Settings Tabs
 		"settings_tab_system": "⚙️ システム設定",
 		"settings_tab_ports":  "🎯 監視ポート設定",
+		"settings_tab_agent":  "🌐 拠点エージェント",
 
 		// Device Profiles
 		"profile_all":        "🌐 全デバイス共通",
@@ -929,6 +959,34 @@ var translations = map[string]map[string]string{
 		"federation_hosts_count":              "%d 端末 (%d 稼働中)",
 		"federation_confirm_revoke":           "このエージェントを無効化しますか？以降のレポート送信は拒絶されます。",
 		"federation_confirm_delete":           "この拠点と、この拠点の全端末レコードを完全に削除しますか？",
+
+		// Agent Settings & Pairing
+		"agent_settings_title":    "拠点エージェント連携設定",
+		"agent_settings_desc":     "この lanmap インスタンスを拠点エージェントとして親機（中央サーバー）に接続し、ローカル端末情報を自動送信します。",
+		"agent_status_standalone": "未連携 (スタンドアロン)",
+		"agent_status_connected":  "連携中 (エージェント稼働中)",
+		"agent_server_url_label":  "親機サーバーURL *",
+		"agent_server_url_ph":     "https://親機IP:3002 または Tailscale URL",
+		"agent_pin_label":         "ワンタイム 6桁PIN *",
+		"agent_pin_ph":            "例: 839201",
+		"agent_name_label":        "拠点表示名",
+		"agent_name_ph":           "例: 大阪支社 (未指定時はホスト名)",
+		"agent_cidr_label":        "監視CIDR (任意)",
+		"agent_cidr_ph":           "例: 192.168.10.0/24",
+		"agent_btn_pair":          "🔗 親機とペアリング開始",
+		"agent_waiting_title":     "⏳ 親機での承認をお待ちください...",
+		"agent_waiting_desc":      "参加要求を親機へ送信しました。親機管理画面の「拠点追加（承認待ち）」で承認してください。",
+		"agent_btn_cancel":        "キャンセル",
+		"agent_btn_unpair":        "❌ 連携解除 (Unpair)",
+		"agent_confirm_unpair":    "親機との連携を解除しますか？親機への端末データ自動同期が停止します。",
+		"agent_btn_report_now":    "⚡ 今すぐレポート送信",
+		"agent_server_url":        "親機サーバーURL",
+		"agent_id_label":          "エージェントUUID",
+		"agent_last_sync":         "最終レポート送信",
+		"agent_never_synced":      "未送信 (スキャン完了時に自動送信)",
+		"agent_report_success":    "✅ 親機へのレポート送信が完了しました (%d 端末)",
+		"agent_report_failed":     "❌ 親機へのレポート送信に失敗しました: %s",
+		"agent_unpaired_success":  "親機との連携を解除しました。スタンドアロンモードで動作します。",
 
 		// Language Switcher
 		"lang_en": "EN",

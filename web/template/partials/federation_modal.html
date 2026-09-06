@@ -185,9 +185,12 @@
     <div class="relative group">
         <pre id="cli-cmd-{{.PIN}}" class="p-2.5 bg-slate-900 text-emerald-400 font-mono text-[11px] rounded overflow-x-auto select-all">./lanmap agent pair --server http://{{.HostURL}} --pin {{.PIN}} --name "{{.AgentName}}"</pre>
         <button type="button" onclick="navigator.clipboard.writeText(document.getElementById('cli-cmd-{{.PIN}}').innerText); this.innerText='Copied!';"
-                class="absolute right-2 top-2 px-2 py-1 bg-slate-800 hover:bg-slate-700 text-white rounded text-[10px] font-mono transition">
+                class="absolute right-2 top-2 px-2 py-1 bg-slate-800 hover:bg-slate-700 text-white rounded text-[10px] font-mono transition cursor-pointer">
             Copy
         </button>
     </div>
+    <p class="text-[10.5px] text-slate-500 dark:text-slate-400 mt-1">
+        ※ 拠点側の Web 管理画面から接続する場合は、拠点側の「⚙️ 設定画面」➔「🌐 拠点エージェント」タブから上記URLとPINを入力してペアリングできます。
+    </p>
 </div>
 {{end}}

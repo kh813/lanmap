@@ -13,6 +13,7 @@ import (
 
 	"lanmap/internal/config"
 	"lanmap/internal/db"
+	"lanmap/internal/federation"
 	"lanmap/internal/notifier"
 	"lanmap/internal/scanner"
 )
@@ -1024,5 +1025,188 @@ func TestIPv6WebUIBadges(t *testing.T) {
 	modalBody := recModal.Body.String()
 	if !strings.Contains(modalBody, "fe80::1") || !strings.Contains(modalBody, "2001:db8::100") {
 		t.Errorf("host detail modal should display IPv6 addresses fe80::1 and 2001:db8::100, got: %s", modalBody)
+	}
+}
+
+type inProcTransport struct {
+	handler http.Handler
+}
+
+func (t *inProcTransport) RoundTrip(req *http.Request) (*http.Response, error) {
+	rec := httptest.NewRecorder()
+	t.handler.ServeHTTP(rec, req)
+	return rec.Result(), nil
+}
+
+func TestAgentSettingsModalTab(t *testing.T) {
+	_, router, _ := setupTestWeb(t)
+
+	// 1. Load settings modal with ?tab=agent
+	req := httptest.NewRequest("GET", "/modals/settings?tab=agent", nil)
+	rec := httptest.NewRecorder()
+	router.ServeHTTP(rec, req)
+
+	if rec.Code != http.StatusOK {
+		t.Fatalf("expected 200 from settings modal, got %d", rec.Code)
+	}
+
+	body := rec.Body.String()
+	if !strings.Contains(body, "tab-btn-agent") {
+		t.Errorf("expected tab-btn-agent in settings modal")
+	}
+	if !strings.Contains(body, "tab-content-agent") {
+		t.Errorf("expected tab-content-agent in settings modal")
+	}
+	if !strings.Contains(body, "initTab === 'agent'") {
+		t.Errorf("expected initTab check for agent tab")
+	}
+	if !strings.Contains(body, "agent_btn_pair") && !strings.Contains(body, "親機とペアリング開始") && !strings.Contains(body, "Start Pairing") {
+		t.Errorf("expected pairing button in agent tab")
+	}
+}
+
+func TestAgentPairingWebFlow(t *testing.T) {
+	// Setup Central Server
+	_, serverRouter, serverDB := setupTestWeb(t)
+	mockServerURL := "http://central.lanmap:3002"
+
+	// Setup Agent Node
+	_, agentRouter, agentDB := setupTestWeb(t)
+
+	// Route federation client HTTP requests in-memory to serverRouter
+	customClient := &http.Client{
+		Transport: &inProcTransport{handler: serverRouter},
+	}
+	federation.SetCustomHTTPClient(customClient)
+	t.Cleanup(func() { federation.SetCustomHTTPClient(nil) })
+
+	// 1. Issue 6-digit PIN on Central Server
+	pinObj, err := serverDB.CreatePairingPIN("大阪支社")
+	if err != nil {
+		t.Fatalf("create pairing pin failed: %v", err)
+	}
+
+	// 2. On Agent Node: Submit pairing request via Web API
+	pairForm := url.Values{
+		"server_url": {mockServerURL},
+		"pin":        {pinObj.PIN},
+		"name":       {"大阪支社"},
+		"cidr":       {"192.168.50.0/24"},
+	}
+	pairReq := httptest.NewRequest("POST", "/api/federation/agent/pair", strings.NewReader(pairForm.Encode()))
+	pairReq.Header.Set("Content-Type", "application/x-www-form-urlencoded")
+	pairRec := httptest.NewRecorder()
+	agentRouter.ServeHTTP(pairRec, pairReq)
+
+	if pairRec.Code != http.StatusOK {
+		t.Fatalf("expected 200 from agent pair request, got %d: %s", pairRec.Code, pairRec.Body.String())
+	}
+
+	pairBody := pairRec.Body.String()
+	if !strings.Contains(pairBody, "agent_waiting_title") && !strings.Contains(pairBody, "承認をお待ちください") && !strings.Contains(pairBody, "Waiting for Server Approval") {
+		t.Errorf("expected waiting state in response: %s", pairBody)
+	}
+
+	// Extract agent ID from server DB pending requests
+	pending, err := serverDB.ListPendingPairingRequests()
+	if err != nil || len(pending) == 0 {
+		t.Fatalf("expected pending request on server DB: %v", err)
+	}
+	agentID := pending[0].AgentID
+
+	// 3. Polling while still pending
+	pollReq := httptest.NewRequest("GET", fmt.Sprintf("/api/federation/agent/poll?server_url=%s&pin=%s&agent_id=%s&name=%s&elapsed=3",
+		url.QueryEscape(mockServerURL), pinObj.PIN, agentID, url.QueryEscape("大阪支社")), nil)
+	pollRec := httptest.NewRecorder()
+	agentRouter.ServeHTTP(pollRec, pollReq)
+
+	if pollRec.Code != http.StatusOK {
+		t.Fatalf("expected 200 from agent poll, got %d", pollRec.Code)
+	}
+	if !strings.Contains(pollRec.Body.String(), "親機の承認を自動待機中") && !strings.Contains(pollRec.Body.String(), "Waiting") {
+		t.Errorf("expected waiting state while pending: %s", pollRec.Body.String())
+	}
+
+	// 4. Central Server Admin Approves the PIN
+	token, err := serverDB.ApprovePairing(pinObj.PIN)
+	if err != nil || token == "" {
+		t.Fatalf("server approve pairing failed: %v", err)
+	}
+
+	// 5. Agent Node Polls again -> should detect approval and transition to connected state
+	pollReq2 := httptest.NewRequest("GET", fmt.Sprintf("/api/federation/agent/poll?server_url=%s&pin=%s&agent_id=%s&name=%s&elapsed=6",
+		url.QueryEscape(mockServerURL), pinObj.PIN, agentID, url.QueryEscape("大阪支社")), nil)
+	pollRec2 := httptest.NewRecorder()
+	agentRouter.ServeHTTP(pollRec2, pollReq2)
+
+	if pollRec2.Code != http.StatusOK {
+		t.Fatalf("expected 200 from agent poll 2, got %d", pollRec2.Code)
+	}
+
+	pollBody2 := pollRec2.Body.String()
+	if !strings.Contains(pollBody2, "agent_status_connected") && !strings.Contains(pollBody2, "連携中") && !strings.Contains(pollBody2, "Connected") {
+		t.Errorf("expected connected state after approval: %s", pollBody2)
+	}
+
+	// Verify local agent DB has credentials saved
+	agentCfg, err := federation.LoadAgentConfig(agentDB)
+	if err != nil || !agentCfg.IsPaired() {
+		t.Fatalf("expected agent config to be paired, got: %+v, err: %v", agentCfg, err)
+	}
+	if agentCfg.AgentID != agentID || agentCfg.Token != token {
+		t.Errorf("mismatched agent config: got %+v, expected id=%s token=%s", agentCfg, agentID, token)
+	}
+
+	// 6. Test manual report push from Web GUI
+	// Seed a local host in agentDB
+	_, _, _ = agentDB.UpsertHostOnScan(&db.Host{
+		IP:          "192.168.50.10",
+		MACAddress:  "11:22:33:44:55:66",
+		Hostname:    "branch-pc",
+		VendorModel: "Apple",
+		OSVendor:    "Mac",
+		Status:      "up",
+	})
+
+	reportReq := httptest.NewRequest("POST", "/api/federation/agent/report", nil)
+	reportRec := httptest.NewRecorder()
+	agentRouter.ServeHTTP(reportRec, reportReq)
+
+	if reportRec.Code != http.StatusOK {
+		t.Fatalf("expected 200 from agent manual report, got %d: %s", reportRec.Code, reportRec.Body.String())
+	}
+
+	reportHtml := reportRec.Body.String()
+	if !strings.Contains(reportHtml, "Connected") && !strings.Contains(reportHtml, "連携中") {
+		t.Errorf("expected connected card on report response: %s", reportHtml)
+	}
+
+	// Verify server received remote host
+	serverHosts, err := serverDB.ListHostsFilteredWithAgent(nil, "all", 0, &agentID)
+	if err != nil || len(serverHosts) == 0 {
+		t.Fatalf("expected server to have remote host for agent %s, err: %v", agentID, err)
+	}
+	if serverHosts[0].IP != "192.168.50.10" {
+		t.Errorf("expected remote host IP 192.168.50.10, got %s", serverHosts[0].IP)
+	}
+
+	// 7. Test unpair from Web GUI
+	unpairReq := httptest.NewRequest("POST", "/api/federation/agent/unpair", nil)
+	unpairRec := httptest.NewRecorder()
+	agentRouter.ServeHTTP(unpairRec, unpairReq)
+
+	if unpairRec.Code != http.StatusOK {
+		t.Fatalf("expected 200 from agent unpair, got %d", unpairRec.Code)
+	}
+
+	unpairBody := unpairRec.Body.String()
+	if !strings.Contains(unpairBody, "Standalone") && !strings.Contains(unpairBody, "未連携") {
+		t.Errorf("expected standalone form after unpair: %s", unpairBody)
+	}
+
+	// Verify local agent DB is cleared
+	clearedCfg, _ := federation.LoadAgentConfig(agentDB)
+	if clearedCfg.IsPaired() {
+		t.Errorf("expected agent config to be cleared, got: %+v", clearedCfg)
 	}
 }
