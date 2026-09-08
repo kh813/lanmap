@@ -354,9 +354,11 @@ var translations = map[string]map[string]string{
 		"settings_btn_save":               "💾 Save Settings",
 
 		// Settings Tabs
-		"settings_tab_system": "⚙️ System Settings",
-		"settings_tab_ports":  "🎯 Monitored Ports",
-		"settings_tab_agent":  "🌐 Federation Agent",
+		"settings_tab_system":        "⚙️ System Settings",
+		"settings_tab_monitoring":    "📡 Monitoring Settings",
+		"settings_tab_ports":         "🎯 Monitored Ports",
+		"settings_tab_agent":         "🌐 Federation Agent",
+		"settings_tab_notifications": "🔔 Notifications",
 
 		// Device Profiles
 		"profile_all":        "🌐 All Devices (Common)",
@@ -799,9 +801,11 @@ var translations = map[string]map[string]string{
 		"settings_btn_save":               "💾 設定を保存",
 
 		// Settings Tabs
-		"settings_tab_system": "⚙️ システム設定",
-		"settings_tab_ports":  "🎯 監視ポート設定",
-		"settings_tab_agent":  "🌐 拠点エージェント",
+		"settings_tab_system":        "⚙️ システム設定",
+		"settings_tab_monitoring":    "📡 監視設定",
+		"settings_tab_ports":         "🎯 監視ポート設定",
+		"settings_tab_agent":         "🌐 拠点エージェント",
+		"settings_tab_notifications": "🔔 通知設定",
 
 		// Device Profiles
 		"profile_all":        "🌐 全デバイス共通",

@@ -1210,3 +1210,195 @@ func TestAgentPairingWebFlow(t *testing.T) {
 		t.Errorf("expected agent config to be cleared, got: %+v", clearedCfg)
 	}
 }
+
+func TestNotificationsSettingsModalTab(t *testing.T) {
+	_, router, database := setupTestWeb(t)
+
+	// Pre-populate settings in database
+	_ = database.SetSetting("retention_days", "14")
+	_ = database.SetSetting("webhook_gchat_url", "https://chat.googleapis.com/v1/spaces/initial")
+
+	// 1. Check settings modal has notifications tab
+	req := httptest.NewRequest("GET", "/modals/settings", nil)
+	rec := httptest.NewRecorder()
+	router.ServeHTTP(rec, req)
+
+	if rec.Code != http.StatusOK {
+		t.Fatalf("expected 200 from /modals/settings, got %d", rec.Code)
+	}
+
+	body := rec.Body.String()
+	if !strings.Contains(body, "tab-btn-notifications") {
+		t.Errorf("expected tab-btn-notifications in modal html")
+	}
+	if !strings.Contains(body, "tab-content-notifications") {
+		t.Errorf("expected tab-content-notifications in modal html")
+	}
+	if !strings.Contains(body, "notifications-form") {
+		t.Errorf("expected notifications-form in modal html")
+	}
+
+	// 2. Check settings modal with ?tab=notifications
+	reqTab := httptest.NewRequest("GET", "/modals/settings?tab=notifications", nil)
+	recTab := httptest.NewRecorder()
+	router.ServeHTTP(recTab, reqTab)
+
+	if recTab.Code != http.StatusOK {
+		t.Fatalf("expected 200 from /modals/settings?tab=notifications, got %d", recTab.Code)
+	}
+	if !strings.Contains(recTab.Body.String(), "switchSettingsTab('notifications')") {
+		t.Errorf("expected script to switch to notifications tab")
+	}
+
+	// 3. Save notification settings alone without affecting retention_days
+	notifForm := url.Values{
+		"webhook_gchat_url":   {"https://chat.googleapis.com/v1/spaces/updated"},
+		"webhook_slack_url":   {"https://hooks.slack.com/services/test"},
+		"webhook_teams_url":   {""},
+		"webhook_discord_url": {""},
+	}
+	reqSaveNotif := httptest.NewRequest("POST", "/api/settings", strings.NewReader(notifForm.Encode()))
+	reqSaveNotif.Header.Set("Content-Type", "application/x-www-form-urlencoded")
+	recSaveNotif := httptest.NewRecorder()
+	router.ServeHTTP(recSaveNotif, reqSaveNotif)
+
+	if recSaveNotif.Code != http.StatusOK {
+		t.Fatalf("expected 200 from saving notifications, got %d", recSaveNotif.Code)
+	}
+
+	// Verify webhook was updated and retention_days was preserved
+	gchat, _ := database.GetSetting("webhook_gchat_url")
+	if gchat != "https://chat.googleapis.com/v1/spaces/updated" {
+		t.Errorf("expected updated gchat url, got %s", gchat)
+	}
+	slack, _ := database.GetSetting("webhook_slack_url")
+	if slack != "https://hooks.slack.com/services/test" {
+		t.Errorf("expected updated slack url, got %s", slack)
+	}
+	retDays, _ := database.GetSetting("retention_days")
+	if retDays != "14" {
+		t.Errorf("expected retention_days to remain 14, got %s", retDays)
+	}
+
+	// 4. Save system settings alone without affecting webhooks
+	sysForm := url.Values{
+		"retention_days": {"30"},
+		"scan_mode":      {"safe"},
+	}
+	reqSaveSys := httptest.NewRequest("POST", "/api/settings", strings.NewReader(sysForm.Encode()))
+	reqSaveSys.Header.Set("Content-Type", "application/x-www-form-urlencoded")
+	recSaveSys := httptest.NewRecorder()
+	router.ServeHTTP(recSaveSys, reqSaveSys)
+
+	if recSaveSys.Code != http.StatusOK {
+		t.Fatalf("expected 200 from saving system settings, got %d", recSaveSys.Code)
+	}
+
+	retDaysUpdated, _ := database.GetSetting("retention_days")
+	if retDaysUpdated != "30" {
+		t.Errorf("expected retention_days to be 30, got %s", retDaysUpdated)
+	}
+	gchatPreserved, _ := database.GetSetting("webhook_gchat_url")
+	if gchatPreserved != "https://chat.googleapis.com/v1/spaces/updated" {
+		t.Errorf("expected gchat url to be preserved, got %s", gchatPreserved)
+	}
+}
+
+func TestMonitoringSettingsModalTab(t *testing.T) {
+	_, router, database := setupTestWeb(t)
+
+	// Pre-populate settings in database
+	_ = database.SetSetting("retention_days", "7")
+	_ = database.SetSetting("scan_mode", "stealth")
+	_ = database.SetSetting("enable_ipv4", "true")
+	_ = database.SetSetting("enable_ipv6", "false")
+	_ = database.SetSetting("webhook_gchat_url", "https://chat.googleapis.com/v1/spaces/preserved")
+
+	// 1. Check settings modal has all 5 tabs and monitoring components
+	req := httptest.NewRequest("GET", "/modals/settings", nil)
+	rec := httptest.NewRecorder()
+	router.ServeHTTP(rec, req)
+
+	if rec.Code != http.StatusOK {
+		t.Fatalf("expected 200 from /modals/settings, got %d", rec.Code)
+	}
+
+	body := rec.Body.String()
+	// Check tab buttons
+	if !strings.Contains(body, "tab-btn-system") {
+		t.Errorf("expected tab-btn-system in modal html")
+	}
+	if !strings.Contains(body, "tab-btn-monitoring") {
+		t.Errorf("expected tab-btn-monitoring in modal html")
+	}
+	if !strings.Contains(body, "tab-btn-ports") {
+		t.Errorf("expected tab-btn-ports in modal html")
+	}
+	if !strings.Contains(body, "tab-btn-agent") {
+		t.Errorf("expected tab-btn-agent in modal html")
+	}
+	if !strings.Contains(body, "tab-btn-notifications") {
+		t.Errorf("expected tab-btn-notifications in modal html")
+	}
+
+	// Check monitoring tab content and form
+	if !strings.Contains(body, "tab-content-monitoring") {
+		t.Errorf("expected tab-content-monitoring in modal html")
+	}
+	if !strings.Contains(body, "monitoring-form") {
+		t.Errorf("expected monitoring-form in modal html")
+	}
+
+	// 2. Check settings modal with ?tab=monitoring
+	reqTab := httptest.NewRequest("GET", "/modals/settings?tab=monitoring", nil)
+	recTab := httptest.NewRecorder()
+	router.ServeHTTP(recTab, reqTab)
+
+	if recTab.Code != http.StatusOK {
+		t.Fatalf("expected 200 from /modals/settings?tab=monitoring, got %d", recTab.Code)
+	}
+	if !strings.Contains(recTab.Body.String(), "switchSettingsTab('monitoring')") {
+		t.Errorf("expected script to switch to monitoring tab")
+	}
+
+	// 3. Save monitoring settings alone without affecting webhooks
+	monForm := url.Values{
+		"ip_version_submitted": {"1"},
+		"enable_ipv4":          {"true"},
+		"enable_ipv6":          {"true"},
+		"scan_mode":            {"safe"},
+		"retention_days":       {"60"},
+	}
+	reqSaveMon := httptest.NewRequest("POST", "/api/settings", strings.NewReader(monForm.Encode()))
+	reqSaveMon.Header.Set("Content-Type", "application/x-www-form-urlencoded")
+	recSaveMon := httptest.NewRecorder()
+	router.ServeHTTP(recSaveMon, reqSaveMon)
+
+	if recSaveMon.Code != http.StatusOK {
+		t.Fatalf("expected 200 from saving monitoring settings, got %d", recSaveMon.Code)
+	}
+
+	// Verify monitoring settings were updated and webhook was preserved
+	ipv4Val, _ := database.GetSetting("enable_ipv4")
+	if ipv4Val != "true" {
+		t.Errorf("expected enable_ipv4 to be true, got %s", ipv4Val)
+	}
+	ipv6Val, _ := database.GetSetting("enable_ipv6")
+	if ipv6Val != "true" {
+		t.Errorf("expected enable_ipv6 to be true, got %s", ipv6Val)
+	}
+	scanVal, _ := database.GetSetting("scan_mode")
+	if scanVal != "safe" {
+		t.Errorf("expected scan_mode to be safe, got %s", scanVal)
+	}
+	retDaysVal, _ := database.GetSetting("retention_days")
+	if retDaysVal != "60" {
+		t.Errorf("expected retention_days to be 60, got %s", retDaysVal)
+	}
+	gchatPreserved, _ := database.GetSetting("webhook_gchat_url")
+	if gchatPreserved != "https://chat.googleapis.com/v1/spaces/preserved" {
+		t.Errorf("expected gchat url to be preserved, got %s", gchatPreserved)
+	}
+}
+
+

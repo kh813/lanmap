@@ -14,6 +14,10 @@
                     class="px-4 py-2 border-b-2 font-bold text-xs transition border-blue-600 text-blue-600 dark:text-blue-400 cursor-pointer">
                 {{t .Lang "settings_tab_system"}}
             </button>
+            <button type="button" id="tab-btn-monitoring" onclick="switchSettingsTab('monitoring')"
+                    class="px-4 py-2 border-b-2 font-medium text-xs transition border-transparent text-slate-500 hover:text-slate-700 dark:text-slate-400 dark:hover:text-slate-200 cursor-pointer">
+                {{t .Lang "settings_tab_monitoring"}}
+            </button>
             <button type="button" id="tab-btn-ports" onclick="switchSettingsTab('ports')"
                     class="px-4 py-2 border-b-2 font-medium text-xs transition border-transparent text-slate-500 hover:text-slate-700 dark:text-slate-400 dark:hover:text-slate-200 cursor-pointer">
                 {{t .Lang "settings_tab_ports"}}
@@ -21,6 +25,10 @@
             <button type="button" id="tab-btn-agent" onclick="switchSettingsTab('agent')"
                     class="px-4 py-2 border-b-2 font-medium text-xs transition border-transparent text-slate-500 hover:text-slate-700 dark:text-slate-400 dark:hover:text-slate-200 cursor-pointer">
                 {{t .Lang "settings_tab_agent"}}
+            </button>
+            <button type="button" id="tab-btn-notifications" onclick="switchSettingsTab('notifications')"
+                    class="px-4 py-2 border-b-2 font-medium text-xs transition border-transparent text-slate-500 hover:text-slate-700 dark:text-slate-400 dark:hover:text-slate-200 cursor-pointer">
+                {{t .Lang "settings_tab_notifications"}}
             </button>
         </div>
 
@@ -61,62 +69,7 @@
                         </div>
                     </div>
 
-                    <!-- Row: 監視プロトコル (IPv4 / IPv6 Beta) -->
-                    <input type="hidden" name="ip_version_submitted" value="1">
-                    <div class="p-3.5 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
-                        <div>
-                            <label class="block font-bold text-slate-800 dark:text-slate-200">
-                                {{t .Lang "settings_ip_version_label"}}
-                            </label>
-                            <p class="text-slate-500 dark:text-slate-400 text-[11px] mt-0.5">
-                                {{t .Lang "settings_ip_version_help"}}
-                            </p>
-                        </div>
-                        <div class="flex flex-col sm:flex-row sm:items-center gap-3 shrink-0">
-                            <label class="inline-flex items-center space-x-2 cursor-pointer select-none">
-                                <input type="checkbox" name="enable_ipv4" value="true"
-                                       class="rounded text-blue-600 focus:ring-blue-500 h-4 w-4 border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-900 cursor-pointer"
-                                       {{if or (eq .Settings.enable_ipv4 "true") (eq .Settings.enable_ipv4 "1") (not .Settings.enable_ipv4)}}checked{{end}}>
-                                <span class="font-medium text-slate-700 dark:text-slate-300 text-xs">{{t .Lang "settings_enable_ipv4"}}</span>
-                            </label>
-                            <label class="inline-flex items-center space-x-2 cursor-pointer select-none">
-                                <input type="checkbox" name="enable_ipv6" value="true"
-                                       class="rounded text-purple-600 focus:ring-purple-500 h-4 w-4 border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-900 cursor-pointer"
-                                       {{if or (eq .Settings.enable_ipv6 "true") (eq .Settings.enable_ipv6 "1")}}checked{{end}}>
-                                <span class="font-medium text-slate-700 dark:text-slate-300 text-xs flex items-center space-x-1">
-                                    <span>{{t .Lang "settings_enable_ipv6"}}</span>
-                                </span>
-                            </label>
-                        </div>
-                    </div>
-
-                    <!-- Row 2: データ保持期間 -->
-                    <div class="p-3.5 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
-                        <div>
-                            <label class="block font-bold text-slate-800 dark:text-slate-200">
-                                {{t .Lang "settings_retention_label"}}
-                            </label>
-                            <p class="text-slate-500 dark:text-slate-400 text-[11px] mt-0.5">
-                                {{t .Lang "settings_retention_help"}}
-                            </p>
-                        </div>
-                        <div class="shrink-0 sm:w-60">
-                            <select name="retention_days" class="w-full bg-white dark:bg-slate-900 border border-slate-300 dark:border-slate-700 rounded-lg px-3 py-1.5 text-slate-800 dark:text-slate-200 focus:outline-none focus:border-blue-500 text-xs shadow-xs font-medium">
-                                <option value="1" {{if eq .Settings.retention_days "1"}}selected{{end}}>{{t .Lang "settings_days_1"}}</option>
-                                <option value="3" {{if or (eq .Settings.retention_days "3") (not .Settings.retention_days)}}selected{{end}}>{{t .Lang "settings_days_3"}}</option>
-                                <option value="7" {{if eq .Settings.retention_days "7"}}selected{{end}}>{{t .Lang "settings_days_7"}}</option>
-                                <option value="14" {{if eq .Settings.retention_days "14"}}selected{{end}}>{{t .Lang "settings_days_14"}}</option>
-                                <option value="30" {{if eq .Settings.retention_days "30"}}selected{{end}}>{{t .Lang "settings_days_30"}}</option>
-                                <option value="60" {{if eq .Settings.retention_days "60"}}selected{{end}}>{{t .Lang "settings_days_60"}}</option>
-                                <option value="90" {{if eq .Settings.retention_days "90"}}selected{{end}}>{{t .Lang "settings_days_90"}}</option>
-                                <option value="180" {{if eq .Settings.retention_days "180"}}selected{{end}}>{{t .Lang "settings_days_180"}}</option>
-                                <option value="365" {{if eq .Settings.retention_days "365"}}selected{{end}}>{{t .Lang "settings_days_365"}}</option>
-                                <option value="0" {{if eq .Settings.retention_days "0"}}selected{{end}}>{{t .Lang "settings_days_0"}}</option>
-                            </select>
-                        </div>
-                    </div>
-
-                    <!-- Row 3: システムアップデート -->
+                    <!-- Row 2: システムアップデート -->
                     <div class="p-3.5 space-y-2">
                         <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
                             <div class="flex items-center space-x-2">
@@ -124,7 +77,7 @@
                                     {{t .Lang "settings_update_label"}}
                                 </label>
                                 <span class="text-[10px] font-mono px-2 py-0.5 rounded bg-blue-50 text-blue-700 dark:bg-blue-950/60 dark:text-blue-300 border border-blue-200 dark:border-blue-800/60">
-                                    {{or .CurrentVersion "v0.0.20"}}
+                                    {{or .CurrentVersion "v0.0.21"}}
                                 </span>
                             </div>
                             <button type="button"
@@ -145,155 +98,9 @@
                         </div>
                         <div id="update-check-result"></div>
                     </div>
-
-                    <!-- Row 4: スキャンモード -->
-                    <div class="p-3.5 space-y-2.5">
-                        <div>
-                            <label class="block font-bold text-slate-800 dark:text-slate-200">
-                                {{t .Lang "settings_scan_mode_label"}}
-                            </label>
-                            <p class="text-slate-500 dark:text-slate-400 text-[11px] mt-0.5">
-                                {{t .Lang "settings_scan_mode_help"}}
-                            </p>
-                        </div>
-                        <div class="grid grid-cols-1 md:grid-cols-3 gap-2.5">
-                            <!-- Stealth Mode -->
-                            <label class="flex items-start space-x-2.5 p-3 rounded-lg border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 hover:border-blue-400 dark:hover:border-blue-600 transition cursor-pointer shadow-xs">
-                                <input type="radio" name="scan_mode" value="stealth" class="mt-0.5 text-blue-600 focus:ring-blue-500 shrink-0"
-                                       {{if or (eq .Settings.scan_mode "stealth") (not .Settings.scan_mode)}}checked{{end}}>
-                                <div>
-                                    <span class="font-semibold text-slate-800 dark:text-slate-200 text-xs">{{t .Lang "settings_scan_mode_stealth"}}</span>
-                                    <p class="text-slate-500 dark:text-slate-400 text-[10.5px] mt-1 leading-snug">{{t .Lang "settings_scan_mode_stealth_desc"}}</p>
-                                </div>
-                            </label>
-                            <!-- Safe Mode -->
-                            <label class="flex items-start space-x-2.5 p-3 rounded-lg border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 hover:border-blue-400 dark:hover:border-blue-600 transition cursor-pointer shadow-xs">
-                                <input type="radio" name="scan_mode" value="safe" class="mt-0.5 text-blue-600 focus:ring-blue-500 shrink-0"
-                                       {{if eq .Settings.scan_mode "safe"}}checked{{end}}>
-                                <div>
-                                    <span class="font-semibold text-slate-800 dark:text-slate-200 text-xs">{{t .Lang "settings_scan_mode_safe"}}</span>
-                                    <p class="text-slate-500 dark:text-slate-400 text-[10.5px] mt-1 leading-snug">{{t .Lang "settings_scan_mode_safe_desc"}}</p>
-                                </div>
-                            </label>
-                            <!-- Full Scan Mode -->
-                            <label class="flex items-start space-x-2.5 p-3 rounded-lg border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 hover:border-blue-400 dark:hover:border-blue-600 transition cursor-pointer shadow-xs">
-                                <input type="radio" name="scan_mode" value="full" class="mt-0.5 text-blue-600 focus:ring-blue-500 shrink-0"
-                                       {{if eq .Settings.scan_mode "full"}}checked{{end}}>
-                                <div>
-                                    <span class="font-semibold text-slate-800 dark:text-slate-200 text-xs">{{t .Lang "settings_scan_mode_full"}}</span>
-                                    <p class="text-slate-500 dark:text-slate-400 text-[10.5px] mt-1 leading-snug">{{t .Lang "settings_scan_mode_full_desc"}}</p>
-                                </div>
-                            </label>
-                        </div>
-                    </div>
                 </div>
 
-                <!-- 2. 外部通知連携 (Webhook Notifications) -->
-                <div class="bg-slate-50 dark:bg-slate-950/60 rounded-xl border border-slate-200 dark:border-slate-800 p-4 space-y-3 shadow-xs">
-                    <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-1 pb-2 border-b border-slate-200/70 dark:border-slate-800/70">
-                        <div class="flex items-center space-x-2">
-                            <span>🔔</span>
-                            <label class="font-bold text-slate-800 dark:text-slate-200 text-xs">
-                                {{t .Lang "settings_webhook_label"}}
-                            </label>
-                        </div>
-                        <span class="text-[10.5px] text-slate-400">{{t .Lang "settings_webhook_test_hint"}}</span>
-                    </div>
-
-                    <div class="grid grid-cols-1 md:grid-cols-2 gap-3.5 pt-1">
-                        <!-- Google Chat -->
-                        <div class="space-y-1.5 p-3 rounded-lg bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 shadow-xs">
-                            <div class="flex items-center justify-between">
-                                <span class="text-slate-700 dark:text-slate-300 text-[11px] font-semibold">1. Google Chat:</span>
-                                <button type="button"
-                                        hx-post="/api/webhooks/test?provider=gchat"
-                                        hx-include="#settings-form"
-                                        hx-target="#test-result-gchat"
-                                        class="px-2 py-0.5 rounded text-[10px] font-medium bg-blue-50 text-blue-700 dark:bg-blue-950/60 dark:text-blue-300 border border-blue-200 dark:border-blue-800/60 hover:bg-blue-100 dark:hover:bg-blue-900/60 transition cursor-pointer">
-                                    {{t .Lang "settings_webhook_test_btn"}}
-                                </button>
-                            </div>
-                            <input type="text" name="webhook_gchat_url" value="{{.Settings.webhook_gchat_url}}"
-                                    placeholder="https://chat.googleapis.com/v1/spaces/.../messages?key=...&token=..."
-                                    class="w-full bg-slate-50 dark:bg-slate-950/60 border border-slate-300 dark:border-slate-700 rounded px-2.5 py-1 text-slate-800 dark:text-slate-200 focus:outline-none focus:border-blue-500 font-mono text-[10.5px]">
-                            <p class="text-[9.5px] text-slate-400 dark:text-slate-500 leading-tight">
-                                {{t .Lang "settings_gchat_hint"}}
-                            </p>
-                            <div id="test-result-gchat"></div>
-                        </div>
-
-                        <!-- Slack (Unverified) -->
-                        <div class="space-y-1.5 p-3 rounded-lg bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 shadow-xs">
-                            <div class="flex items-center justify-between">
-                                <span class="text-slate-700 dark:text-slate-300 text-[11px] font-semibold flex items-center space-x-1.5">
-                                    <span>2. Slack:</span>
-                                    <span class="px-1.5 py-0.5 rounded text-[9.5px] font-medium bg-amber-100 text-amber-800 dark:bg-amber-950/70 dark:text-amber-300 border border-amber-300 dark:border-amber-800">
-                                        ⚠️ {{t .Lang "badge_unverified"}}
-                                    </span>
-                                </span>
-                                <button type="button"
-                                        hx-post="/api/webhooks/test?provider=slack"
-                                        hx-include="#settings-form"
-                                        hx-target="#test-result-slack"
-                                        class="px-2 py-0.5 rounded text-[10px] font-medium bg-blue-50 text-blue-700 dark:bg-blue-950/60 dark:text-blue-300 border border-blue-200 dark:border-blue-800/60 hover:bg-blue-100 dark:hover:bg-blue-900/60 transition cursor-pointer">
-                                    {{t .Lang "settings_webhook_test_btn"}}
-                                </button>
-                            </div>
-                            <input type="text" name="webhook_slack_url" value="{{.Settings.webhook_slack_url}}"
-                                    placeholder="https://hooks.slack.com/services/..."
-                                    class="w-full bg-slate-50 dark:bg-slate-950/60 border border-slate-300 dark:border-slate-700 rounded px-2.5 py-1 text-slate-800 dark:text-slate-200 focus:outline-none focus:border-blue-500 font-mono text-[10.5px]">
-                            <div id="test-result-slack"></div>
-                        </div>
-
-                        <!-- Microsoft Teams (Unverified) -->
-                        <div class="space-y-1.5 p-3 rounded-lg bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 shadow-xs">
-                            <div class="flex items-center justify-between">
-                                <span class="text-slate-700 dark:text-slate-300 text-[11px] font-semibold flex items-center space-x-1.5">
-                                    <span>3. Microsoft Teams:</span>
-                                    <span class="px-1.5 py-0.5 rounded text-[9.5px] font-medium bg-amber-100 text-amber-800 dark:bg-amber-950/70 dark:text-amber-300 border border-amber-300 dark:border-amber-800">
-                                        ⚠️ {{t .Lang "badge_unverified"}}
-                                    </span>
-                                </span>
-                                <button type="button"
-                                        hx-post="/api/webhooks/test?provider=teams"
-                                        hx-include="#settings-form"
-                                        hx-target="#test-result-teams"
-                                        class="px-2 py-0.5 rounded text-[10px] font-medium bg-blue-50 text-blue-700 dark:bg-blue-950/60 dark:text-blue-300 border border-blue-200 dark:border-blue-800/60 hover:bg-blue-100 dark:hover:bg-blue-900/60 transition cursor-pointer">
-                                    {{t .Lang "settings_webhook_test_btn"}}
-                                </button>
-                            </div>
-                            <input type="text" name="webhook_teams_url" value="{{.Settings.webhook_teams_url}}"
-                                    placeholder="https://outlook.office.com/webhook/..."
-                                    class="w-full bg-slate-50 dark:bg-slate-950/60 border border-slate-300 dark:border-slate-700 rounded px-2.5 py-1 text-slate-800 dark:text-slate-200 focus:outline-none focus:border-blue-500 font-mono text-[10.5px]">
-                            <div id="test-result-teams"></div>
-                        </div>
-
-                        <!-- Discord (Unverified) -->
-                        <div class="space-y-1.5 p-3 rounded-lg bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 shadow-xs">
-                            <div class="flex items-center justify-between">
-                                <span class="text-slate-700 dark:text-slate-300 text-[11px] font-semibold flex items-center space-x-1.5">
-                                    <span>4. Discord:</span>
-                                    <span class="px-1.5 py-0.5 rounded text-[9.5px] font-medium bg-amber-100 text-amber-800 dark:bg-amber-950/70 dark:text-amber-300 border border-amber-300 dark:border-amber-800">
-                                        ⚠️ {{t .Lang "badge_unverified"}}
-                                    </span>
-                                </span>
-                                <button type="button"
-                                        hx-post="/api/webhooks/test?provider=discord"
-                                        hx-include="#settings-form"
-                                        hx-target="#test-result-discord"
-                                        class="px-2 py-0.5 rounded text-[10px] font-medium bg-blue-50 text-blue-700 dark:bg-blue-950/60 dark:text-blue-300 border border-blue-200 dark:border-blue-800/60 hover:bg-blue-100 dark:hover:bg-blue-900/60 transition cursor-pointer">
-                                    {{t .Lang "settings_webhook_test_btn"}}
-                                </button>
-                            </div>
-                            <input type="text" name="webhook_discord_url" value="{{.Settings.webhook_discord_url}}"
-                                    placeholder="https://discord.com/api/webhooks/..."
-                                    class="w-full bg-slate-50 dark:bg-slate-950/60 border border-slate-300 dark:border-slate-700 rounded px-2.5 py-1 text-slate-800 dark:text-slate-200 focus:outline-none focus:border-blue-500 font-mono text-[10.5px]">
-                            <div id="test-result-discord"></div>
-                        </div>
-                    </div>
-                </div>
-
-                <!-- 3. カスタム TLS / HTTPS 証明書 -->
+                <!-- 2. カスタム TLS / HTTPS 証明書 -->
                 <div class="bg-slate-50 dark:bg-slate-950/60 rounded-xl border border-slate-200 dark:border-slate-800 p-4 space-y-3 shadow-xs">
                     <div class="flex items-center justify-between pb-2 border-b border-slate-200/70 dark:border-slate-800/70">
                         <div class="flex items-center space-x-2">
@@ -335,21 +142,145 @@
                     <div id="test-result-tls"></div>
                 </div>
 
-            <!-- Modal Action Buttons -->
-            <div class="flex items-center justify-end space-x-2 pt-3 border-t border-slate-200 dark:border-slate-800">
-                <button type="button" onclick="closeModal()"
-                        class="px-4 py-1.5 rounded-lg bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-300 font-medium transition text-xs">
-                    {{t .Lang "close"}}
-                </button>
-                <button type="submit"
-                        class="px-5 py-1.5 rounded-lg bg-blue-600 hover:bg-blue-500 text-white font-medium transition shadow text-xs">
-                    {{t .Lang "settings_btn_save"}}
-                </button>
-            </div>
-        </form>
+                <!-- Modal Action Buttons -->
+                <div class="flex items-center justify-end space-x-2 pt-3 border-t border-slate-200 dark:border-slate-800">
+                    <button type="button" onclick="closeModal()"
+                            class="px-4 py-1.5 rounded-lg bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-300 font-medium transition text-xs cursor-pointer">
+                        {{t .Lang "close"}}
+                    </button>
+                    <button type="submit"
+                            class="px-5 py-1.5 rounded-lg bg-blue-600 hover:bg-blue-500 text-white font-medium transition shadow text-xs cursor-pointer">
+                        {{t .Lang "settings_btn_save"}}
+                    </button>
+                </div>
+            </form>
         </div>
 
-        <!-- TAB 2: Monitored Ports Settings -->
+        <!-- TAB 2: Monitoring Settings Form -->
+        <div id="tab-content-monitoring" class="hidden space-y-4 text-xs">
+            <!-- Save Feedback / Toast -->
+            <div id="monitoring-feedback"></div>
+
+            <form id="monitoring-form" hx-post="/api/settings" hx-target="#monitoring-feedback" hx-swap="innerHTML" class="space-y-4 text-xs">
+                <div class="bg-slate-50 dark:bg-slate-950/60 rounded-xl border border-slate-200 dark:border-slate-800 divide-y divide-slate-200/70 dark:divide-slate-800/70 overflow-hidden shadow-xs">
+                    <div class="px-4 py-2.5 bg-slate-100/70 dark:bg-slate-900/60 font-bold text-xs text-slate-700 dark:text-slate-300 flex items-center space-x-2">
+                        <span>📡</span>
+                        <span>{{t .Lang "settings_tab_monitoring"}}</span>
+                    </div>
+
+                    <!-- Row 1: 監視プロトコル (IPv4 / IPv6 Beta) -->
+                    <input type="hidden" name="ip_version_submitted" value="1">
+                    <div class="p-3.5 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                        <div>
+                            <label class="block font-bold text-slate-800 dark:text-slate-200">
+                                {{t .Lang "settings_ip_version_label"}}
+                            </label>
+                            <p class="text-slate-500 dark:text-slate-400 text-[11px] mt-0.5">
+                                {{t .Lang "settings_ip_version_help"}}
+                            </p>
+                        </div>
+                        <div class="flex flex-col sm:flex-row sm:items-center gap-3 shrink-0">
+                            <label class="inline-flex items-center space-x-2 cursor-pointer select-none">
+                                <input type="checkbox" name="enable_ipv4" value="true"
+                                       class="rounded text-blue-600 focus:ring-blue-500 h-4 w-4 border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-900 cursor-pointer"
+                                       {{if or (eq .Settings.enable_ipv4 "true") (eq .Settings.enable_ipv4 "1") (not .Settings.enable_ipv4)}}checked{{end}}>
+                                <span class="font-medium text-slate-700 dark:text-slate-300 text-xs">{{t .Lang "settings_enable_ipv4"}}</span>
+                            </label>
+                            <label class="inline-flex items-center space-x-2 cursor-pointer select-none">
+                                <input type="checkbox" name="enable_ipv6" value="true"
+                                       class="rounded text-purple-600 focus:ring-purple-500 h-4 w-4 border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-900 cursor-pointer"
+                                       {{if or (eq .Settings.enable_ipv6 "true") (eq .Settings.enable_ipv6 "1")}}checked{{end}}>
+                                <span class="font-medium text-slate-700 dark:text-slate-300 text-xs flex items-center space-x-1">
+                                    <span>{{t .Lang "settings_enable_ipv6"}}</span>
+                                </span>
+                            </label>
+                        </div>
+                    </div>
+
+                    <!-- Row 2: ネットワークスキャン動作モード -->
+                    <div class="p-3.5 space-y-2.5">
+                        <div>
+                            <label class="block font-bold text-slate-800 dark:text-slate-200">
+                                {{t .Lang "settings_scan_mode_label"}}
+                            </label>
+                            <p class="text-slate-500 dark:text-slate-400 text-[11px] mt-0.5">
+                                {{t .Lang "settings_scan_mode_help"}}
+                            </p>
+                        </div>
+                        <div class="grid grid-cols-1 md:grid-cols-3 gap-2.5">
+                            <!-- Stealth Mode -->
+                            <label class="flex items-start space-x-2.5 p-3 rounded-lg border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 hover:border-blue-400 dark:hover:border-blue-600 transition cursor-pointer shadow-xs">
+                                <input type="radio" name="scan_mode" value="stealth" class="mt-0.5 text-blue-600 focus:ring-blue-500 shrink-0"
+                                       {{if or (eq .Settings.scan_mode "stealth") (not .Settings.scan_mode)}}checked{{end}}>
+                                <div>
+                                    <span class="font-semibold text-slate-800 dark:text-slate-200 text-xs">{{t .Lang "settings_scan_mode_stealth"}}</span>
+                                    <p class="text-slate-500 dark:text-slate-400 text-[10.5px] mt-1 leading-snug">{{t .Lang "settings_scan_mode_stealth_desc"}}</p>
+                                </div>
+                            </label>
+                            <!-- Safe Mode -->
+                            <label class="flex items-start space-x-2.5 p-3 rounded-lg border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 hover:border-blue-400 dark:hover:border-blue-600 transition cursor-pointer shadow-xs">
+                                <input type="radio" name="scan_mode" value="safe" class="mt-0.5 text-blue-600 focus:ring-blue-500 shrink-0"
+                                       {{if eq .Settings.scan_mode "safe"}}checked{{end}}>
+                                <div>
+                                    <span class="font-semibold text-slate-800 dark:text-slate-200 text-xs">{{t .Lang "settings_scan_mode_safe"}}</span>
+                                    <p class="text-slate-500 dark:text-slate-400 text-[10.5px] mt-1 leading-snug">{{t .Lang "settings_scan_mode_safe_desc"}}</p>
+                                </div>
+                            </label>
+                            <!-- Full Scan Mode -->
+                            <label class="flex items-start space-x-2.5 p-3 rounded-lg border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 hover:border-blue-400 dark:hover:border-blue-600 transition cursor-pointer shadow-xs">
+                                <input type="radio" name="scan_mode" value="full" class="mt-0.5 text-blue-600 focus:ring-blue-500 shrink-0"
+                                       {{if eq .Settings.scan_mode "full"}}checked{{end}}>
+                                <div>
+                                    <span class="font-semibold text-slate-800 dark:text-slate-200 text-xs">{{t .Lang "settings_scan_mode_full"}}</span>
+                                    <p class="text-slate-500 dark:text-slate-400 text-[10.5px] mt-1 leading-snug">{{t .Lang "settings_scan_mode_full_desc"}}</p>
+                                </div>
+                            </label>
+                        </div>
+                    </div>
+
+                    <!-- Row 3: 古いホストの自動クリーンアップ保持期間 (Retention Policy) -->
+                    <div class="p-3.5 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                        <div>
+                            <label class="block font-bold text-slate-800 dark:text-slate-200">
+                                {{t .Lang "settings_retention_label"}}
+                            </label>
+                            <p class="text-slate-500 dark:text-slate-400 text-[11px] mt-0.5">
+                                {{t .Lang "settings_retention_help"}}
+                            </p>
+                        </div>
+                        <div class="shrink-0 sm:w-60">
+                            <select name="retention_days" class="w-full bg-white dark:bg-slate-900 border border-slate-300 dark:border-slate-700 rounded-lg px-3 py-1.5 text-slate-800 dark:text-slate-200 focus:outline-none focus:border-blue-500 text-xs shadow-xs font-medium">
+                                <option value="1" {{if eq .Settings.retention_days "1"}}selected{{end}}>{{t .Lang "settings_days_1"}}</option>
+                                <option value="3" {{if or (eq .Settings.retention_days "3") (not .Settings.retention_days)}}selected{{end}}>{{t .Lang "settings_days_3"}}</option>
+                                <option value="7" {{if eq .Settings.retention_days "7"}}selected{{end}}>{{t .Lang "settings_days_7"}}</option>
+                                <option value="14" {{if eq .Settings.retention_days "14"}}selected{{end}}>{{t .Lang "settings_days_14"}}</option>
+                                <option value="30" {{if eq .Settings.retention_days "30"}}selected{{end}}>{{t .Lang "settings_days_30"}}</option>
+                                <option value="60" {{if eq .Settings.retention_days "60"}}selected{{end}}>{{t .Lang "settings_days_60"}}</option>
+                                <option value="90" {{if eq .Settings.retention_days "90"}}selected{{end}}>{{t .Lang "settings_days_90"}}</option>
+                                <option value="180" {{if eq .Settings.retention_days "180"}}selected{{end}}>{{t .Lang "settings_days_180"}}</option>
+                                <option value="365" {{if eq .Settings.retention_days "365"}}selected{{end}}>{{t .Lang "settings_days_365"}}</option>
+                                <option value="0" {{if eq .Settings.retention_days "0"}}selected{{end}}>{{t .Lang "settings_days_0"}}</option>
+                            </select>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Modal Action Buttons -->
+                <div class="flex items-center justify-end space-x-2 pt-3 border-t border-slate-200 dark:border-slate-800">
+                    <button type="button" onclick="closeModal()"
+                            class="px-4 py-1.5 rounded-lg bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-300 font-medium transition text-xs cursor-pointer">
+                        {{t .Lang "close"}}
+                    </button>
+                    <button type="submit"
+                            class="px-5 py-1.5 rounded-lg bg-blue-600 hover:bg-blue-500 text-white font-medium transition shadow text-xs cursor-pointer">
+                        {{t .Lang "settings_btn_save"}}
+                    </button>
+                </div>
+            </form>
+        </div>
+
+
+        <!-- TAB 3: Monitored Ports Settings -->
         <div id="tab-content-ports" class="hidden space-y-3 text-xs">
             <!-- Toolbar -->
             <div class="flex flex-wrap items-center justify-between gap-2 p-2.5 rounded-lg bg-slate-50 dark:bg-slate-950/60 border border-slate-200 dark:border-slate-800">
@@ -412,9 +343,134 @@
             </div>
         </div>
 
-        <!-- TAB 3: Federation Agent Settings -->
+        <!-- TAB 4: Federation Agent Settings -->
         <div id="tab-content-agent" class="hidden">
             {{template "agent_settings_tab.html" .AgentData}}
+        </div>
+
+        <!-- TAB 5: Notifications Settings Form -->
+        <div id="tab-content-notifications" class="hidden space-y-4 text-xs">
+            <!-- Save Feedback / Toast -->
+            <div id="notifications-feedback"></div>
+
+            <form id="notifications-form" hx-post="/api/settings" hx-target="#notifications-feedback" hx-swap="innerHTML" class="space-y-4 text-xs">
+                <!-- 外部通知連携 (Webhook Notifications) -->
+                <div class="bg-slate-50 dark:bg-slate-950/60 rounded-xl border border-slate-200 dark:border-slate-800 p-4 space-y-3 shadow-xs">
+                    <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-1 pb-2 border-b border-slate-200/70 dark:border-slate-800/70">
+                        <div class="flex items-center space-x-2">
+                            <span>🔔</span>
+                            <label class="font-bold text-slate-800 dark:text-slate-200 text-xs">
+                                {{t .Lang "settings_webhook_label"}}
+                            </label>
+                        </div>
+                        <span class="text-[10.5px] text-slate-400">{{t .Lang "settings_webhook_test_hint"}}</span>
+                    </div>
+
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-3.5 pt-1">
+                        <!-- Google Chat -->
+                        <div class="space-y-1.5 p-3 rounded-lg bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 shadow-xs">
+                            <div class="flex items-center justify-between">
+                                <span class="text-slate-700 dark:text-slate-300 text-[11px] font-semibold">1. Google Chat:</span>
+                                <button type="button"
+                                        hx-post="/api/webhooks/test?provider=gchat"
+                                        hx-include="#notifications-form"
+                                        hx-target="#test-result-gchat"
+                                        class="px-2 py-0.5 rounded text-[10px] font-medium bg-blue-50 text-blue-700 dark:bg-blue-950/60 dark:text-blue-300 border border-blue-200 dark:border-blue-800/60 hover:bg-blue-100 dark:hover:bg-blue-900/60 transition cursor-pointer">
+                                    {{t .Lang "settings_webhook_test_btn"}}
+                                </button>
+                            </div>
+                            <input type="text" name="webhook_gchat_url" value="{{.Settings.webhook_gchat_url}}"
+                                    placeholder="https://chat.googleapis.com/v1/spaces/.../messages?key=...&token=..."
+                                    class="w-full bg-slate-50 dark:bg-slate-950/60 border border-slate-300 dark:border-slate-700 rounded px-2.5 py-1 text-slate-800 dark:text-slate-200 focus:outline-none focus:border-blue-500 font-mono text-[10.5px]">
+                            <p class="text-[9.5px] text-slate-400 dark:text-slate-500 leading-tight">
+                                {{t .Lang "settings_gchat_hint"}}
+                            </p>
+                            <div id="test-result-gchat"></div>
+                        </div>
+
+                        <!-- Slack (Unverified) -->
+                        <div class="space-y-1.5 p-3 rounded-lg bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 shadow-xs">
+                            <div class="flex items-center justify-between">
+                                <span class="text-slate-700 dark:text-slate-300 text-[11px] font-semibold flex items-center space-x-1.5">
+                                    <span>2. Slack:</span>
+                                    <span class="px-1.5 py-0.5 rounded text-[9.5px] font-medium bg-amber-100 text-amber-800 dark:bg-amber-950/70 dark:text-amber-300 border border-amber-300 dark:border-amber-800">
+                                        ⚠️ {{t .Lang "badge_unverified"}}
+                                    </span>
+                                </span>
+                                <button type="button"
+                                        hx-post="/api/webhooks/test?provider=slack"
+                                        hx-include="#notifications-form"
+                                        hx-target="#test-result-slack"
+                                        class="px-2 py-0.5 rounded text-[10px] font-medium bg-blue-50 text-blue-700 dark:bg-blue-950/60 dark:text-blue-300 border border-blue-200 dark:border-blue-800/60 hover:bg-blue-100 dark:hover:bg-blue-900/60 transition cursor-pointer">
+                                    {{t .Lang "settings_webhook_test_btn"}}
+                                </button>
+                            </div>
+                            <input type="text" name="webhook_slack_url" value="{{.Settings.webhook_slack_url}}"
+                                    placeholder="https://hooks.slack.com/services/..."
+                                    class="w-full bg-slate-50 dark:bg-slate-950/60 border border-slate-300 dark:border-slate-700 rounded px-2.5 py-1 text-slate-800 dark:text-slate-200 focus:outline-none focus:border-blue-500 font-mono text-[10.5px]">
+                            <div id="test-result-slack"></div>
+                        </div>
+
+                        <!-- Microsoft Teams (Unverified) -->
+                        <div class="space-y-1.5 p-3 rounded-lg bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 shadow-xs">
+                            <div class="flex items-center justify-between">
+                                <span class="text-slate-700 dark:text-slate-300 text-[11px] font-semibold flex items-center space-x-1.5">
+                                    <span>3. Microsoft Teams:</span>
+                                    <span class="px-1.5 py-0.5 rounded text-[9.5px] font-medium bg-amber-100 text-amber-800 dark:bg-amber-950/70 dark:text-amber-300 border border-amber-300 dark:border-amber-800">
+                                        ⚠️ {{t .Lang "badge_unverified"}}
+                                    </span>
+                                </span>
+                                <button type="button"
+                                        hx-post="/api/webhooks/test?provider=teams"
+                                        hx-include="#notifications-form"
+                                        hx-target="#test-result-teams"
+                                        class="px-2 py-0.5 rounded text-[10px] font-medium bg-blue-50 text-blue-700 dark:bg-blue-950/60 dark:text-blue-300 border border-blue-200 dark:border-blue-800/60 hover:bg-blue-100 dark:hover:bg-blue-900/60 transition cursor-pointer">
+                                    {{t .Lang "settings_webhook_test_btn"}}
+                                </button>
+                            </div>
+                            <input type="text" name="webhook_teams_url" value="{{.Settings.webhook_teams_url}}"
+                                    placeholder="https://outlook.office.com/webhook/..."
+                                    class="w-full bg-slate-50 dark:bg-slate-950/60 border border-slate-300 dark:border-slate-700 rounded px-2.5 py-1 text-slate-800 dark:text-slate-200 focus:outline-none focus:border-blue-500 font-mono text-[10.5px]">
+                            <div id="test-result-teams"></div>
+                        </div>
+
+                        <!-- Discord (Unverified) -->
+                        <div class="space-y-1.5 p-3 rounded-lg bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 shadow-xs">
+                            <div class="flex items-center justify-between">
+                                <span class="text-slate-700 dark:text-slate-300 text-[11px] font-semibold flex items-center space-x-1.5">
+                                    <span>4. Discord:</span>
+                                    <span class="px-1.5 py-0.5 rounded text-[9.5px] font-medium bg-amber-100 text-amber-800 dark:bg-amber-950/70 dark:text-amber-300 border border-amber-300 dark:border-amber-800">
+                                        ⚠️ {{t .Lang "badge_unverified"}}
+                                    </span>
+                                </span>
+                                <button type="button"
+                                        hx-post="/api/webhooks/test?provider=discord"
+                                        hx-include="#notifications-form"
+                                        hx-target="#test-result-discord"
+                                        class="px-2 py-0.5 rounded text-[10px] font-medium bg-blue-50 text-blue-700 dark:bg-blue-950/60 dark:text-blue-300 border border-blue-200 dark:border-blue-800/60 hover:bg-blue-100 dark:hover:bg-blue-900/60 transition cursor-pointer">
+                                    {{t .Lang "settings_webhook_test_btn"}}
+                                </button>
+                            </div>
+                            <input type="text" name="webhook_discord_url" value="{{.Settings.webhook_discord_url}}"
+                                    placeholder="https://discord.com/api/webhooks/..."
+                                    class="w-full bg-slate-50 dark:bg-slate-950/60 border border-slate-300 dark:border-slate-700 rounded px-2.5 py-1 text-slate-800 dark:text-slate-200 focus:outline-none focus:border-blue-500 font-mono text-[10.5px]">
+                            <div id="test-result-discord"></div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Modal Action Buttons -->
+                <div class="flex items-center justify-end space-x-2 pt-3 border-t border-slate-200 dark:border-slate-800">
+                    <button type="button" onclick="closeModal()"
+                            class="px-4 py-1.5 rounded-lg bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-300 font-medium transition text-xs cursor-pointer">
+                        {{t .Lang "close"}}
+                    </button>
+                    <button type="submit"
+                            class="px-5 py-1.5 rounded-lg bg-blue-600 hover:bg-blue-500 text-white font-medium transition shadow text-xs cursor-pointer">
+                        {{t .Lang "settings_btn_save"}}
+                    </button>
+                </div>
+            </form>
         </div>
     </div>
 </div>
@@ -422,40 +478,52 @@
 <script>
 function switchSettingsTab(tab) {
     const sysBtn = document.getElementById('tab-btn-system');
+    const monBtn = document.getElementById('tab-btn-monitoring');
     const portsBtn = document.getElementById('tab-btn-ports');
     const agentBtn = document.getElementById('tab-btn-agent');
+    const notifBtn = document.getElementById('tab-btn-notifications');
+
     const sysContent = document.getElementById('tab-content-system');
+    const monContent = document.getElementById('tab-content-monitoring');
     const portsContent = document.getElementById('tab-content-ports');
     const agentContent = document.getElementById('tab-content-agent');
+    const notifContent = document.getElementById('tab-content-notifications');
 
     const activeClass = "px-4 py-2 border-b-2 font-bold text-xs transition border-blue-600 text-blue-600 dark:text-blue-400 cursor-pointer";
     const inactiveClass = "px-4 py-2 border-b-2 font-medium text-xs transition border-transparent text-slate-500 hover:text-slate-700 dark:text-slate-400 dark:hover:text-slate-200 cursor-pointer";
 
+    // Set all to inactive
+    if (sysBtn) sysBtn.className = inactiveClass;
+    if (monBtn) monBtn.className = inactiveClass;
+    if (portsBtn) portsBtn.className = inactiveClass;
+    if (agentBtn) agentBtn.className = inactiveClass;
+    if (notifBtn) notifBtn.className = inactiveClass;
+
+    if (sysContent) sysContent.classList.add('hidden');
+    if (monContent) monContent.classList.add('hidden');
+    if (portsContent) portsContent.classList.add('hidden');
+    if (agentContent) agentContent.classList.add('hidden');
+    if (notifContent) notifContent.classList.add('hidden');
+
     if (tab === 'system') {
-        sysBtn.className = activeClass;
-        portsBtn.className = inactiveClass;
-        agentBtn.className = inactiveClass;
-        sysContent.classList.remove('hidden');
-        portsContent.classList.add('hidden');
-        agentContent.classList.add('hidden');
+        if (sysBtn) sysBtn.className = activeClass;
+        if (sysContent) sysContent.classList.remove('hidden');
+    } else if (tab === 'monitoring') {
+        if (monBtn) monBtn.className = activeClass;
+        if (monContent) monContent.classList.remove('hidden');
     } else if (tab === 'ports') {
-        portsBtn.className = activeClass;
-        sysBtn.className = inactiveClass;
-        agentBtn.className = inactiveClass;
-        portsContent.classList.remove('hidden');
-        sysContent.classList.add('hidden');
-        agentContent.classList.add('hidden');
+        if (portsBtn) portsBtn.className = activeClass;
+        if (portsContent) portsContent.classList.remove('hidden');
         // Load ports table on tab switch
         const filter = document.getElementById('profile-filter');
         const profile = filter ? filter.value : 'all_profiles';
         filterCustomPorts(profile);
     } else if (tab === 'agent') {
-        agentBtn.className = activeClass;
-        sysBtn.className = inactiveClass;
-        portsBtn.className = inactiveClass;
-        agentContent.classList.remove('hidden');
-        sysContent.classList.add('hidden');
-        portsContent.classList.add('hidden');
+        if (agentBtn) agentBtn.className = activeClass;
+        if (agentContent) agentContent.classList.remove('hidden');
+    } else if (tab === 'notifications') {
+        if (notifBtn) notifBtn.className = activeClass;
+        if (notifContent) notifContent.classList.remove('hidden');
     }
 }
 
@@ -470,8 +538,12 @@ function filterCustomPorts(profile) {
     const initTab = '{{.InitialTab}}';
     if (initTab === 'agent') {
         switchSettingsTab('agent');
+    } else if (initTab === 'monitoring') {
+        switchSettingsTab('monitoring');
     } else if (initTab === 'ports') {
         switchSettingsTab('ports');
+    } else if (initTab === 'notifications' || initTab === 'notification') {
+        switchSettingsTab('notifications');
     }
 })();
 </script>

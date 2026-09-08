@@ -702,5 +702,23 @@
   - [x] `go test ./...` PASS確認
   - [x] `make build` 動作確認
 
+---
+
+### 🔹 Phase 30: 設定画面タブ再編（5タブ構成）(完了)
+- [x] **30.1 国際化対応 (`internal/i18n`)**
+  - [x] 日英辞書に `settings_tab_monitoring`（監視設定）を追加
+- [x] **30.2 設定モーダルUI再編 (`web/template/partials/settings_modal.html`)**
+  - [x] タブ並び順を「システム設定、監視設定、監視ポート設定、拠点エージェント、通知設定」に更新
+  - [x] 新設「監視設定」タブ (`tab-content-monitoring` / `monitoring-form`) に監視プロトコル、スキャンモード、保持期間を移設
+  - [x] 「通知設定」タブを独立タブ（第5タブ）として配置
+  - [x] タブ切り替えスクリプト (`switchSettingsTab`) を5タブ対応に更新
+- [x] **30.3 設定保存ハンドラーの安全性向上 (`internal/web/handler.go`)**
+  - [x] フォーム送信された項目のみを選択的に更新する方式とし、各タブフォーム保存時の他タブ設定の完全保護を担保
+- [x] **30.4 テスト & ビルド検証**
+  - [x] モーダル表示・初期タブ切り替え・個別保存の単体テスト (`TestMonitoringSettingsModalTab`) 実装
+  - [x] `go test ./...` PASS確認
+  - [x] `make build` 動作確認
+
+
 
 

@@ -886,33 +886,35 @@ func (h *Handler) HandleSetLanguage(w http.ResponseWriter, r *http.Request) {
 func (h *Handler) HandleSaveSettings(w http.ResponseWriter, r *http.Request) {
 	_ = r.ParseForm()
 
-	certPath := strings.TrimSpace(r.FormValue("tls_cert_path"))
-	keyPath := strings.TrimSpace(r.FormValue("tls_key_path"))
-	if (certPath != "" && keyPath == "") || (certPath == "" && keyPath != "") {
-		w.Header().Set("Content-Type", "text/html; charset=utf-8")
-		_, _ = w.Write([]byte(`
-			<div class="p-3 bg-red-50 dark:bg-red-950/60 border border-red-300 dark:border-red-700 rounded-lg text-red-800 dark:text-red-300 text-xs animate-fade-in">
-				<div class="flex items-center space-x-1.5 font-bold">
-					<span>❌</span>
-					<span>TLS 証明書の設定エラー: 証明書ファイルと秘密鍵ファイルの両方を指定してください。</span>
-				</div>
-			</div>
-		`))
-		return
-	}
-	if certPath != "" && keyPath != "" {
-		if _, err := tls.LoadX509KeyPair(certPath, keyPath); err != nil {
+	if r.Form.Has("tls_cert_path") || r.Form.Has("tls_key_path") {
+		certPath := strings.TrimSpace(r.FormValue("tls_cert_path"))
+		keyPath := strings.TrimSpace(r.FormValue("tls_key_path"))
+		if (certPath != "" && keyPath == "") || (certPath == "" && keyPath != "") {
 			w.Header().Set("Content-Type", "text/html; charset=utf-8")
-			_, _ = w.Write([]byte(fmt.Sprintf(`
-				<div class="p-3 bg-red-50 dark:bg-red-950/60 border border-red-300 dark:border-red-700 rounded-lg text-red-800 dark:text-red-300 text-xs space-y-1 animate-fade-in">
+			_, _ = w.Write([]byte(`
+				<div class="p-3 bg-red-50 dark:bg-red-950/60 border border-red-300 dark:border-red-700 rounded-lg text-red-800 dark:text-red-300 text-xs animate-fade-in">
 					<div class="flex items-center space-x-1.5 font-bold">
 						<span>❌</span>
-						<span>TLS 証明書または秘密鍵の検証に失敗したため保存を中止しました:</span>
+						<span>TLS 証明書の設定エラー: 証明書ファイルと秘密鍵ファイルの両方を指定してください。</span>
 					</div>
-					<div class="text-[11px] font-mono text-red-600 dark:text-red-400 break-all">%s</div>
 				</div>
-			`, template.HTMLEscapeString(err.Error()))))
+			`))
 			return
+		}
+		if certPath != "" && keyPath != "" {
+			if _, err := tls.LoadX509KeyPair(certPath, keyPath); err != nil {
+				w.Header().Set("Content-Type", "text/html; charset=utf-8")
+				_, _ = w.Write([]byte(fmt.Sprintf(`
+					<div class="p-3 bg-red-50 dark:bg-red-950/60 border border-red-300 dark:border-red-700 rounded-lg text-red-800 dark:text-red-300 text-xs space-y-1 animate-fade-in">
+						<div class="flex items-center space-x-1.5 font-bold">
+							<span>❌</span>
+							<span>TLS 証明書または秘密鍵の検証に失敗したため保存を中止しました:</span>
+						</div>
+						<div class="text-[11px] font-mono text-red-600 dark:text-red-400 break-all">%s</div>
+					</div>
+				`, template.HTMLEscapeString(err.Error()))))
+				return
+			}
 		}
 	}
 
@@ -930,15 +932,20 @@ func (h *Handler) HandleSaveSettings(w http.ResponseWriter, r *http.Request) {
 	}
 
 	for _, f := range fields {
+		if !r.Form.Has(f) {
+			continue
+		}
 		val := strings.TrimSpace(r.FormValue(f))
 		if val != "" || f != "scan_mode" {
 			_ = h.db.SetSetting(f, val)
 		}
 	}
 
-	scanModeVal := strings.TrimSpace(r.FormValue("scan_mode"))
-	if scanModeVal != "" {
-		_ = h.db.SetScanMode(scanModeVal)
+	if r.Form.Has("scan_mode") {
+		scanModeVal := strings.TrimSpace(r.FormValue("scan_mode"))
+		if scanModeVal != "" {
+			_ = h.db.SetScanMode(scanModeVal)
+		}
 	}
 
 	// IP Version Monitoring Settings (IPv4 / IPv6 Beta)
