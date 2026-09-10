@@ -130,6 +130,7 @@ type IPv6Monitor struct {
 	mu          sync.Mutex
 	seenTime    map[string]time.Time
 	rogueAlerts map[string]time.Time // rogue MAC -> last alerted time
+	vlanAlerts  map[string]time.Time // VLAN key (iface+MAC) -> last alerted time
 }
 
 // NewIPv6Monitor creates a new passive IPv6 monitor
@@ -139,6 +140,7 @@ func NewIPv6Monitor(database *db.DB, notif *notifier.Notifier) *IPv6Monitor {
 		notifier:    notif,
 		seenTime:    make(map[string]time.Time),
 		rogueAlerts: make(map[string]time.Time),
+		vlanAlerts:  make(map[string]time.Time),
 	}
 }
 
@@ -267,11 +269,11 @@ func (m *IPv6Monitor) startRogueRAAuditLoop(ctx context.Context) {
 	ticker := time.NewTicker(30 * time.Second)
 	defer ticker.Stop()
 
-	// Initial immediate audit after 5s startup
+	// Initial delay of 20s to allow initial scan cycle to discover and upsert known network hosts
 	select {
 	case <-ctx.Done():
 		return
-	case <-time.After(5 * time.Second):
+	case <-time.After(20 * time.Second):
 		m.AuditRogueRouters(ctx)
 	}
 
@@ -285,7 +287,8 @@ func (m *IPv6Monitor) startRogueRAAuditLoop(ctx context.Context) {
 	}
 }
 
-// AuditRogueRouters checks the neighbor cache for any unauthorized routers advertising RA
+// AuditRogueRouters checks the neighbor cache for any unauthorized routers advertising RA,
+// with separate evaluation policies for Tagged VLAN (802.1Q) vs Untagged native LAN traffic.
 func (m *IPv6Monitor) AuditRogueRouters(ctx context.Context) {
 	if m.db != nil {
 		_, v6Enabled, _ := m.db.GetIPVersionSettings()
@@ -299,31 +302,91 @@ func (m *IPv6Monitor) AuditRogueRouters(ctx context.Context) {
 		return
 	}
 
+	m.AuditRogueRoutersWithEntries(ctx, entries)
+}
+
+// AuditRogueRoutersWithEntries performs the audit logic using provided neighbor entries (useful for testing)
+func (m *IPv6Monitor) AuditRogueRoutersWithEntries(ctx context.Context, entries []scanner.NeighborEntry) {
+	// 1. Gather active/monitored segments to know our monitoring boundaries
+	enabledSegByIface := make(map[string]*db.Segment)
+	if m.db != nil {
+		segments, err := m.db.ListSegments()
+		if err == nil {
+			for _, seg := range segments {
+				if seg.IsEnabled && seg.InterfaceName != "" {
+					enabledSegByIface[strings.ToLower(seg.InterfaceName)] = seg
+				}
+			}
+		}
+	}
+
+	// 2. Identify local machine MAC addresses to avoid self-flagging
+	localMACs := scanner.GetLocalMACAddresses()
+
+
 	for _, e := range entries {
 		if !e.IsRouter {
 			continue
 		}
 		normMAC := scanner.NormalizeMAC(e.MAC)
-		if normMAC == "" {
+		if normMAC == "" || localMACs[normMAC] {
 			continue
 		}
 
-		// Check if host is recognized/approved as router or protected host
-		h, err := m.db.GetHostByMAC(normMAC)
-		if err != nil || h == nil {
-			// Unknown host acting as router!
-			m.handleRogueRouter(ctx, normMAC, e.IP)
-			continue
+		iface := strings.ToLower(strings.TrimSpace(e.Interface))
+		seg, isMonitored := enabledSegByIface[iface]
+		segName := ""
+		if seg != nil {
+			segName = seg.Name
 		}
+		isVLAN := scanner.IsVLANContext(iface, segName)
 
-		// Known host: if not approved and not protected, it is an unauthorized router
-		if !h.IsApproved && !h.IsProtected {
-			m.handleRogueRouter(ctx, normMAC, e.IP)
+		if isVLAN {
+			// =========================================================================
+			// Tagged VLAN (IEEE 802.1Q) Policy:
+			// VLANs are logically isolated. Routers in other VLANs (e.g. Guest, IoT, DMZ)
+			// regularly advertise legitimate RAs for their own subnets.
+			// =========================================================================
+			if !isMonitored {
+				// Out-of-scope / disabled VLAN:
+				// Do NOT trigger high-severity Rogue RA alerts for unmonitored VLANs.
+				continue
+			}
+
+			// For monitored VLANs, check if the router has been approved
+			h, err := m.db.GetHostByMAC(normMAC)
+			if err != nil || h == nil {
+				// Unregistered router on monitored VLAN -> Informative notice
+				m.handleVLANRouterNotice(ctx, normMAC, e.IP, e.Interface, seg.Name, true)
+				continue
+			}
+
+			if !h.IsApproved && !h.IsProtected {
+				// Known unapproved router on monitored VLAN -> Informative notice
+				m.handleVLANRouterNotice(ctx, normMAC, e.IP, e.Interface, seg.Name, false)
+			}
+		} else {
+			// =========================================================================
+			// Untagged (Native LAN) Policy:
+			// Rogue RAs on the native LAN can directly hijack endpoints' default route
+			// and DNS (MITM / DoS attacks). Strict audit is required here.
+			// =========================================================================
+			h, err := m.db.GetHostByMAC(normMAC)
+			if err != nil || h == nil {
+				// Unknown host acting as router on native LAN!
+				m.handleRogueRouter(ctx, normMAC, e.IP, e.Interface)
+				continue
+			}
+
+			// Known host on native LAN: if not approved and not protected, trigger Rogue RA alert
+			if !h.IsApproved && !h.IsProtected {
+				m.handleRogueRouter(ctx, normMAC, e.IP, e.Interface)
+			}
 		}
 	}
 }
 
-func (m *IPv6Monitor) handleRogueRouter(ctx context.Context, mac, ip string) {
+func (m *IPv6Monitor) handleRogueRouter(ctx context.Context, mac, ip, iface string) {
 	m.mu.Lock()
 	lastAlert, exists := m.rogueAlerts[mac]
 	if exists && time.Since(lastAlert) < 1*time.Hour {
@@ -333,8 +396,30 @@ func (m *IPv6Monitor) handleRogueRouter(ctx context.Context, mac, ip string) {
 	m.rogueAlerts[mac] = time.Now()
 	m.mu.Unlock()
 
-	log.Printf("[ALERT] 🚨 Rogue RA (不正ルーター広告) を検知! 送信元 MAC: %s, IPv6: %s", mac, ip)
+	log.Printf("[ALERT] 🚨 Rogue RA (不正ルーター広告) をネイティブLANで検知! 送信元 MAC: %s, IPv6: %s, IF: %s", mac, ip, iface)
 	if m.notifier != nil {
-		_ = m.notifier.NotifyRogueRA(ctx, mac, ip)
+		_ = m.notifier.NotifyRogueRA(ctx, mac, ip, iface)
 	}
 }
+
+func (m *IPv6Monitor) handleVLANRouterNotice(ctx context.Context, mac, ip, iface, segmentName string, isNew bool) {
+	debounceKey := fmt.Sprintf("%s@%s", iface, mac)
+	m.mu.Lock()
+	lastAlert, exists := m.vlanAlerts[debounceKey]
+	if exists && time.Since(lastAlert) < 1*time.Hour {
+		m.mu.Unlock()
+		return
+	}
+	m.vlanAlerts[debounceKey] = time.Now()
+	m.mu.Unlock()
+
+	statusStr := "未承認"
+	if isNew {
+		statusStr = "未登録"
+	}
+	log.Printf("[NOTICE] ⚠️ タグVLAN「%s」(%s) で%sルーター広告を検知: 送信元 MAC: %s, IPv6: %s", segmentName, iface, statusStr, mac, ip)
+	if m.notifier != nil {
+		_ = m.notifier.NotifyVLANRouterNotice(ctx, mac, ip, iface, segmentName)
+	}
+}
+

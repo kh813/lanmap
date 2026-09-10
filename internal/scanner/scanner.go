@@ -239,6 +239,7 @@ func (s *Scanner) scanSegmentInternal(ctx context.Context, seg *db.Segment) ([]*
 	}
 
 	arpEntries := GetAllARPEntries()
+	localMACs := GetLocalMACAddresses()
 
 	respondedIPs := make(map[string]bool)
 	var reports []*ScanReport
@@ -289,7 +290,10 @@ func (s *Scanner) scanSegmentInternal(ctx context.Context, seg *db.Segment) ([]*
 		// Auto-match against Whitelist Ledger (Section 8.2)
 		isApproved := false
 		displayName := ""
-		if wlMatch, ok := s.db.MatchWhitelist(hostname, mac); ok {
+		normMAC := NormalizeMAC(mac)
+		if localMACs[normMAC] {
+			isApproved = true // Local machine running lanmap is inherently authorized
+		} else if wlMatch, ok := s.db.MatchWhitelist(hostname, mac); ok {
 			isApproved = true
 			if wlMatch.DeviceName != "" {
 				displayName = wlMatch.DeviceName

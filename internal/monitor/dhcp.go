@@ -300,11 +300,28 @@ func (m *DHCPMonitor) ProcessPacket(data []byte, from *net.UDPAddr) {
 		_, _ = m.db.AutoAdjustSegmentDHCPRange(seg.ID)
 	}
 
+	// Policy check for alerts:
+	// 1. Skip alerts if MAC belongs to the local machine itself
+	localMACs := scanner.GetLocalMACAddresses()
+	if localMACs[scanner.NormalizeMAC(pkt.CHAddr)] {
+		return
+	}
+
+	// 2. If the IP belongs to a disabled/stopped segment, do not fire unapproved host alerts
+	if seg != nil && !seg.IsEnabled {
+		log.Printf("[INFO] DHCP Monitor: Skipping unapproved alert for %s on disabled segment %q", ipStr, seg.Name)
+		return
+	}
+
 	// Trigger alert if new or replaced unapproved host
 	if (isNew || isReplaced) && !isApproved {
 		savedHost, err := m.db.GetHost(ipStr)
 		if err == nil && savedHost != nil && !savedHost.IsApproved {
-			log.Printf("[WARN] 🚨 DHCP Monitor: Unapproved host %s (%s) detected via DHCP! Sending alert...", ipStr, pkt.CHAddr)
+			vlanContext := ""
+			if seg != nil && scanner.IsVLANInterface(seg.InterfaceName) {
+				vlanContext = fmt.Sprintf(" [タグVLAN: %s]", seg.InterfaceName)
+			}
+			log.Printf("[WARN] 🚨 DHCP Monitor: Unapproved host %s (%s)%s detected via DHCP! Sending alert...", ipStr, pkt.CHAddr, vlanContext)
 			go func() {
 				ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 				defer cancel()

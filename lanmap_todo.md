@@ -542,9 +542,13 @@
   - [x] DB層単体テスト (`internal/db/ipv6_test.go`)
 - [x] **24.2 スキャナー & パッシブ監視エンジン (`internal/scanner`, `internal/monitor`)**
   - [x] `internal/scanner/ipv6.go`: All-Nodes マルチキャストPing (`ff02::1%iface`) & OS近隣キャッシュ（macOS `ndp`, Linux `ip neigh`, Windows）によるリンクローカル（`fe80::`）主軸探索
+  - [x] `internal/scanner/vlan.go`: タグVLAN（IEEE 802.1Q サブインターフェース）判定 & 自ホストMACアドレス識別ユーティリティ
   - [x] `internal/monitor/ipv6_monitor.go`: DHCPv6（UDP 546/547）パッシブ傍受による動的ホスト検知
-  - [x] `internal/monitor/ipv6_monitor.go`: Rogue RA（不正ルーター広告）検知 & Webhook即時警告
-  - [x] スキャナー & モニター単体テスト (`internal/scanner/ipv6_test.go`, `internal/monitor/ipv6_test.go`)
+  - [x] `internal/monitor/ipv6_monitor.go`: タグVLAN（スコープ分離・未承認ガイダンスNotice） vs ネイティブLAN（厳格Rogue RA警告）適応型監査エンジン & 自ホスト/デフォルトGW除外
+  - [x] `internal/monitor/dhcp.go`: 停止中/無効セグメントのDHCP未承認誤アラート抑止 & タグVLANコンテキスト付与
+  - [x] `internal/monitor/broadcast.go`: 停止中セグメントのストーム誤アラート抑止 & 自ホスト除外
+  - [x] `internal/scanner/scanner.go`: 自ホスト自動承認 & デフォルトGW未承認アラート抑止
+  - [x] スキャナー & モニター単体テスト (`internal/scanner/ipv6_test.go`, `internal/scanner/vlan_test.go`, `internal/monitor/ipv6_test.go`)
 - [x] **24.3 Web UI テンプレート & 国際化 (`web/template`, `internal/i18n`, `internal/web`)**
   - [x] 日英辞書（i18n）に IPv4/IPv6 監視設定、IPv6バッジ、Rogue RA警告文言を追加
   - [x] `settings_modal.html`: 基本設定に「監視プロトコル (IPv4 / IPv6 Beta)」トグルを追加

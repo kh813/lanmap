@@ -1,9 +1,16 @@
 package monitor
 
 import (
+	"context"
 	"encoding/binary"
 	"net"
+	"path/filepath"
 	"testing"
+	"time"
+
+	"lanmap/internal/db"
+	"lanmap/internal/notifier"
+	"lanmap/internal/scanner"
 )
 
 func TestParseDHCPv6Packet(t *testing.T) {
@@ -66,3 +73,168 @@ func TestParseDHCPv6Packet(t *testing.T) {
 		t.Errorf("Hostname = %s; want my-host.lan", pkt.Hostname)
 	}
 }
+
+func TestAuditRogueRouters_VLANvsNative(t *testing.T) {
+	tempDir := t.TempDir()
+	dbPath := filepath.Join(tempDir, "test_ipv6_audit.db")
+	database, err := db.Open(dbPath)
+	if err != nil {
+		t.Fatalf("Open DB failed: %v", err)
+	}
+	defer database.Close()
+
+	// 1. Setup segments:
+	// - eth0: Native LAN (monitored)
+	// - eth0.10: Tagged VLAN (unmonitored / disabled)
+	// - vlan20: Tagged VLAN (monitored / enabled)
+	_, _ = database.CreateSegment("Office Native LAN", "192.168.1.0/24", "eth0", true)
+	_, _ = database.CreateSegment("Guest VLAN", "192.168.10.0/24", "eth0.10", false) // unmonitored
+	_, _ = database.CreateSegment("IoT VLAN", "192.168.20.0/24", "vlan20", true)      // monitored
+
+	notif := notifier.NewNotifier(database)
+	m := NewIPv6Monitor(database, notif)
+	ctx := context.Background()
+
+	// Get local machine MACs to test self-exclusion
+	localMACs := scanner.GetLocalMACAddresses()
+	var selfMAC string
+	for mac := range localMACs {
+		selfMAC = mac
+		break
+	}
+
+	entries := []scanner.NeighborEntry{
+		// 1. Router on unmonitored Tagged VLAN -> should be completely ignored (no rogue alert, no vlan alert)
+		{
+			IP:        "fe80::10",
+			MAC:       "00:11:22:33:44:01",
+			Interface: "eth0.10",
+			IsRouter:  true,
+		},
+		// 2. Unapproved Router on monitored Tagged VLAN -> should trigger VLAN notice, NOT rogue RA
+		{
+			IP:        "fe80::20",
+			MAC:       "00:11:22:33:44:02",
+			Interface: "vlan20",
+			IsRouter:  true,
+		},
+		// 3. Unapproved Router on Native LAN -> should trigger high-severity Rogue RA alert
+		{
+			IP:        "fe80::30",
+			MAC:       "00:11:22:33:44:03",
+			Interface: "eth0",
+			IsRouter:  true,
+		},
+	}
+
+	if selfMAC != "" {
+		// 4. Local machine own MAC on native LAN -> should be ignored
+		entries = append(entries, scanner.NeighborEntry{
+			IP:        "fe80::self",
+			MAC:       selfMAC,
+			Interface: "eth0",
+			IsRouter:  true,
+		})
+	}
+
+	m.AuditRogueRoutersWithEntries(ctx, entries)
+
+	// Verify Entry 1 (Unmonitored VLAN): No alerts
+	if _, ok := m.rogueAlerts["00:11:22:33:44:01"]; ok {
+		t.Errorf("Expected router on unmonitored VLAN eth0.10 to NOT trigger rogue alert")
+	}
+	if _, ok := m.vlanAlerts["eth0.10@00:11:22:33:44:01"]; ok {
+		t.Errorf("Expected router on unmonitored VLAN eth0.10 to NOT trigger vlan alert")
+	}
+
+	// Verify Entry 2 (Monitored VLAN): Should be in vlanAlerts, NOT in rogueAlerts
+	if _, ok := m.rogueAlerts["00:11:22:33:44:02"]; ok {
+		t.Errorf("Expected router on monitored VLAN vlan20 to NOT trigger high-severity rogue RA alert")
+	}
+	if _, ok := m.vlanAlerts["vlan20@00:11:22:33:44:02"]; !ok {
+		t.Errorf("Expected router on monitored VLAN vlan20 to trigger vlan alert notice")
+	}
+
+	// Verify Entry 3 (Native LAN): Should be in rogueAlerts
+	if _, ok := m.rogueAlerts["00:11:22:33:44:03"]; !ok {
+		t.Errorf("Expected unauthorized router on native LAN eth0 to trigger rogue RA alert")
+	}
+
+	// Verify Entry 4 (Self MAC): Should NOT trigger rogue alert
+	if selfMAC != "" {
+		if _, ok := m.rogueAlerts[selfMAC]; ok {
+			t.Errorf("Expected local machine's own MAC %s to be excluded from rogue alerts", selfMAC)
+		}
+	}
+}
+
+func TestAuditRogueRouters_VLAN1_Environment(t *testing.T) {
+	tempDir := t.TempDir()
+	dbPath := filepath.Join(tempDir, "test_vlan1.db")
+	database, err := db.Open(dbPath)
+	if err != nil {
+		t.Fatalf("Open DB failed: %v", err)
+	}
+	defer database.Close()
+
+	// Environment: Tagged VLAN, VLAN ID 1
+	// Case A: Interface name explicitly specifies VLAN 1 (e.g. en0.1 or vlan1)
+	_, _ = database.CreateSegment("VLAN 1 (Tagged)", "192.168.3.0/24", "vlan1", true)
+
+	notif := notifier.NewNotifier(database)
+	m := NewIPv6Monitor(database, notif)
+	ctx := context.Background()
+
+	routerMAC := "38:97:a4:4f:84:60"
+	routerIP := "fe80::3a97:a4ff:fe4f:8460"
+
+	entries := []scanner.NeighborEntry{
+		{
+			IP:        routerIP,
+			MAC:       routerMAC,
+			Interface: "vlan1",
+			IsRouter:  true,
+		},
+	}
+
+	// 1. Initial detection: router is unregistered in DB
+	m.AuditRogueRoutersWithEntries(ctx, entries)
+
+	// In a Tagged VLAN, an unregistered router MUST NOT trigger a high-severity Rogue RA alert!
+	if _, ok := m.rogueAlerts[routerMAC]; ok {
+		t.Errorf("FATAL: Router in Tagged VLAN 1 triggered Rogue RA alert! Expected relaxed notice instead.")
+	}
+	if _, ok := m.vlanAlerts["vlan1@"+routerMAC]; !ok {
+		t.Errorf("Expected router in Tagged VLAN 1 to generate an informative VLAN Notice")
+	}
+
+	// 2. Administrator approves the router
+	m.rogueAlerts = make(map[string]time.Time)
+	m.vlanAlerts = make(map[string]time.Time)
+
+	now := time.Now()
+	_, _, err = database.UpsertHostOnScan(&db.Host{
+		IP:          "192.168.3.1",
+		MACAddress:  routerMAC,
+		Hostname:    "openwrt.lan",
+		IsApproved:  true,
+		Status:      "up",
+		FirstSeen:   now,
+		LastSeen:    &now,
+	})
+	if err != nil {
+		t.Fatalf("UpsertHostOnScan failed: %v", err)
+	}
+
+	m.AuditRogueRoutersWithEntries(ctx, entries)
+
+	// Approved router must produce 0 alerts
+	if len(m.rogueAlerts) > 0 {
+		t.Errorf("Approved router triggered %d rogue alerts!", len(m.rogueAlerts))
+	}
+	if len(m.vlanAlerts) > 0 {
+		t.Errorf("Approved router triggered %d vlan alerts!", len(m.vlanAlerts))
+	}
+}
+
+

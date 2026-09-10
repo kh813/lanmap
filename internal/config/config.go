@@ -9,8 +9,10 @@ import (
 	"time"
 )
 
-// AppVersion represents current version of the application
-const AppVersion = "v0.0.21"
+const (
+	// AppVersion represents current release version of lanmap
+	AppVersion = "v0.0.22"
+)
 
 // Config represents application configuration
 type Config struct {

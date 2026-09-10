@@ -346,12 +346,17 @@ func ScanIPv6Segment(ctx context.Context, seg *db.Segment, database *db.DB) ([]*
 					break
 				}
 			}
+			isApproved := false
+			if localMACs := GetLocalMACAddresses(); localMACs[mac] {
+				isApproved = true
+			}
 			h = &db.Host{
 				IP:            primaryIP,
 				SegmentID:     &seg.ID,
 				MACAddress:    mac,
 				VendorModel:   vendor,
 				Status:        "up",
+				IsApproved:    isApproved,
 				FirstSeen:     now,
 				LastSeen:      &now,
 				IPv6Addresses: mergedIPv6,

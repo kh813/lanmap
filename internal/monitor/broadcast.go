@@ -9,6 +9,7 @@ import (
 
 	"lanmap/internal/db"
 	"lanmap/internal/notifier"
+	"lanmap/internal/scanner"
 )
 
 const (
@@ -160,8 +161,23 @@ func (m *BroadcastMonitor) evaluateStats(ctx context.Context) {
 
 		// Newly started storming -> send urgent webhook alert
 		if isStorming && !wasStorming {
-			log.Printf("[WARN] 🚨 Broadcast Storm detected from host %s: %d pkts/min!", ip, count)
+			// Check if IP belongs to an inactive/disabled segment
+			parsedIP := net.ParseIP(ip)
+			if parsedIP != nil && m.db != nil {
+				seg, _ := m.db.FindSegmentForIP(parsedIP)
+				if seg != nil && !seg.IsEnabled {
+					log.Printf("[INFO] Broadcast Monitor: Skipping storm alert for %s on disabled segment %q (%d pkts/min)", ip, seg.Name, count)
+					continue
+				}
+			}
+
+			// Skip self
 			if host, err := m.db.GetHost(ip); err == nil && host != nil {
+				localMACs := scanner.GetLocalMACAddresses()
+				if host.MACAddress != "" && localMACs[scanner.NormalizeMAC(host.MACAddress)] {
+					continue
+				}
+				log.Printf("[WARN] 🚨 Broadcast Storm detected from host %s: %d pkts/min!", ip, count)
 				_ = m.notifier.NotifyBroadcastStorm(ctx, host, count)
 			}
 		}

@@ -461,16 +461,21 @@ func (n *Notifier) NotifyBroadcastStorm(ctx context.Context, host *db.Host, coun
 	return nil
 }
 
-// NotifyRogueRA sends high-priority alerts when an unauthorized IPv6 Router Advertisement is detected
-func (n *Notifier) NotifyRogueRA(ctx context.Context, rogueMAC, rogueIP string) error {
+// NotifyRogueRA sends high-priority alerts when an unauthorized IPv6 Router Advertisement is detected on native LAN
+func (n *Notifier) NotifyRogueRA(ctx context.Context, rogueMAC, rogueIP, iface string) error {
 	settings, err := n.db.GetAllSettings()
 	if err != nil {
 		return err
 	}
 
-	title := fmt.Sprintf("🚨 【lanmap 警戒アラート】不正ルーター広告(Rogue RA)を検知 (%s)", rogueIP)
-	body := fmt.Sprintf("未承認の端末 (MAC: %s, IPv6: %s) がIPv6ルーター広告(RA)を送出していることを検知しました。\n中間者攻撃(MITM)、通信傍受、またはネットワーク障害(意図しないデフォルトゲートウェイ偽装)の危険があります。",
-		rogueMAC, rogueIP)
+	ifaceStr := ""
+	if iface != "" {
+		ifaceStr = fmt.Sprintf(" [%s]", iface)
+	}
+
+	title := fmt.Sprintf("🚨 【lanmap 警戒アラート】ネイティブLANで不正ルーター広告(Rogue RA)を検知%s (%s)", ifaceStr, rogueIP)
+	body := fmt.Sprintf("未承認の端末 (MAC: %s, IPv6: %s, IF: %s) がネイティブLANでIPv6ルーター広告(RA)を送出していることを検知しました。\n中間者攻撃(MITM)、通信傍受、またはネットワーク障害(意図しないデフォルトゲートウェイ偽装)の危険があります。",
+		rogueMAC, rogueIP, iface)
 
 	if gchatURL := settings["webhook_gchat_url"]; gchatURL != "" {
 		_ = n.postJSON(ctx, gchatURL, map[string]interface{}{
@@ -503,3 +508,47 @@ func (n *Notifier) NotifyRogueRA(ctx context.Context, rogueMAC, rogueIP string) 
 
 	return nil
 }
+
+// NotifyVLANRouterNotice sends informative guidance when an unapproved router is detected on a monitored Tagged VLAN
+func (n *Notifier) NotifyVLANRouterNotice(ctx context.Context, mac, ip, iface, segmentName string) error {
+	settings, err := n.db.GetAllSettings()
+	if err != nil {
+		return err
+	}
+
+	title := fmt.Sprintf("⚠️ 【lanmap 注意】タグVLAN「%s」(%s) で未承認ルーター広告を検知 (%s)", segmentName, iface, ip)
+	body := fmt.Sprintf("監視対象のタグVLANインターフェース %s (セグメント: %s) にて、未承認ホスト (MAC: %s, IPv6: %s) からルーター広告(RA)を検知しました。\n該当VLANセグメントの正規ルーターである場合は、Web管理画面の端末詳細から「承認」または「保護」を設定してください。",
+		iface, segmentName, mac, ip)
+
+	if gchatURL := settings["webhook_gchat_url"]; gchatURL != "" {
+		_ = n.postJSON(ctx, gchatURL, map[string]interface{}{
+			"text": fmt.Sprintf("*%s*\n%s", title, body),
+		})
+	}
+
+	if slackURL := settings["webhook_slack_url"]; slackURL != "" {
+		_ = n.postJSON(ctx, slackURL, map[string]interface{}{
+			"text": fmt.Sprintf("*%s*\n%s", title, body),
+		})
+	}
+
+	if teamsURL := settings["webhook_teams_url"]; teamsURL != "" {
+		_ = n.postJSON(ctx, teamsURL, map[string]interface{}{
+			"@type":      "MessageCard",
+			"@context":   "http://schema.org/extensions",
+			"summary":    title,
+			"themeColor": "F59E0B",
+			"title":      title,
+			"text":       body,
+		})
+	}
+
+	if discordURL := settings["webhook_discord_url"]; discordURL != "" {
+		_ = n.postJSON(ctx, discordURL, map[string]interface{}{
+			"content": fmt.Sprintf("**%s**\n%s", title, body),
+		})
+	}
+
+	return nil
+}
+
