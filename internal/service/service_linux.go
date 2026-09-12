@@ -53,7 +53,7 @@ After=network.target
 
 [Service]
 Type=simple
-ExecStart=%s
+ExecStart=%s start
 Restart=always
 RestartSec=5
 WorkingDirectory=%s

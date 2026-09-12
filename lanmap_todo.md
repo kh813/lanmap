@@ -549,6 +549,13 @@
   - [x] `internal/monitor/broadcast.go`: 停止中セグメントのストーム誤アラート抑止 & 自ホスト除外
   - [x] `internal/scanner/scanner.go`: 自ホスト自動承認 & デフォルトGW未承認アラート抑止
   - [x] スキャナー & モニター単体テスト (`internal/scanner/ipv6_test.go`, `internal/scanner/vlan_test.go`, `internal/monitor/ipv6_test.go`)
+- [x] **25. CLI コマンド再編 & 重複起動防止PIDロック**
+  - [x] 引数なし `./lanmap` 実行時に自動起動せずヘルプ（USAGE）を表示して終了
+  - [x] `./lanmap start` コマンドによるサーバー明示起動
+  - [x] `internal/pid`: `lanmap.pid` による多重起動防止（二重プロセス検知 & 安全ブロック）
+  - [x] `./lanmap stop` / `./lanmap status` コマンドの実装
+  - [x] `launchd` / `systemd` / Windows サービス定義への `start` 引数反映
+  - [x] 単体テスト (`internal/pid/pid_test.go`)
 - [x] **24.3 Web UI テンプレート & 国際化 (`web/template`, `internal/i18n`, `internal/web`)**
   - [x] 日英辞書（i18n）に IPv4/IPv6 監視設定、IPv6バッジ、Rogue RA警告文言を追加
   - [x] `settings_modal.html`: 基本設定に「監視プロトコル (IPv4 / IPv6 Beta)」トグルを追加

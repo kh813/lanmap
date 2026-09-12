@@ -22,6 +22,7 @@ type Config struct {
 	ScanConcurrency int
 	DataDir         string
 	DBPath          string
+	PIDPath         string
 	CertsDir        string
 	DefaultCertPath string
 	DefaultKeyPath  string
@@ -111,6 +112,7 @@ func LoadConfig() (*Config, error) {
 		ScanConcurrency: scanConcurrency,
 		DataDir:         dataDir,
 		DBPath:          filepath.Join(dataDir, "lanmap.db"),
+		PIDPath:         filepath.Join(dataDir, "lanmap.pid"),
 		CertsDir:        certsDir,
 		DefaultCertPath: filepath.Join(certsDir, "cert.pem"),
 		DefaultKeyPath:  filepath.Join(certsDir, "key.pem"),

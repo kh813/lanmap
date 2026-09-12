@@ -50,6 +50,7 @@ func (m *launchdManager) Install() error {
     <key>ProgramArguments</key>
     <array>
         <string>%s</string>
+        <string>start</string>
     </array>
     <key>WorkingDirectory</key>
     <string>%s</string>

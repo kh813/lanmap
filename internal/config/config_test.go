@@ -32,6 +32,9 @@ func TestLoadConfigDefaults(t *testing.T) {
 	if cfg.DBPath != filepath.Join(tempDir, "lanmap.db") {
 		t.Errorf("expected dbPath %s, got %s", filepath.Join(tempDir, "lanmap.db"), cfg.DBPath)
 	}
+	if cfg.PIDPath != filepath.Join(tempDir, "lanmap.pid") {
+		t.Errorf("expected pidPath %s, got %s", filepath.Join(tempDir, "lanmap.pid"), cfg.PIDPath)
+	}
 }
 
 func TestLoadConfigEnvOverrides(t *testing.T) {

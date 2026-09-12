@@ -46,7 +46,7 @@ func (w *windowsServiceManager) Install() error {
 		StartType:   mgr.StartAutomatic,
 	}
 
-	s, err = m.CreateService(serviceName, execPath, cfg)
+	s, err = m.CreateService(serviceName, execPath, cfg, "start")
 	if err != nil {
 		return fmt.Errorf("failed to create service: %w", err)
 	}

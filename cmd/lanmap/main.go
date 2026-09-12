@@ -20,6 +20,7 @@ import (
 	"lanmap/internal/federation"
 	"lanmap/internal/monitor"
 	"lanmap/internal/notifier"
+	"lanmap/internal/pid"
 	"lanmap/internal/scanner"
 	"lanmap/internal/service"
 	"lanmap/internal/updater"
@@ -30,33 +31,47 @@ import (
 var Version = "v0.0.22"
 
 func main() {
-	if len(os.Args) > 1 {
-		switch os.Args[1] {
-		case "version", "-v", "--version":
-			fmt.Printf("lanmap (lmap) %s\n", Version)
-			return
-		case "update", "upgrade":
-			handleCLIUpdate()
-			return
-		case "agent":
-			handleCLIAgent()
-			return
-		case "service":
-			if len(os.Args) < 3 {
-				fmt.Println("Usage: lanmap service [install|uninstall|start|stop|restart|status]")
-				os.Exit(1)
-			}
-			if err := service.HandleCommand(os.Args[2]); err != nil {
-				log.Fatalf("[ERROR] Service command failed: %v", err)
-			}
-			return
-		case "help", "-h", "--help":
-			printHelp()
-			return
-		}
+	if len(os.Args) <= 1 {
+		printHelp()
+		return
 	}
 
-	runServer()
+	switch os.Args[1] {
+	case "start", "run", "server":
+		runServer()
+		return
+	case "stop":
+		handleCLIStop()
+		return
+	case "status":
+		handleCLIStatus()
+		return
+	case "version", "-v", "--version":
+		fmt.Printf("lanmap (lmap) %s\n", Version)
+		return
+	case "update", "upgrade":
+		handleCLIUpdate()
+		return
+	case "agent":
+		handleCLIAgent()
+		return
+	case "service":
+		if len(os.Args) < 3 {
+			fmt.Println("Usage: lanmap service [install|uninstall|start|stop|restart|status]")
+			os.Exit(1)
+		}
+		if err := service.HandleCommand(os.Args[2]); err != nil {
+			log.Fatalf("[ERROR] Service command failed: %v", err)
+		}
+		return
+	case "help", "-h", "--help":
+		printHelp()
+		return
+	default:
+		fmt.Printf("Unknown command: %s\n\n", os.Args[1])
+		printHelp()
+		os.Exit(1)
+	}
 }
 
 func handleCLIUpdate() {
@@ -85,23 +100,65 @@ func handleCLIUpdate() {
 	fmt.Println("Please restart lanmap or run 'lanmap service restart' to run the new version.")
 }
 
+func handleCLIStop() {
+	cfg, err := config.LoadConfig()
+	if err != nil {
+		log.Fatalf("[ERROR] Failed to load configuration: %v", err)
+	}
+
+	pidMgr := pid.NewManager(cfg.PIDPath)
+	stoppedPID, err := pidMgr.Stop()
+	if err != nil {
+		fmt.Printf("ℹ️  lanmap は起動していません (%v)\n", err)
+		return
+	}
+
+	fmt.Printf("✅ lanmap (PID: %d) を正常に停止しました。\n", stoppedPID)
+}
+
+func handleCLIStatus() {
+	cfg, err := config.LoadConfig()
+	if err != nil {
+		log.Fatalf("[ERROR] Failed to load configuration: %v", err)
+	}
+
+	pidMgr := pid.NewManager(cfg.PIDPath)
+	runningPID, running := pidMgr.GetRunningPID()
+	if running {
+		fmt.Printf("🟢 lanmap は正常に稼働中です (PID: %d)\n", runningPID)
+		fmt.Printf("   Web UI: https://localhost:%d\n", cfg.HTTPPort)
+		fmt.Printf("   PIDファイル: %s\n", cfg.PIDPath)
+	} else {
+		fmt.Println("⚪ lanmap は停止しています。")
+		fmt.Println("   起動するには './lanmap start' を実行してください。")
+	}
+}
+
 func printHelp() {
 	fmt.Printf(`lanmap (lmap) - LAN Host Manager & Security Detector %s
 
 USAGE:
-  lanmap                     Start lanmap server in foreground (default)
+  lanmap start               Start lanmap server (prevents duplicate instances)
+  lanmap stop                Stop running lanmap server
+  lanmap status              Check server running status
   lanmap agent <command>     Federation remote agent commands (pair, status, unpair, report)
-  lanmap service <command>   Manage background service (install, start, stop, etc.)
+  lanmap service <command>   Manage background OS service (install, start, stop, etc.)
   lanmap update              Check and apply update from GitHub Releases
   lanmap version             Show version information
   lanmap help                Show this help message
 
+COMMANDS:
+  start       Start the lanmap network scanner & Web UI server.
+              Enforces single-instance execution via PID locking.
+  stop        Gracefully stop the running lanmap server.
+  status      Show whether lanmap is running, its PID, and the Web UI URL.
+
 AGENT COMMANDS (Federation):
-  pair      Pair this node as an agent to a central lanmap server
-            Flags: --server <URL> --pin <PIN> [--name <Name>] [--cidr <CIDR>]
-  status    Show current federation agent pairing status
-  unpair    Remove federation pairing from this node
-  report    Immediately push local network inventory to central server
+  pair        Pair this node as an agent to a central lanmap server
+              Flags: --server <URL> --pin <PIN> [--name <Name>] [--cidr <CIDR>]
+  status      Show current federation agent pairing status
+  unpair      Remove federation pairing from this node
+  report      Immediately push local network inventory to central server
 
 SERVICE COMMANDS:
   install     Install service into system (systemd / launchd / Windows SCM)
@@ -127,11 +184,27 @@ func runServer() {
 	}
 	cfg.Version = Version
 
-	log.Printf("[INFO] Starting lanmap %s...", Version)
-
 	if err := os.MkdirAll(cfg.DataDir, 0755); err != nil {
 		log.Fatalf("[FATAL] Failed to create data directory at %s: %v", cfg.DataDir, err)
 	}
+
+	// Single-instance PID lock check: prevent duplicate process startup
+	pidMgr := pid.NewManager(cfg.PIDPath)
+	runningPID, err := pidMgr.Acquire()
+	if err != nil {
+		if errors.Is(err, pid.ErrAlreadyRunning) {
+			fmt.Printf("\n[ERROR] ❌ lanmap は既に起動しています (PID: %d, Port: %d)。\n", runningPID, cfg.HTTPPort)
+			fmt.Println("重複起動は防止されました。Web UI は既に利用可能です。")
+			fmt.Println("停止するには './lanmap stop' を実行してください。")
+			fmt.Println()
+			os.Exit(1)
+		}
+		log.Fatalf("[FATAL] Failed to acquire PID lock at %s: %v", cfg.PIDPath, err)
+	}
+	defer pidMgr.Release()
+
+	log.Printf("[INFO] Starting lanmap %s (PID: %d)...", Version, os.Getpid())
+
 
 	database, err := db.Open(cfg.DBPath)
 	if err != nil {
@@ -222,6 +295,7 @@ func runServer() {
 		log.Printf("[WARN] HTTP server shutdown warning: %v", err)
 	}
 
+	pidMgr.Release()
 	log.Println("[INFO] lanmap exited cleanly.")
 }
 

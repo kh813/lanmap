@@ -95,8 +95,14 @@
 # 例: macOS / Linux の場合
 unzip lanmap-mac-arm64.zip
 chmod +x lanmap
-./lanmap
+./lanmap start    # サーバー起動 (重複起動防止PIDロック付き)
 ```
+
+> **💡 CLIコマンドについて**:  
+> * `./lanmap`: 引数なしで実行するとヘルプ（USAGE）を表示します（誤操作・二重起動を防止）。
+> * `./lanmap start`: サーバーおよびWeb UIを起動します。既に起動中の場合は重複起動を自動ブロックします。
+> * `./lanmap stop`: 起動中の lanmap サーバーを安全に停止します。
+> * `./lanmap status`: 現在の稼働状況（PIDやWeb UIポート）を確認します。
 
 ### 2. ブラウザでアクセス
 
