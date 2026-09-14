@@ -4,6 +4,7 @@ import (
 	"encoding/binary"
 	"net"
 	"path/filepath"
+	"strings"
 	"testing"
 
 	"lanmap/internal/db"
@@ -76,8 +77,8 @@ func TestParseDHCPPacket_Discover(t *testing.T) {
 	}
 
 	os := InferOSFromDHCP(pkt.VendorClass, pkt.ParamList)
-	if os != "macOS/iOS" {
-		t.Errorf("expected OS macOS/iOS, got %q", os)
+	if !strings.Contains(os, "macOS") && !strings.Contains(os, "iOS") {
+		t.Errorf("expected OS to contain macOS/iOS, got %q", os)
 	}
 }
 
@@ -180,8 +181,8 @@ func TestDHCPMonitor_ProcessPacketAndDB(t *testing.T) {
 	if h.Status != "up" {
 		t.Errorf("expected Status up, got %s", h.Status)
 	}
-	if h.OSVendor != "Linux" {
-		t.Errorf("expected OS Linux, got %s", h.OSVendor)
+	if !strings.Contains(h.OSVendor, "Linux") {
+		t.Errorf("expected OS to contain Linux, got %s", h.OSVendor)
 	}
 	if h.SegmentID == nil || *h.SegmentID != seg.ID {
 		t.Errorf("expected SegmentID %d, got %v", seg.ID, h.SegmentID)

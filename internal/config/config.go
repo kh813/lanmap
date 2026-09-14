@@ -11,7 +11,7 @@ import (
 
 const (
 	// AppVersion represents current release version of lanmap
-	AppVersion = "v0.0.23"
+	AppVersion = "v0.0.24"
 )
 
 // Config represents application configuration

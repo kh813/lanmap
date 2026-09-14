@@ -172,7 +172,11 @@ CREATE TABLE IF NOT EXISTS hosts (
     hostname VARCHAR(255),                -- 自動検出ホスト名 (mDNS/NBNS/PTR)
     vendor_model VARCHAR(255),            -- メーカー・モデル (OUI/UPnP)
     display_name VARCHAR(255),            -- 画面表示名
+    user_name VARCHAR(255),               -- 利用者名 / 所有者 (ホワイトリスト台帳または手動設定)
+    user_hint VARCHAR(255),               -- 推定所有者ヒント (mDNS/DHCPホスト名から抽出)
     os_vendor VARCHAR(255),               -- 推定OS
+    os_confidence VARCHAR(20),            -- OS判定信頼度 ('high' | 'medium' | 'low')
+    os_evidence TEXT,                     -- OS判定根拠 (例: "DHCP Option 55 fingerprint, SSH OpenSSH 9.6")
     status VARCHAR(10),                   -- 'up' | 'down'
     ping_rtt_ms REAL,                     -- 直近のPing応答時間 (ミリ秒、簡易監視・品質可視化用)
     ping_jitter_ms REAL,                  -- Ping遅延の揺らぎ (ジッター: ミリ秒)
@@ -231,6 +235,7 @@ CREATE TABLE IF NOT EXISTS whitelist_entries (
     mac_address VARCHAR(17),             -- 登録MACアドレス (照合用、任意)
     serial_number VARCHAR(100),          -- ハードウェアシリアル番号 (管理・メモ用)
     device_name VARCHAR(255),            -- 端末表示名 / 所有者名
+    user_name VARCHAR(255),              -- 利用者名 / 所有者 (社員名等)
     note TEXT,                           -- 備考 (部署、用途等)
     created_at DATETIME DEFAULT CURRENT_TIMESTAMP
 );
@@ -277,7 +282,7 @@ DHCP環境等での動的IP割り当てや撤去済み機器によるデータ�
 |   • [+ セグメント追加]  |                                 [... クリック] ─────┘  |
 | ---------------------- |                                 ├─ ✅ 承認済みに変更   |
 | [⚙ 設定画面]          |                                 ├─ 📌 削除保護を有効化 |
-| v0.0.23               |                                 ├─ ✏️ ホスト情報を編集 |
+| v0.0.24               |                                 ├─ ✏️ ホスト情報を編集 |
 +------------------------+                                 └─ 🗑️ このホストを削除  |
 ```
 
@@ -721,14 +726,19 @@ $ lanmap service uninstall
 * **通信プロトコル**: 信頼された社内LAN内での閉域運用を前提としつつ、通信内容自体は常時 **HTTPS**（デフォルトは自己署名証明書、10.1節）で暗号化します。VPN越しの拠点間通信も含め、経路上の盗聴に対する保護を初期バージョンから提供します。
 * **アクセス制限**: 初期バージョンではアプリ層での認証機能を設けず、アクセス制御はネットワーク層（VPN、VLAN、防火壁等のアクセス制限）の保護機能に依存させます。
 
-### 11.2 完了済み機能 (Completed in v0.0.23)
-* **CLI起動コマンド再編 & 重複起動防止PIDロック** (完了)
-  * 引数なし `./lanmap` での誤起動を防止し、ヘルプ（USAGE）を即座に表示して終了する安全設計に変更。
-  * `./lanmap start` で明示的にサーバーを起動。起動時に `lanmap.pid` によるプロセスロックを行い、多重起動を自動ブロック。
-  * `./lanmap stop` による安全なグレースフル停止、および `./lanmap status` による稼働ステータス確認に対応。
-  * `launchd` / `systemd` / Windows サービスの起動引数にも `start` を追加反映。
+### 11.2 完了済み機能 (Completed in v0.0.24)
+* **OS重み付きスコアリング判定 & DHCP Option 55指紋エンジン** (完了 / 第15節参照)
+  * 単発if文判定から、複数シグナルの重み付きスコアリング＋信頼度（High/Medium/Low）＋判定根拠（Evidence）表示へ刷新。
+  * DHCP Option 55/60 指紋DBを内蔵し、Windows 11/10、macOS、iOS、Android、Linux、プリンタ、ゲーム機等を高精度に特定。
+* **端末所有者ヒント情報の安全・パッシブ収集 & 利用者名突合** (完了 / 第15節参照)
+  * 資産管理台帳（ホワイトリスト）への利用者名（User/Owner）カラム追加と自動突合・表示。
+  * mDNS / DHCP Option 12 ホスト名からのパッシブ所有者ヒント自動抽出（合法的・パッシブ）。
+  * 認証パケット盗聴やARP偽装などの危険な侵入手法は完全に対象外とする非侵入型ポリシーを維持。
 
 ### 11.3 過去のリリース履歴 (Release History)
+* **v0.0.23**:
+  * CLI起動コマンド再編（引数なしでヘルプ表示、`./lanmap start` で明示起動）
+  * `lanmap.pid` による多重起動防止（二重プロセス検知 & 安全ブロック）、`stop` / `status` コマンドの実装
 * **v0.0.22**:
   * タグVLAN（802.1Q）適応型 Rogue RA 監査 & 誤検知ゼロ化（Untagged/Tagged分離、未監視VLANスキップ、自ホスト/デフォルトGW自動除外）
   * IPv4・他監視機能（DHCP、ブロードキャストストーム、定期スキャナー）への水平展開
@@ -1237,5 +1247,72 @@ IPv6のアドレス空間（$/64 = 2^{64}$ 個）への総当たり探索は不�
   * `[ 🪄 SLAAC ]`: ルーター広告（RA）による自動構成
   * `[ 📋 DHCPv6 ]`: DHCPv6による動的取得
   * `[ 🔒 Privacy ]`: OS標準のプライバシー拡張（一時アドレス・定期ローテーション）
+
+---
+
+## 15. OS重み付きスコアリング判定エンジン & 端末所有者ヒント情報の収集仕様
+
+### 15.1 課題と背景
+従来の単発if文判定（TTL単独、またはOUI単独）では、TTLの変更や仮想マシン、プライベートMACの普及によって誤判定が生じやすかった。
+本機能では、**複数シグナルの重み付きスコアリング方式**への刷新、**DHCP Option 55（Parameter Request List）指紋**の本格導入、判定の根拠（Evidence）と信頼度（High/Medium/Low）の可視化、および**端末所有者ヒント情報（レベルA）**の安全・パッシブな収集を実現する。
+
+### 15.2 OS重み付きスコアリング判定エンジン (`ScoreOS`)
+
+#### 1. シグナル体系と重み付け (Weights)
+複数の観測シグナルから各OSファミリ（Windows, macOS, iOS, Linux, Android等）へのスコアを加算し、最高得点のOSを採用する。また、より高い重みを持つシグナルから得られた具体的な名称（例: `OpenWrt 23.05` や `Windows 11 / 10`）を優先して最終名称とする。
+
+| シグナル種別 | 重み (Weight) | 特徴・判定根拠 |
+|---|:---:|---|
+| **SSH バナー** | 0.95 | `Debian`, `Ubuntu`, `Raspbian`, `FreeBSD`, `Cisco` 等のディストリビューション名を直截に特定 |
+| **DHCP Option 55 / 60 指紋** | 0.85〜0.95 | パラメータ要求リストの順序・組み合わせによる客観的OS指紋。Option 60（Vendor Class）との複合照合 |
+| **mDNS ハードウェアモデル** | 0.95 | `MacBookPro`, `iPhone`, `iPad`, `AppleTV` 等の公式モデルID |
+| **Web 管理画面 `<title>`** | 0.90 | `OpenWrt`, `Synology DSM`, `QNAP QTS`, `iLO`, `RouterOS` 等 |
+| **UPnP / SSDP モデル・名前** | 0.85 | `Windows Media Player`, `Xbox`, `PlayStation`, スマートTV等 |
+| **SMB (445) 応答** | 0.65 | Windows系またはSamba (Linux) の存在 |
+| **OUI ベンダー** | 0.40〜0.70 | Apple, Microsoft, Google 等のハードウェア製造元 |
+| **Ping TTL** | 0.25〜0.35 | TTL=128 (Windows), TTL=64 (Linux/Mac/Android), TTL=255 (ネットワーク機器) |
+
+#### 2. 信頼度（Confidence）と判定根拠（Evidence）
+* **信頼度算出**:
+  * **High (`high`)**: 合計スコア $\ge 1.4$ または 最大シグナル重み $\ge 0.90$（DHCP Option 55、SSHバナー、mDNSモデル等、確定的一致が存在する場合）
+  * **Medium (`medium`)**: 合計スコア $\ge 0.60$（OUI + TTL、またはSMBのみ等の複合推定）
+  * **Low (`low`)**: 合計スコア $< 0.60$（TTL単体や曖昧なOUIのみ）
+* **エビデンス（Evidence）の可視化**:
+  * UIのOS列および詳細モーダル、ホバーポップオーバーに「判定根拠」をツールチップおよびテキストとして明示（例: `DHCP Option 55 fingerprint (Windows 11 / 10), TTL 128 (Windows)`）。管理者がなぜそのOSと判定されたのかを即座に検証可能。
+
+#### 3. DHCP Option 55 / 60 フィンガープリント指紋データベース
+DHCPクライアントが要求するOption 55（Parameter Request List）のシーケンスはOS/クライアント実装ごとに固有である。内蔵指紋DBにより以下を高精度に特定する：
+* **Windows 11 / 10**: `1,3,6,15,31,33,43,44,46,47,119,121,249,252` 等
+* **macOS**: `1,3,6,15,119,95,252,44,46,47` 等
+* **iOS / iPadOS**: `1,121,3,6,15,114,119,252` 等
+* **Android**: `1,3,6,15,26,28,51,58,59,43` 等
+* **Linux (systemd-networkd / dhcpcd / dhclient / udhcpc)**: 各クライアント固有のシーケンス
+* **ネットワークプリンタ**: Canon, Brother, HP等の複合機
+* **ゲーム機 / IoT**: Nintendo Switch, PlayStation 5, ESP32 等
+
+### 15.3 端末所有者ヒント情報の収集（法的・安全方針）
+
+#### 1. レベルA（合法的・パッシブ情報収集）— 本システムで実装
+ネットワークへの侵入や通信の傍受・復号を一切行わず、管理者が保有する台帳および端末が自発的に公開しているパッシブ情報のみを活用する。
+
+1. **資産管理台帳（ホワイトリスト）との利用者名突合**:
+   * ホワイトリストCSV/TSVに「利用者名（User/Owner）」カラムを正式導入。
+   * インポートされた台帳データから、MACアドレスまたはホスト名の一致により端末の正規利用者（社員名・部署等）を特定し、画面に `👤 利用者名` として明示。
+2. **ホスト名からのパッシブ所有者ヒント抽出 (`ExtractUserHint`)**:
+   * mDNS や DHCP Option 12 で端末自身がブロードキャストしているホスト名から、正規表現を用いて所有者ヒントを抽出。
+   * **抽出パターン**:
+     * アポストロフィ形式: `Taro's iPhone` $\rightarrow$ `Taro`
+     * ハイフン/アンダースコア所有格: `Tanaka-no-iPhone` $\rightarrow$ `Tanaka`, `Ken-iPhone` $\rightarrow$ `Ken`
+     * プレフィックス形式: `pc-suzuki` $\rightarrow$ `suzuki`, `mac-tanaka` $\rightarrow$ `tanaka`
+   * **除外フィルター**:
+     * Windowsの自動生成名（`DESKTOP-ABC1234`, `LAPTOP-XYZ789`）や、汎用機種名（`iPhone`, `Pixel-8`, `iPad-Air`, `switch` 等）は所有者名ではないため確実に除外。
+
+#### 2. レベルB（認証情報パケット盗聴等）の完全除外方針
+* **除外の理由**:
+  * Kerberos / SMB / NTLM 等の認証トラフィックの監視やARPスプーフィングは、**不正アクセス禁止法や通信の秘密（電気通信事業法 / 刑法）に抵触するリスク**が極めて高い。
+  * スイッチのミラーポート設定を前提とすると「置くだけで動く」という `lanmap` の設計思想から逸脱する。
+* **基本方針**:
+  * レベルBに該当する盗聴・介入手法は **lanmap の設計スコープから完全に対象外** とする。
+
 
 

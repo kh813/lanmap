@@ -290,6 +290,7 @@ func (s *Scanner) scanSegmentInternal(ctx context.Context, seg *db.Segment) ([]*
 		// Auto-match against Whitelist Ledger (Section 8.2)
 		isApproved := false
 		displayName := ""
+		userName := ""
 		normMAC := NormalizeMAC(mac)
 		if localMACs[normMAC] {
 			isApproved = true // Local machine running lanmap is inherently authorized
@@ -299,6 +300,9 @@ func (s *Scanner) scanSegmentInternal(ctx context.Context, seg *db.Segment) ([]*
 				displayName = wlMatch.DeviceName
 			} else {
 				displayName = wlMatch.Hostname
+			}
+			if wlMatch.UserName != "" {
+				userName = wlMatch.UserName
 			}
 		}
 
@@ -324,13 +328,27 @@ func (s *Scanner) scanSegmentInternal(ctx context.Context, seg *db.Segment) ([]*
 		rawModel := QueryMDNSDeviceInfo(ipStr, 80*time.Millisecond)
 		mdnsModel := ResolveMDNSModel(rawModel)
 
-		// 5. Refined OS & Version Detection (Evidence-based only)
-		detailedOS := DetectDetailedOS(ipStr, hostname, vendor, osVendor, mdnsModel, httpTitle, openPorts, upnpName, upnpModel)
-		if detailedOS != "" {
-			osVendor = detailedOS
+		// 5. Refined OS & Version Detection via Weighted Scoring Engine
+		scoreRes := ScoreOS(OSScoreInput{
+			IP:        ipStr,
+			Hostname:  hostname,
+			Vendor:    vendor,
+			TTL:       ttl,
+			MDNSModel: mdnsModel,
+			HTTPTitle: httpTitle,
+			UPnPName:  upnpName,
+			UPnPModel: upnpModel,
+			OpenPorts: openPorts,
+			InitialOS: osVendor,
+		})
+		if scoreRes.OS != "" {
+			osVendor = scoreRes.OS
 		}
 
-		// 6. Jitter
+		// 6. User Hint Extraction (Level A Ownership Hint)
+		userHint := ExtractUserHint(hostname, mdnsModel, upnpName)
+
+		// 7. Jitter
 		var jitterPtr *float64
 		if rttPtr != nil {
 			jVal := RecordRTTAndCalculateJitter(ipStr, *rttPtr)
@@ -345,6 +363,10 @@ func (s *Scanner) scanSegmentInternal(ctx context.Context, seg *db.Segment) ([]*
 			DisplayName:  displayName,
 			VendorModel:  vendor,
 			OSVendor:     osVendor,
+			OSConfidence: scoreRes.Confidence,
+			OSEvidence:   scoreRes.Evidence,
+			UserName:     userName,
+			UserHint:     userHint,
 			Status:       "up",
 			PingRTTMs:    rttPtr,
 			PingJitterMs: jitterPtr,
@@ -369,11 +391,15 @@ func (s *Scanner) scanSegmentInternal(ctx context.Context, seg *db.Segment) ([]*
 		if isApproved {
 			staticIP := false
 			ignored := ""
+			existingUserName := userName
 			if existingHost, _ := s.db.GetHost(ipStr); existingHost != nil {
 				staticIP = existingHost.IsStaticIP
 				ignored = existingHost.IgnoredPorts
+				if existingUserName == "" {
+					existingUserName = existingHost.UserName
+				}
 			}
-			_ = s.db.UpdateHostManual(ipStr, displayName, vendor, staticIP, ignored)
+			_ = s.db.UpdateHostManual(ipStr, displayName, vendor, existingUserName, staticIP, ignored)
 			_, _ = s.db.Exec("UPDATE hosts SET is_approved = 1 WHERE ip = ?", ipStr)
 		}
 

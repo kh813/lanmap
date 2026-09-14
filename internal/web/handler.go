@@ -674,7 +674,7 @@ func (h *Handler) HandleToggleStaticIP(w http.ResponseWriter, r *http.Request, i
 		http.Error(w, "Host not found", http.StatusNotFound)
 		return
 	}
-	_ = h.db.UpdateHostManualByID(host.ID, host.DisplayName, host.VendorModel, !host.IsStaticIP, host.IgnoredPorts)
+	_ = h.db.UpdateHostManualByID(host.ID, host.DisplayName, host.VendorModel, host.UserName, !host.IsStaticIP, host.IgnoredPorts)
 	h.HandleMainTablePartial(w, r)
 }
 
@@ -683,6 +683,7 @@ func (h *Handler) HandleUpdateHost(w http.ResponseWriter, r *http.Request, ip st
 	_ = r.ParseForm()
 	displayName := r.FormValue("display_name")
 	vendorModel := r.FormValue("vendor_model")
+	userName := strings.TrimSpace(r.FormValue("user_name"))
 	isStaticIP := r.FormValue("is_static_ip") == "true"
 	ignoredPorts := strings.TrimSpace(r.FormValue("ignored_ports"))
 
@@ -692,7 +693,7 @@ func (h *Handler) HandleUpdateHost(w http.ResponseWriter, r *http.Request, ip st
 		return
 	}
 
-	_ = h.db.UpdateHostManualByID(host.ID, displayName, vendorModel, isStaticIP, ignoredPorts)
+	_ = h.db.UpdateHostManualByID(host.ID, displayName, vendorModel, userName, isStaticIP, ignoredPorts)
 	h.HandleMainTablePartial(w, r)
 }
 

@@ -76,4 +76,30 @@ mbpm1m.parkside.tokyo,,C02M1MAX,管理者Mac,情報システム
 	if h2.IsApproved {
 		t.Errorf("expected rogue host 2 to remain unapproved, got %+v", h2)
 	}
+
+	// 6. Test CSV Import with user_name column (6 columns)
+	csvWithUser := `
+hostname,mac_address,serial_number,device_name,user_name,note
+pc-suzuki,00:aa:bb:cc:dd:ee,SN111,鈴木ThinkPad,鈴木 一郎,営業部
+`
+	imp2, err := database.ImportWhitelistCSV(csvWithUser)
+	if err != nil || imp2 != 1 {
+		t.Fatalf("ImportWhitelistCSV with user failed: %v (imported=%d)", err, imp2)
+	}
+	match3, ok := database.MatchWhitelist("pc-suzuki", "00:aa:bb:cc:dd:ee")
+	if !ok || match3.UserName != "鈴木 一郎" {
+		t.Errorf("expected match with user_name='鈴木 一郎', got %+v", match3)
+	}
+
+	_ = database.CreateManualHost(&Host{
+		IP:         "192.168.1.102",
+		Hostname:   "pc-suzuki",
+		MACAddress: "00:aa:bb:cc:dd:ee",
+		IsApproved: false,
+	})
+	_, _ = database.ReconcileHostsWithWhitelist()
+	h3, _ := database.GetHost("192.168.1.102")
+	if h3 == nil || h3.UserName != "鈴木 一郎" {
+		t.Errorf("expected host 3 to have UserName='鈴木 一郎', got %+v", h3)
+	}
 }

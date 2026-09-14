@@ -730,6 +730,35 @@
   - [x] `go test ./...` PASS確認
   - [x] `make build` 動作確認
 
+---
 
-
-
+### 🔹 Phase 31: OS重み付きスコアリング判定 & 端末所有者ヒント情報収集 (完了)
+- [x] **31.1 データベース層 (`internal/db`)**
+  - [x] `hosts` テーブルに `user_name`, `user_hint`, `os_confidence`, `os_evidence` カラム追加 & 自動マイグレーション
+  - [x] `whitelist_entries` テーブルに `user_name` カラム追加 & 6列CSV/TSVインポート対応（ヘッダー自動認識）
+  - [x] `ReconcileHostsWithWhitelist` による台帳登録利用者名の自動突合・反映
+  - [x] `Host` 構造体へのフィールド追加、SQL更新（SELECT/INSERT/UPDATE）、`UpdateHostManualByID` 対応
+  - [x] フェデレーション連携（リモートホストへの送受信・同期対応）
+  - [x] 単体テスト (`internal/db/whitelist_test.go`) PASS
+- [x] **31.2 スキャナー & 指紋エンジン (`internal/scanner`)**
+  - [x] `dhcp_fingerprint.go`: Option 55/60 指紋データベース実装（Windows 11/10, macOS, iOS, Android, Linux, プリンタ, ゲーム機, IoT）
+  - [x] `user_hint.go`: ホスト名からのパッシブ所有者ヒント抽出（アポストロフィ/ハイフン/プレフィックス対応、WindowsランダムID除外）
+  - [x] `os_score.go`: 重み付きスコアリング式 OS 判定エンジン（SSHバナー 0.95, Option 55/60 0.85-0.95, mDNSモデル 0.95, Webタイトル 0.90, UPnP 0.85, SMB 0.65, OUI 0.40-0.70, TTL 0.25-0.35）
+  - [x] 信頼度（high/medium/low）算出、最高ウェイトrefined名称優先採用、エビデンス文字列生成
+  - [x] 単体テスト (`internal/scanner/os_score_test.go`) PASS
+- [x] **31.3 モニター & Web層 (`internal/monitor`, `internal/web`)**
+  - [x] `dhcp.go`: パッシブ傍受時のリアルタイムOSスコアリング & 所有者ヒント抽出適用
+  - [x] `dhcp_test.go`: 新指紋エンジンとの整合性テスト PASS
+  - [x] `handler.go`: `HandleUpdateHost` に `userName` を受け渡し対応
+- [x] **31.4 国際化 & UI テンプレート (`internal/i18n`, `web/template`)**
+  - [x] 日英辞書キー追加 (`col_user_owner`, `col_user_inferred`, `col_user_inferred_badge`, `os_evidence_label`, `edit_host_user_label`, `detail_confidence` 等)
+  - [x] `main_table.html`: ホスト名列への利用者名/ヒント表示、OS列への信頼度バッジ・エビデンス表示、Popover拡張、検索フィルター連動
+  - [x] `host_detail_modal.html`: 端末プロファイルに信頼度・エビデンス・利用者/ヒント追加
+  - [x] `edit_host_modal.html`: 利用者名入力フォーム追加
+  - [x] `whitelist_modal.html`: 利用者名テーブル列追加
+- [x] **31.5 ドキュメント更新 & 総合検証**
+  - [x] `lanmap_design.md`: スキーマ定義更新、第15節「OS重み付きスコアリング判定 & 端末所有者ヒント情報収集仕様」追加
+  - [x] `README.md`: 主な特長（4, 11, 22）の更新
+  - [x] `lanmap_todo.md`: Phase 31 完了チェック
+  - [x] `go test ./...` 100% PASS
+  - [x] `make build` 完了

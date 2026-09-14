@@ -36,10 +36,19 @@
                     {{end}}
                 </div>
 
-                <div class="text-xs text-slate-500 dark:text-slate-400 flex items-center space-x-2">
+                <div class="text-xs text-slate-500 dark:text-slate-400 flex items-center space-x-2 flex-wrap gap-y-1">
                     <span class="font-medium text-slate-700 dark:text-slate-200">{{if .Host.DisplayName}}{{.Host.DisplayName}}{{else if .Host.Hostname}}{{.Host.Hostname}}{{else}}{{t .Lang "detail_unnamed"}}{{end}}</span>
                     {{if and .Host.DisplayName .Host.Hostname}}
                     <span class="text-[11px] font-mono text-slate-400">({{.Host.Hostname}})</span>
+                    {{end}}
+                    {{if .Host.UserName}}
+                    <span class="text-[11px] font-medium text-blue-600 dark:text-blue-400 bg-blue-50 dark:bg-blue-950/60 border border-blue-200 dark:border-blue-800/60 px-1.5 py-0.2 rounded">
+                        👤 {{.Host.UserName}}
+                    </span>
+                    {{else if .Host.UserHint}}
+                    <span class="text-[11px] italic text-slate-500 dark:text-slate-400 bg-slate-100 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 px-1.5 py-0.2 rounded">
+                        👤 ({{t .Lang "col_user_inferred_badge"}}: {{.Host.UserHint}})
+                    </span>
                     {{end}}
                 </div>
             </div>
@@ -175,16 +184,48 @@
                     </div>
                 </div>
 
-                <!-- OS & Model -->
+                <!-- OS & Fingerprinting -->
                 <div class="space-y-1">
                     <span class="text-slate-400 dark:text-slate-500 text-[11px] block">{{t .Lang "detail_os_model"}}</span>
-                    <div class="text-slate-800 dark:text-slate-200 font-medium">
-                        {{if .Host.OSVendor}}{{.Host.OSVendor}}{{else}}{{t .Lang "detail_not_detected"}}{{end}}
+                    <div class="flex items-center space-x-2 flex-wrap gap-y-1">
+                        <span class="text-slate-800 dark:text-slate-200 font-medium">
+                            {{if .Host.OSVendor}}{{.Host.OSVendor}}{{else}}{{t .Lang "detail_not_detected"}}{{end}}
+                        </span>
+                        {{if .Host.OSConfidence}}
+                        <span class="px-1.5 py-0.2 rounded text-[10px] font-bold border {{if eq .Host.OSConfidence "high"}}bg-emerald-50 text-emerald-700 border-emerald-300 dark:bg-emerald-950/60 dark:text-emerald-300 dark:border-emerald-800{{else if eq .Host.OSConfidence "medium"}}bg-amber-50 text-amber-700 border-amber-300 dark:bg-amber-950/60 dark:text-amber-300 dark:border-amber-800{{else}}bg-slate-100 text-slate-600 border-slate-300 dark:bg-slate-800 dark:text-slate-400 dark:border-slate-700{{end}}">
+                            {{t .Lang "detail_confidence"}}: {{.Host.OSConfidence}}
+                        </span>
+                        {{end}}
                     </div>
+                    {{if .Host.OSEvidence}}
+                    <div class="text-slate-600 dark:text-slate-400 text-[11px] font-mono">
+                        <span class="font-sans font-medium text-slate-500">{{t .Lang "os_evidence_label"}}:</span> {{.Host.OSEvidence}}
+                    </div>
+                    {{end}}
                     {{if .Host.MDNSModel}}
                     <div class="text-slate-600 dark:text-slate-400 text-[11px] font-mono">
                         {{t .Lang "detail_mdns_model"}} {{.Host.MDNSModel}}
                     </div>
+                    {{end}}
+                </div>
+
+                <!-- User / Owner Hints -->
+                <div class="space-y-1">
+                    <span class="text-slate-400 dark:text-slate-500 text-[11px] block">{{t .Lang "col_user_owner"}} / {{t .Lang "col_user_inferred"}}</span>
+                    {{if .Host.UserName}}
+                    <div class="flex items-center space-x-1.5 text-blue-700 dark:text-blue-300 font-medium">
+                        <span>👤</span>
+                        <span>{{.Host.UserName}}</span>
+                        <span class="text-[10px] bg-blue-100 dark:bg-blue-950 text-blue-800 dark:text-blue-200 px-1.5 py-0.2 rounded border border-blue-200 dark:border-blue-800 font-normal">({{t .Lang "whitelist_tab"}})</span>
+                    </div>
+                    {{else if .Host.UserHint}}
+                    <div class="flex items-center space-x-1.5 text-slate-600 dark:text-slate-300">
+                        <span>👤</span>
+                        <span class="italic font-medium">{{.Host.UserHint}}</span>
+                        <span class="text-[10px] bg-slate-200 dark:bg-slate-800 text-slate-600 dark:text-slate-400 px-1.5 py-0.2 rounded border border-slate-300 dark:border-slate-700 font-normal">({{t .Lang "col_user_inferred_badge"}})</span>
+                    </div>
+                    {{else}}
+                    <div class="text-slate-400 dark:text-slate-600 text-[11px]">-</div>
                     {{end}}
                 </div>
 

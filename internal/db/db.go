@@ -95,6 +95,10 @@ func (db *DB) migrate() error {
 		ignored_ports TEXT DEFAULT '',
 		agent_id VARCHAR(64) DEFAULT NULL REFERENCES federation_agents(id),
 		ipv6_addresses TEXT DEFAULT '',
+		user_name VARCHAR(255) DEFAULT '',
+		user_hint VARCHAR(255) DEFAULT '',
+		os_confidence VARCHAR(20) DEFAULT '',
+		os_evidence TEXT DEFAULT '',
 		FOREIGN KEY (segment_id) REFERENCES segments(id) ON DELETE SET NULL
 	);
 
@@ -116,6 +120,7 @@ func (db *DB) migrate() error {
 		mac_address VARCHAR(17),
 		serial_number VARCHAR(100),
 		device_name VARCHAR(255),
+		user_name VARCHAR(255) DEFAULT '',
 		note TEXT,
 		created_at DATETIME DEFAULT CURRENT_TIMESTAMP
 	);
@@ -298,6 +303,11 @@ func (db *DB) migrate() error {
 	_, _ = db.Exec("CREATE INDEX IF NOT EXISTS idx_hosts_agent_id ON hosts(agent_id);")
 	_, _ = db.Exec("CREATE INDEX IF NOT EXISTS idx_hosts_agent_ip ON hosts(agent_id, ip);")
 	_, _ = db.Exec("ALTER TABLE hosts ADD COLUMN ipv6_addresses TEXT DEFAULT '';")
+	_, _ = db.Exec("ALTER TABLE hosts ADD COLUMN user_name VARCHAR(255) DEFAULT '';")
+	_, _ = db.Exec("ALTER TABLE hosts ADD COLUMN user_hint VARCHAR(255) DEFAULT '';")
+	_, _ = db.Exec("ALTER TABLE hosts ADD COLUMN os_confidence VARCHAR(20) DEFAULT '';")
+	_, _ = db.Exec("ALTER TABLE hosts ADD COLUMN os_evidence TEXT DEFAULT '';")
+	_, _ = db.Exec("ALTER TABLE whitelist_entries ADD COLUMN user_name VARCHAR(255) DEFAULT '';")
 
 	return nil
 }

@@ -217,9 +217,9 @@
                         hx-swap="innerHTML"
                         class="host-row hover:bg-blue-50/50 dark:hover:bg-slate-800/80 transition cursor-pointer {{if .IsStorming}}bg-amber-100/70 border-2 border-amber-500 dark:bg-amber-950/40 dark:border-amber-600{{else if and (not .IsApproved) (not .IsDHCP)}}bg-amber-50/30 dark:bg-amber-950/10{{end}} {{if .IsPreviousHost}}opacity-75 bg-slate-50/60 dark:bg-slate-900/40{{end}}"
                         data-ip="{{.IP}} {{if .MACAddress}}{{.MACAddress}}{{end}}"
-                        data-hostname="{{if .Hostname}}{{.Hostname}}{{end}}"
+                        data-hostname="{{if .Hostname}}{{.Hostname}}{{end}} {{if .UserName}}{{.UserName}}{{end}} {{if .UserHint}}{{.UserHint}}{{end}}"
                         data-vendor="{{if .VendorModel}}{{.VendorModel}}{{end}}"
-                        data-os="{{if .OSVendor}}{{.OSVendor}}{{end}}"
+                        data-os="{{if .OSVendor}}{{.OSVendor}}{{end}} {{if .OSEvidence}}{{.OSEvidence}}{{end}}"
                         data-conn="{{.ConnectionType}}"
                         data-approval="{{if .IsApproved}}approved{{else if .IsDHCP}}dhcp{{else}}unapproved{{end}}"
                         data-status="{{.Status}}"
@@ -297,6 +297,11 @@
                                                  {{end}}
                                             </div>
                                             <div class="text-[10px] text-slate-500 truncate max-w-[200px]">{{if .Hostname}}{{.Hostname}}{{else}}{{t $.Lang "popover_no_hostname"}}{{end}}</div>
+                                            {{if .UserName}}
+                                            <div class="text-[10px] text-blue-600 dark:text-blue-400 font-medium truncate max-w-[200px]">👤 {{.UserName}}</div>
+                                            {{else if .UserHint}}
+                                            <div class="text-[10px] text-slate-500 dark:text-slate-400 italic truncate max-w-[200px]">👤 ({{t $.Lang "col_user_inferred_badge"}}: {{.UserHint}})</div>
+                                            {{end}}
                                         </div>
                                     </div>
                                     <div class="text-right">
@@ -371,7 +376,26 @@
                                      </div>
                                      {{end}}
 
-                                     {{if and (not .HTTPTitle) (not .UPnPName) (not .UPnPModel) (not .MDNSModel) (not .HasTLS)}}
+                                     {{if .OSVendor}}
+                                     <div class="flex items-start space-x-1.5">
+                                         <span class="text-slate-400 shrink-0">💻 OS:</span>
+                                         <div class="text-[11px] truncate">
+                                             <span class="font-medium text-slate-800 dark:text-slate-200">{{.OSVendor}}</span>
+                                             {{if .OSConfidence}}
+                                             <span class="ml-1 px-1 py-0.2 rounded text-[9px] font-semibold {{if eq .OSConfidence "high"}}text-emerald-700 bg-emerald-50 dark:text-emerald-300 dark:bg-emerald-950/60{{else if eq .OSConfidence "medium"}}text-amber-700 bg-amber-50 dark:text-amber-300 dark:bg-amber-950/60{{else}}text-slate-600 bg-slate-100 dark:text-slate-400 dark:bg-slate-800{{end}}">
+                                                 {{.OSConfidence}}
+                                             </span>
+                                             {{end}}
+                                             {{if .OSEvidence}}
+                                             <div class="text-[9px] text-slate-400 dark:text-slate-500 font-mono mt-0.5 truncate max-w-[240px]" title="{{.OSEvidence}}">
+                                                 {{.OSEvidence}}
+                                             </div>
+                                             {{end}}
+                                         </div>
+                                     </div>
+                                     {{end}}
+
+                                     {{if and (not .HTTPTitle) (not .UPnPName) (not .UPnPModel) (not .MDNSModel) (not .HasTLS) (not .OSVendor)}}
                                      <div class="text-[10px] text-slate-400 dark:text-slate-500 italic">
                                          {{if eq $.Lang "ja"}}メーカー{{else}}Vendor{{end}}: {{if .VendorModel}}{{.VendorModel}}{{else}}{{t $.Lang "unknown"}}{{end}} / {{if eq $.Lang "ja"}}推定OS{{else}}OS{{end}}: {{if .OSVendor}}{{.OSVendor}}{{else}}-{{end}}
                                      </div>
@@ -474,6 +498,17 @@
                                 </span>
                                 {{end}}
                             </div>
+                            {{if .UserName}}
+                            <div class="text-[10px] text-blue-600 dark:text-blue-400 flex items-center space-x-1 mt-0.5" title="{{t $.Lang "col_user_owner"}}">
+                                <span>👤</span>
+                                <span class="font-medium truncate max-w-[140px]">{{.UserName}}</span>
+                            </div>
+                            {{else if .UserHint}}
+                            <div class="text-[10px] text-slate-500 dark:text-slate-400 flex items-center space-x-1 mt-0.5" title="{{t $.Lang "col_user_inferred"}}">
+                                <span>👤</span>
+                                <span class="italic truncate max-w-[140px]">({{.UserHint}})</span>
+                            </div>
+                            {{end}}
                         </td>
 
                         <!-- Vendor / Model -->
@@ -483,7 +518,24 @@
 
                         <!-- OS -->
                         <td class="py-3 px-3 text-slate-600 dark:text-slate-400">
-                            {{if .OSVendor}}{{.OSVendor}}{{else}}<span class="text-slate-400 dark:text-slate-600">-</span>{{end}}
+                            {{if .OSVendor}}
+                            <div class="flex items-center space-x-1.5 flex-wrap gap-y-0.5">
+                                <span>{{.OSVendor}}</span>
+                                {{if .OSConfidence}}
+                                <span class="px-1.5 py-0.2 rounded text-[9px] font-bold border shrink-0 {{if eq .OSConfidence "high"}}bg-emerald-50 text-emerald-700 border-emerald-300 dark:bg-emerald-950/60 dark:text-emerald-300 dark:border-emerald-800{{else if eq .OSConfidence "medium"}}bg-amber-50 text-amber-700 border-amber-300 dark:bg-amber-950/60 dark:text-amber-300 dark:border-amber-800{{else}}bg-slate-100 text-slate-600 border-slate-300 dark:bg-slate-800 dark:text-slate-400 dark:border-slate-700{{end}}"
+                                      title="{{t $.Lang "os_evidence_label"}}: {{.OSEvidence}}">
+                                    {{if eq .OSConfidence "high"}}High{{else if eq .OSConfidence "medium"}}Med{{else}}Low{{end}}
+                                </span>
+                                {{end}}
+                            </div>
+                            {{if .OSEvidence}}
+                            <div class="text-[9px] text-slate-400 dark:text-slate-500 truncate max-w-[160px] font-mono mt-0.5" title="{{.OSEvidence}}">
+                                {{.OSEvidence}}
+                            </div>
+                            {{end}}
+                            {{else}}
+                            <span class="text-slate-400 dark:text-slate-600">-</span>
+                            {{end}}
                         </td>
 
                         <!-- Connection Type (Dedicated Column) -->

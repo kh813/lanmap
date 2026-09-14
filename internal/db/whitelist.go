@@ -15,6 +15,7 @@ type WhitelistEntry struct {
 	MACAddress   string    `json:"mac_address"`
 	SerialNumber string    `json:"serial_number"`
 	DeviceName   string    `json:"device_name"`
+	UserName     string    `json:"user_name"`
 	Note         string    `json:"note"`
 	CreatedAt    time.Time `json:"created_at"`
 }
@@ -25,10 +26,10 @@ func (db *DB) AddWhitelistEntry(e *WhitelistEntry) error {
 	cleanHost := strings.TrimSpace(e.Hostname)
 
 	query := `
-	INSERT INTO whitelist_entries (hostname, mac_address, serial_number, device_name, note)
-	VALUES (?, ?, ?, ?, ?)
+	INSERT INTO whitelist_entries (hostname, mac_address, serial_number, device_name, user_name, note)
+	VALUES (?, ?, ?, ?, ?, ?)
 	`
-	res, err := db.Exec(query, cleanHost, normMAC, strings.TrimSpace(e.SerialNumber), strings.TrimSpace(e.DeviceName), strings.TrimSpace(e.Note))
+	res, err := db.Exec(query, cleanHost, normMAC, strings.TrimSpace(e.SerialNumber), strings.TrimSpace(e.DeviceName), strings.TrimSpace(e.UserName), strings.TrimSpace(e.Note))
 	if err != nil {
 		return err
 	}
@@ -66,17 +67,33 @@ func (db *DB) ImportWhitelistCSV(content string) (int, error) {
 			continue
 		}
 
-		// Detect and skip header row
-		firstCol := strings.ToLower(strings.TrimSpace(record[0]))
-		if isHeader && (firstCol == "hostname" || firstCol == "host" || firstCol == "ホスト名" || firstCol == "pc名" || firstCol == "ip" || firstCol == "mac") {
+		// Detect and parse header row
+		if isHeader {
+			isHeaderRow := false
+			for _, col := range record {
+				cl := strings.ToLower(strings.TrimSpace(col))
+				if cl == "hostname" || cl == "host" || cl == "ホスト名" || cl == "pc名" || cl == "ip" || cl == "mac" || cl == "macアドレス" || cl == "user" || cl == "username" || cl == "利用者" || cl == "所有者" {
+					isHeaderRow = true
+					break
+				}
+			}
+
+			if isHeaderRow {
+				isHeader = false
+				continue
+			}
 			isHeader = false
-			continue
 		}
-		isHeader = false
 
-		hostname := strings.TrimSpace(record[0])
-		var mac, serial, devName, note string
+		var hostname, mac, serial, devName, userName, note string
 
+		// Default column mapping:
+		// 6+ columns: Hostname, MAC, Serial, DeviceName, UserName, Note
+		// 5 columns: Hostname, MAC, Serial, DeviceName, Note
+		// <5 columns: Hostname, MAC...
+		if len(record) > 0 {
+			hostname = strings.TrimSpace(record[0])
+		}
 		if len(record) > 1 {
 			mac = strings.TrimSpace(record[1])
 		}
@@ -86,7 +103,10 @@ func (db *DB) ImportWhitelistCSV(content string) (int, error) {
 		if len(record) > 3 {
 			devName = strings.TrimSpace(record[3])
 		}
-		if len(record) > 4 {
+		if len(record) >= 6 {
+			userName = strings.TrimSpace(record[4])
+			note = strings.TrimSpace(record[5])
+		} else if len(record) == 5 {
 			note = strings.TrimSpace(record[4])
 		}
 
@@ -99,6 +119,7 @@ func (db *DB) ImportWhitelistCSV(content string) (int, error) {
 			MACAddress:   mac,
 			SerialNumber: serial,
 			DeviceName:   devName,
+			UserName:     userName,
 			Note:         note,
 		}
 
@@ -112,7 +133,7 @@ func (db *DB) ImportWhitelistCSV(content string) (int, error) {
 
 // ListWhitelistEntries retrieves all whitelist entries
 func (db *DB) ListWhitelistEntries() ([]*WhitelistEntry, error) {
-	rows, err := db.Query("SELECT id, hostname, mac_address, serial_number, device_name, note, created_at FROM whitelist_entries ORDER BY id DESC")
+	rows, err := db.Query("SELECT id, hostname, mac_address, serial_number, device_name, user_name, note, created_at FROM whitelist_entries ORDER BY id DESC")
 	if err != nil {
 		return nil, err
 	}
@@ -121,14 +142,15 @@ func (db *DB) ListWhitelistEntries() ([]*WhitelistEntry, error) {
 	var list []*WhitelistEntry
 	for rows.Next() {
 		var e WhitelistEntry
-		var host, mac, serial, name, note sql.NullString
-		if err := rows.Scan(&e.ID, &host, &mac, &serial, &name, &note, &e.CreatedAt); err != nil {
+		var host, mac, serial, name, user, note sql.NullString
+		if err := rows.Scan(&e.ID, &host, &mac, &serial, &name, &user, &note, &e.CreatedAt); err != nil {
 			return nil, err
 		}
 		e.Hostname = host.String
 		e.MACAddress = mac.String
 		e.SerialNumber = serial.String
 		e.DeviceName = name.String
+		e.UserName = user.String
 		e.Note = note.String
 		list = append(list, &e)
 	}
@@ -207,7 +229,12 @@ func (db *DB) ReconcileHostsWithWhitelist() (int, error) {
 				dispName = match.Hostname
 			}
 
-			_, err := db.Exec("UPDATE hosts SET is_approved = 1, display_name = ? WHERE ip = ?", dispName, h.IP)
+			userName := h.UserName
+			if userName == "" && match.UserName != "" {
+				userName = match.UserName
+			}
+
+			_, err := db.Exec("UPDATE hosts SET is_approved = 1, display_name = ?, user_name = ? WHERE ip = ?", dispName, userName, h.IP)
 			if err == nil {
 				updated++
 			}

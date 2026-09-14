@@ -64,6 +64,10 @@ type Host struct {
 	AgentID          *string       `json:"agent_id"`
 	AgentName        string        `json:"agent_name"`
 	IPv6Addresses    string        `json:"ipv6_addresses"`
+	UserName         string        `json:"user_name"`
+	UserHint         string        `json:"user_hint"`
+	OSConfidence     string        `json:"os_confidence"`
+	OSEvidence       string        `json:"os_evidence"`
 	IsPreviousHost   bool          `json:"-"`
 	PingChartSVG     template.HTML `json:"-"`
 	UptimeBlocksSVG  template.HTML `json:"-"`
@@ -910,7 +914,8 @@ func (db *DB) UpsertHostOnScan(h *Host) (isNew bool, isReplaced bool, err error)
 			tls_subject, tls_expiry, mdns_model, broadcast_count_1m, is_storming,
 			is_approved, is_protected, is_static_ip, is_dhcp,
 			is_monitored, is_paused, has_conflict, kuma_name, uptime_kuma_id,
-			first_seen, last_seen, ipv6_addresses
+			first_seen, last_seen, ipv6_addresses,
+			user_name, user_hint, os_confidence, os_evidence
 		) VALUES (
 			?, ?, ?, ?, ?, ?,
 			?, ?, ?, ?, 100.0,
@@ -918,7 +923,8 @@ func (db *DB) UpsertHostOnScan(h *Host) (isNew bool, isReplaced bool, err error)
 			?, ?, ?, 0, 0,
 			?, 0, 0, ?,
 			0, 0, 0, '', NULL,
-			?, ?, ?
+			?, ?, ?,
+			?, ?, ?, ?
 		)
 		`
 		status := h.Status
@@ -931,6 +937,7 @@ func (db *DB) UpsertHostOnScan(h *Host) (isNew bool, isReplaced bool, err error)
 			h.OpenPorts, h.HTTPTitle, h.UPnPName, h.UPnPModel, h.UPnPSerial,
 			h.TLSSubject, h.TLSExpiry, h.MDNSModel,
 			h.IsApproved, h.IsDHCP, now, now, initialIPv6,
+			h.UserName, h.UserHint, h.OSConfidence, h.OSEvidence,
 		)
 		return true, isReplaced, err
 	}
@@ -1049,6 +1056,26 @@ func (db *DB) UpsertHostOnScan(h *Host) (isNew bool, isReplaced bool, err error)
 		status = existing.Status
 	}
 
+	userName := existing.UserName
+	if userName == "" && h.UserName != "" {
+		userName = h.UserName
+	}
+
+	userHint := h.UserHint
+	if userHint == "" {
+		userHint = existing.UserHint
+	}
+
+	osConfidence := h.OSConfidence
+	if osConfidence == "" {
+		osConfidence = existing.OSConfidence
+	}
+
+	osEvidence := h.OSEvidence
+	if osEvidence == "" {
+		osEvidence = existing.OSEvidence
+	}
+
 	query := `
 	UPDATE hosts SET
 		ip = ?,
@@ -1073,7 +1100,11 @@ func (db *DB) UpsertHostOnScan(h *Host) (isNew bool, isReplaced bool, err error)
 		is_dhcp = ?,
 		first_seen = ?,
 		last_seen = ?,
-		ipv6_addresses = ?
+		ipv6_addresses = ?,
+		user_name = ?,
+		user_hint = ?,
+		os_confidence = ?,
+		os_evidence = ?
 	WHERE id = ?
 	`
 	_, err = db.Exec(query,
@@ -1081,7 +1112,8 @@ func (db *DB) UpsertHostOnScan(h *Host) (isNew bool, isReplaced bool, err error)
 		osVendor, status, pingRTT, jitter, openPorts,
 		httpTitle, upnpName, upnpModel, upnpSerial,
 		tlsSubj, tlsExp, mdnsModel,
-		isApproved, isDHCP, firstSeen, now, mergedIPv6, existing.ID,
+		isApproved, isDHCP, firstSeen, now, mergedIPv6,
+		userName, userHint, osConfidence, osEvidence, existing.ID,
 	)
 	return false, isReplaced, err
 }
@@ -1096,7 +1128,8 @@ func (db *DB) GetHost(ip string) (*Host, error) {
 		tls_subject, tls_expiry, mdns_model, broadcast_count_1m, is_storming,
 		is_approved, is_protected, is_static_ip, is_dhcp,
 		is_monitored, is_paused, has_conflict, kuma_name, uptime_kuma_id,
-		first_seen, last_seen, last_port_scan, next_port_scan, ignored_ports, agent_id, ipv6_addresses
+		first_seen, last_seen, last_port_scan, next_port_scan, ignored_ports, agent_id, ipv6_addresses,
+		user_name, user_hint, os_confidence, os_evidence
 	FROM hosts
 	WHERE ip = ?
 	ORDER BY CASE WHEN status = 'up' THEN 0 ELSE 1 END, last_seen DESC
@@ -1122,7 +1155,8 @@ func (db *DB) GetHost(ip string) (*Host, error) {
 			tls_subject, tls_expiry, mdns_model, broadcast_count_1m, is_storming,
 			is_approved, is_protected, is_static_ip, is_dhcp,
 			is_monitored, is_paused, has_conflict, kuma_name, uptime_kuma_id,
-			first_seen, last_seen, last_port_scan, next_port_scan, ignored_ports, agent_id, ipv6_addresses
+			first_seen, last_seen, last_port_scan, next_port_scan, ignored_ports, agent_id, ipv6_addresses,
+			user_name, user_hint, os_confidence, os_evidence
 		FROM hosts
 		WHERE instr(LOWER(ipv6_addresses), ?) > 0
 		ORDER BY CASE WHEN status = 'up' THEN 0 ELSE 1 END, last_seen DESC
@@ -1150,7 +1184,8 @@ func (db *DB) GetHostByID(id int64) (*Host, error) {
 		tls_subject, tls_expiry, mdns_model, broadcast_count_1m, is_storming,
 		is_approved, is_protected, is_static_ip, is_dhcp,
 		is_monitored, is_paused, has_conflict, kuma_name, uptime_kuma_id,
-		first_seen, last_seen, last_port_scan, next_port_scan, ignored_ports, agent_id, ipv6_addresses
+		first_seen, last_seen, last_port_scan, next_port_scan, ignored_ports, agent_id, ipv6_addresses,
+		user_name, user_hint, os_confidence, os_evidence
 	FROM hosts
 	WHERE id = ?
 	`
@@ -1172,7 +1207,8 @@ func (db *DB) GetHostByMAC(mac string) (*Host, error) {
 		tls_subject, tls_expiry, mdns_model, broadcast_count_1m, is_storming,
 		is_approved, is_protected, is_static_ip, is_dhcp,
 		is_monitored, is_paused, has_conflict, kuma_name, uptime_kuma_id,
-		first_seen, last_seen, last_port_scan, next_port_scan, ignored_ports, agent_id, ipv6_addresses
+		first_seen, last_seen, last_port_scan, next_port_scan, ignored_ports, agent_id, ipv6_addresses,
+		user_name, user_hint, os_confidence, os_evidence
 	FROM hosts
 	WHERE LOWER(TRIM(mac_address)) = ?
 	ORDER BY CASE WHEN status = 'up' THEN 0 ELSE 1 END, last_seen DESC
@@ -1211,7 +1247,8 @@ func (db *DB) ListHostsFilteredWithAgent(segmentID *int64, filterMode string, da
 		tls_subject, tls_expiry, mdns_model, broadcast_count_1m, is_storming,
 		is_approved, is_protected, is_static_ip, is_dhcp,
 		is_monitored, is_paused, has_conflict, kuma_name, uptime_kuma_id,
-		first_seen, last_seen, last_port_scan, next_port_scan, ignored_ports, agent_id, ipv6_addresses
+		first_seen, last_seen, last_port_scan, next_port_scan, ignored_ports, agent_id, ipv6_addresses,
+		user_name, user_hint, os_confidence, os_evidence
 	FROM hosts
 	WHERE 1=1
 	`)
@@ -1421,26 +1458,27 @@ func (db *DB) ToggleDHCP(ip string) (bool, error) {
 }
 
 // UpdateHostManualByID updates manually editable fields by host ID
-func (db *DB) UpdateHostManualByID(id int64, displayName, vendorModel string, isStaticIP bool, ignoredPorts string) error {
+func (db *DB) UpdateHostManualByID(id int64, displayName, vendorModel, userName string, isStaticIP bool, ignoredPorts string) error {
 	query := `
 	UPDATE hosts SET
 		display_name = ?,
 		vendor_model = CASE WHEN ? != '' THEN ? ELSE vendor_model END,
+		user_name = ?,
 		is_static_ip = ?,
 		ignored_ports = ?
 	WHERE id = ?
 	`
-	_, err := db.Exec(query, displayName, vendorModel, vendorModel, isStaticIP, ignoredPorts, id)
+	_, err := db.Exec(query, displayName, vendorModel, vendorModel, userName, isStaticIP, ignoredPorts, id)
 	return err
 }
 
 // UpdateHostManual updates manually editable fields (fallback using IP)
-func (db *DB) UpdateHostManual(ip, displayName, vendorModel string, isStaticIP bool, ignoredPorts string) error {
+func (db *DB) UpdateHostManual(ip, displayName, vendorModel, userName string, isStaticIP bool, ignoredPorts string) error {
 	h, err := db.GetHost(ip)
 	if err != nil || h == nil {
 		return fmt.Errorf("host not found: %s", ip)
 	}
-	return db.UpdateHostManualByID(h.ID, displayName, vendorModel, isStaticIP, ignoredPorts)
+	return db.UpdateHostManualByID(h.ID, displayName, vendorModel, userName, isStaticIP, ignoredPorts)
 }
 
 // TogglePortIgnoredByID toggles whether warnings for a specific port are suppressed on a host by ID
@@ -1559,6 +1597,7 @@ func scanHost(s scannable) (*Host, error) {
 	var ignoredPorts sql.NullString
 	var agentID sql.NullString
 	var ipv6Addrs sql.NullString
+	var userName, userHint, osConfidence, osEvidence sql.NullString
 
 	err := s.Scan(
 		&h.ID,
@@ -1599,6 +1638,10 @@ func scanHost(s scannable) (*Host, error) {
 		&ignoredPorts,
 		&agentID,
 		&ipv6Addrs,
+		&userName,
+		&userHint,
+		&osConfidence,
+		&osEvidence,
 	)
 	if err != nil {
 		if err == sql.ErrNoRows {
@@ -1629,6 +1672,10 @@ func scanHost(s scannable) (*Host, error) {
 	h.MDNSModel = mdnsModel.String
 	h.IgnoredPorts = ignoredPorts.String
 	h.IPv6Addresses = ipv6Addrs.String
+	h.UserName = userName.String
+	h.UserHint = userHint.String
+	h.OSConfidence = osConfidence.String
+	h.OSEvidence = osEvidence.String
 
 	if rtt.Valid {
 		h.PingRTTMs = &rtt.Float64
@@ -1672,7 +1719,8 @@ func (db *DB) GetDuePortScanHost() (*Host, error) {
 		tls_subject, tls_expiry, mdns_model, broadcast_count_1m, is_storming,
 		is_approved, is_protected, is_static_ip, is_dhcp,
 		is_monitored, is_paused, has_conflict, kuma_name, uptime_kuma_id,
-		first_seen, last_seen, last_port_scan, next_port_scan, ignored_ports, agent_id, ipv6_addresses
+		first_seen, last_seen, last_port_scan, next_port_scan, ignored_ports, agent_id, ipv6_addresses,
+		user_name, user_hint, os_confidence, os_evidence
 	FROM hosts
 	WHERE status = 'up' AND is_paused = 0 AND agent_id IS NULL AND (next_port_scan IS NULL OR next_port_scan <= ?)
 	ORDER BY (CASE WHEN next_port_scan IS NULL THEN 0 ELSE 1 END), next_port_scan ASC

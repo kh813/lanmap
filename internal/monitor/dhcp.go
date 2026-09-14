@@ -250,8 +250,20 @@ func (m *DHCPMonitor) ProcessPacket(data []byte, from *net.UDPAddr) {
 	// 1. Determine vendor from OUI
 	vendor := scanner.LookupVendor(pkt.CHAddr)
 
-	// 2. Infer OS from Option 60 (Vendor Class Identifier) and Option 55
-	osVendor := InferOSFromDHCP(pkt.VendorClass, pkt.ParamList)
+	// 2. Infer OS from Option 60 & Option 55 via Weighted Scoring Engine
+	scoreRes := scanner.ScoreOS(scanner.OSScoreInput{
+		IP:              ipStr,
+		Hostname:        pkt.Hostname,
+		Vendor:          vendor,
+		DHCPVendorClass: pkt.VendorClass,
+		DHCPParamList:   pkt.ParamList,
+	})
+	osVendor := scoreRes.OS
+	osConfidence := scoreRes.Confidence
+	osEvidence := scoreRes.Evidence
+
+	// 2.5 Extract Ownership hint from Hostname
+	userHint := scanner.ExtractUserHint(pkt.Hostname, "", "")
 
 	// 3. Find Segment
 	seg, _ := m.db.FindSegmentForIP(targetIP)
@@ -263,6 +275,7 @@ func (m *DHCPMonitor) ProcessPacket(data []byte, from *net.UDPAddr) {
 	// 4. Check Whitelist
 	isApproved := false
 	displayName := ""
+	userName := ""
 	if wlMatch, ok := m.db.MatchWhitelist(pkt.Hostname, pkt.CHAddr); ok {
 		isApproved = true
 		if wlMatch.DeviceName != "" {
@@ -270,19 +283,26 @@ func (m *DHCPMonitor) ProcessPacket(data []byte, from *net.UDPAddr) {
 		} else {
 			displayName = wlMatch.Hostname
 		}
+		if wlMatch.UserName != "" {
+			userName = wlMatch.UserName
+		}
 	}
 
 	hostObj := &db.Host{
-		IP:          ipStr,
-		SegmentID:   segID,
-		MACAddress:  pkt.CHAddr,
-		Hostname:    pkt.Hostname,
-		DisplayName: displayName,
-		VendorModel: vendor,
-		OSVendor:    osVendor,
-		Status:      "up",
-		IsDHCP:      true,
-		IsApproved:  isApproved,
+		IP:           ipStr,
+		SegmentID:    segID,
+		MACAddress:   pkt.CHAddr,
+		Hostname:     pkt.Hostname,
+		DisplayName:  displayName,
+		VendorModel:  vendor,
+		OSVendor:     osVendor,
+		OSConfidence: osConfidence,
+		OSEvidence:   osEvidence,
+		UserName:     userName,
+		UserHint:     userHint,
+		Status:       "up",
+		IsDHCP:       true,
+		IsApproved:   isApproved,
 	}
 
 	isNew, isReplaced, err := m.db.UpsertHostOnScan(hostObj)
@@ -333,6 +353,9 @@ func (m *DHCPMonitor) ProcessPacket(data []byte, from *net.UDPAddr) {
 
 // InferOSFromDHCP infers the operating system from DHCP Option 60 and Option 55
 func InferOSFromDHCP(vendorClass string, paramList []byte) string {
+	if res := scanner.LookupDHCPFingerprint(paramList, vendorClass, ""); res != nil {
+		return res.OS
+	}
 	vc := strings.ToLower(vendorClass)
 
 	// Check Option 60 Vendor Class Identifier
