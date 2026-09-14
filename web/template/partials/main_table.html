@@ -1,9 +1,9 @@
 <div id="main-content" class="flex-1 flex flex-col min-w-0 bg-slate-50 dark:bg-slate-900 overflow-hidden"
      hx-get="/partials/main_table?segment_id={{.CurrentSegmentID}}&agent_id={{.CurrentAgentID}}&filter={{.CurrentFilter}}"
      hx-trigger="every 30s, refreshMainTable from:body"
-     hx-swap="outerHTML">
-    <!-- Top Action Bar -->
-    <header class="p-4 border-b border-slate-200 dark:border-slate-800 bg-white/80 dark:bg-slate-950/40 backdrop-blur flex flex-wrap items-center justify-between gap-4">
+     hx-swap="morph:outerHTML">
+     <!-- Top Action Bar -->
+     <header class="p-4 border-b border-slate-200 dark:border-slate-800 bg-white/80 dark:bg-slate-950/40 backdrop-blur flex flex-wrap items-center justify-between gap-4">
         <div>
             <div class="flex items-center space-x-2">
                 <h1 class="text-lg font-bold text-slate-900 dark:text-white tracking-tight">{{.SegmentTitle}}</h1>
@@ -30,7 +30,7 @@
         </div>
 
         <div class="flex items-center space-x-2 flex-wrap gap-2">
-            <!-- Filter Switch (Online, 3 Days [Default], 7 Days, All) -->
+            <!-- Filter Switch (Online, 3 Days [Default], All) -->
             <div class="bg-slate-200/80 dark:bg-slate-800/80 p-0.5 rounded-lg flex text-xs border border-slate-300 dark:border-slate-700">
                 <button hx-get="/partials/main_table?segment_id={{.CurrentSegmentID}}&agent_id={{.CurrentAgentID}}&filter=online"
                         hx-target="#main-content" hx-swap="outerHTML"
@@ -41,11 +41,6 @@
                         hx-target="#main-content" hx-swap="outerHTML"
                         class="px-2.5 py-1 rounded-md font-medium transition {{if or (eq .CurrentFilter "3d") (not .CurrentFilter)}}bg-white text-slate-900 dark:bg-slate-900 dark:text-white shadow-sm{{else}}text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-200{{end}}">
                     {{t .Lang "table_filter_3d"}}
-                </button>
-                <button hx-get="/partials/main_table?segment_id={{.CurrentSegmentID}}&agent_id={{.CurrentAgentID}}&filter=7d"
-                        hx-target="#main-content" hx-swap="outerHTML"
-                        class="px-2.5 py-1 rounded-md font-medium transition {{if eq .CurrentFilter "7d"}}bg-white text-slate-900 dark:bg-slate-900 dark:text-white shadow-sm{{else}}text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-200{{end}}">
-                    {{t .Lang "table_filter_7d"}}
                 </button>
                 <button hx-get="/partials/main_table?segment_id={{.CurrentSegmentID}}&agent_id={{.CurrentAgentID}}&filter=all"
                         hx-target="#main-content" hx-swap="outerHTML"
@@ -83,7 +78,7 @@
     </header>
 
     <!-- Table Container -->
-    <div class="flex-1 overflow-auto p-4 space-y-2">
+    <div id="host-table-scroll-container" class="flex-1 overflow-auto p-4 space-y-2">
         {{if and .SelectedAgent .SelectedAgent.VersionMismatch}}
         <div class="px-3.5 py-2 bg-amber-50 dark:bg-amber-950/50 border border-amber-300 dark:border-amber-700/80 rounded-lg text-xs text-amber-800 dark:text-amber-200 flex items-center space-x-2 shadow-sm">
             <span class="text-base shrink-0">⚠️</span>
@@ -101,7 +96,7 @@
         </div>
 
         <div class="border border-slate-200 dark:border-slate-800 rounded-lg overflow-visible bg-white dark:bg-slate-950/60 shadow-sm">
-            <table class="w-full text-left border-collapse text-xs">
+            <table id="host-table" class="w-full text-left border-collapse text-xs">
                 <thead>
                     <tr class="border-b border-slate-200 dark:border-slate-800 bg-slate-100/80 dark:bg-slate-900/80 text-slate-600 dark:text-slate-400 font-semibold uppercase tracking-wider text-[11px]">
                         <th class="py-3 px-3">{{t .Lang "col_ip_details"}}</th>
@@ -486,7 +481,7 @@
                             </div>
                         </td>
 
-                        <!-- Hostname (Hover Trigger) -->
+                        <!-- Hostname / User (Hover Trigger) -->
                         <td class="py-3 px-3 font-medium text-slate-800 dark:text-slate-200 cursor-pointer hover:text-blue-600 dark:hover:text-blue-400 transition-colors"
                             onmouseenter="showHostPopover(this, 'popover-{{.IPID}}')"
                             onmouseleave="hideHostPopover('popover-{{.IPID}}')">
@@ -499,15 +494,17 @@
                                 {{end}}
                             </div>
                             {{if .UserName}}
-                            <div class="text-[10px] text-blue-600 dark:text-blue-400 flex items-center space-x-1 mt-0.5" title="{{t $.Lang "col_user_owner"}}">
+                            <div class="text-[11px] text-blue-600 dark:text-blue-400 flex items-center space-x-1 mt-0.5" title="{{t $.Lang "col_user_owner"}}">
                                 <span>👤</span>
-                                <span class="font-medium truncate max-w-[140px]">{{.UserName}}</span>
+                                <span class="font-medium truncate max-w-[160px]">{{.UserName}}</span>
                             </div>
                             {{else if .UserHint}}
                             <div class="text-[10px] text-slate-500 dark:text-slate-400 flex items-center space-x-1 mt-0.5" title="{{t $.Lang "col_user_inferred"}}">
                                 <span>👤</span>
-                                <span class="italic truncate max-w-[140px]">({{.UserHint}})</span>
+                                <span class="italic truncate max-w-[160px]">({{.UserHint}})</span>
                             </div>
+                            {{else}}
+                            <div class="text-[10px] text-slate-400 dark:text-slate-600 mt-0.5 font-normal">-</div>
                             {{end}}
                         </td>
 
@@ -624,7 +621,7 @@
                         <td class="py-3 px-3 text-center" onclick="event.stopPropagation()">
                             <input type="checkbox" {{if .IsStaticIP}}checked{{end}}
                                    hx-post="/api/hosts/{{.IP}}/toggle_static?id={{.ID}}"
-                                   hx-target="#main-content" hx-swap="outerHTML"
+                                   hx-target="#main-content" hx-swap="morph:outerHTML"
                                    onclick="event.stopPropagation()"
                                    class="rounded bg-white dark:bg-slate-800 border-slate-300 dark:border-slate-700 text-blue-600 focus:ring-0 cursor-pointer">
                         </td>

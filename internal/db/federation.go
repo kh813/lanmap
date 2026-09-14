@@ -404,7 +404,7 @@ func (db *DB) UpsertRemoteHosts(agentID string, hosts []Host) error {
 		is_approved, is_protected, is_static_ip, is_dhcp,
 		is_monitored, is_paused, has_conflict,
 		first_seen, last_seen, ipv6_addresses,
-		user_name, user_hint, os_confidence, os_evidence
+		user_name, user_hint, os_confidence, os_evidence, manual_connection_type
 	) VALUES (
 		?, ?, ?, ?, ?, ?,
 		?, ?, ?, ?, ?,
@@ -413,7 +413,7 @@ func (db *DB) UpsertRemoteHosts(agentID string, hosts []Host) error {
 		?, ?, ?, ?,
 		?, ?, ?,
 		COALESCE(?, CURRENT_TIMESTAMP), CURRENT_TIMESTAMP, ?,
-		?, ?, ?, ?
+		?, ?, ?, ?, ?
 	)
 	ON CONFLICT(id) DO NOTHING
 	`
@@ -439,7 +439,7 @@ func (db *DB) UpsertRemoteHosts(agentID string, hosts []Host) error {
 				h.IsApproved, h.IsProtected, h.IsStaticIP, h.IsDHCP,
 				h.IsMonitored, h.IsPaused, h.HasConflict,
 				h.FirstSeen, h.IPv6Addresses,
-				h.UserName, h.UserHint, h.OSConfidence, h.OSEvidence,
+				h.UserName, h.UserHint, h.OSConfidence, h.OSEvidence, h.ManualConnectionType,
 			)
 			if err != nil {
 				return fmt.Errorf("failed to insert remote host %s: %w", h.IP, err)
@@ -461,7 +461,7 @@ func (db *DB) UpsertRemoteHosts(agentID string, hosts []Host) error {
 					h.IsApproved, h.IsProtected, h.IsStaticIP, h.IsDHCP,
 					h.IsMonitored, h.IsPaused, h.HasConflict,
 					time.Now(), h.IPv6Addresses,
-					h.UserName, h.UserHint, h.OSConfidence, h.OSEvidence,
+					h.UserName, h.UserHint, h.OSConfidence, h.OSEvidence, h.ManualConnectionType,
 				)
 				if err != nil {
 					return fmt.Errorf("failed to replace remote host %s: %w", h.IP, err)
@@ -493,6 +493,7 @@ func (db *DB) UpsertRemoteHosts(agentID string, hosts []Host) error {
 					user_hint = COALESCE(NULLIF(?, ''), user_hint),
 					os_confidence = COALESCE(NULLIF(?, ''), os_confidence),
 					os_evidence = COALESCE(NULLIF(?, ''), os_evidence),
+					manual_connection_type = CASE WHEN manual_connection_type IS NULL OR manual_connection_type = '' THEN ? ELSE manual_connection_type END,
 					last_seen = CURRENT_TIMESTAMP
 				WHERE id = ?
 				`
@@ -503,6 +504,7 @@ func (db *DB) UpsertRemoteHosts(agentID string, hosts []Host) error {
 					h.TLSSubject, h.TLSExpiry, h.MDNSModel, h.IsDHCP,
 					h.IPv6Addresses,
 					h.UserName, h.UserHint, h.OSConfidence, h.OSEvidence,
+					h.ManualConnectionType,
 					existingID,
 				)
 				if err != nil {

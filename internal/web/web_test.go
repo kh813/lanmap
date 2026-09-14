@@ -66,6 +66,13 @@ func TestWebRoutes(t *testing.T) {
 		t.Errorf("expected 200 for /static/htmx.min.js, got %d", rec.Code)
 	}
 
+	req = httptest.NewRequest("GET", "/static/idiomorph-ext.min.js", nil)
+	rec = httptest.NewRecorder()
+	router.ServeHTTP(rec, req)
+	if rec.Code != http.StatusOK {
+		t.Errorf("expected 200 for /static/idiomorph-ext.min.js, got %d", rec.Code)
+	}
+
 	// 2. Test Main Index
 	req = httptest.NewRequest("GET", "/", nil)
 	rec = httptest.NewRecorder()

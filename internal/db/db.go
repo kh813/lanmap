@@ -99,6 +99,7 @@ func (db *DB) migrate() error {
 		user_hint VARCHAR(255) DEFAULT '',
 		os_confidence VARCHAR(20) DEFAULT '',
 		os_evidence TEXT DEFAULT '',
+		manual_connection_type VARCHAR(20) DEFAULT '',
 		FOREIGN KEY (segment_id) REFERENCES segments(id) ON DELETE SET NULL
 	);
 
@@ -307,6 +308,7 @@ func (db *DB) migrate() error {
 	_, _ = db.Exec("ALTER TABLE hosts ADD COLUMN user_hint VARCHAR(255) DEFAULT '';")
 	_, _ = db.Exec("ALTER TABLE hosts ADD COLUMN os_confidence VARCHAR(20) DEFAULT '';")
 	_, _ = db.Exec("ALTER TABLE hosts ADD COLUMN os_evidence TEXT DEFAULT '';")
+	_, _ = db.Exec("ALTER TABLE hosts ADD COLUMN manual_connection_type VARCHAR(20) DEFAULT '';")
 	_, _ = db.Exec("ALTER TABLE whitelist_entries ADD COLUMN user_name VARCHAR(255) DEFAULT '';")
 
 	return nil

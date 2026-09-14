@@ -8,6 +8,7 @@
     <link rel="alternate icon" href="/static/favicon.ico">
     <link rel="apple-touch-icon" href="/static/favicon.svg">
     <script src="/static/htmx.min.js"></script>
+    <script src="/static/idiomorph-ext.min.js"></script>
     <script src="https://cdn.tailwindcss.com"></script>
     <script>
         tailwind.config = {
@@ -51,12 +52,61 @@
             window.location.reload();
         }
 
+        let savedTableScrollTop = 0;
+        let savedTableScrollLeft = 0;
+        let isInternalScrollRestoring = false;
+
         // Allow htmx to swap response HTML on validation errors (HTTP 400 / 422)
         document.addEventListener('DOMContentLoaded', function() {
             document.body.addEventListener('htmx:beforeOnLoad', function (evt) {
                 if (evt.detail.xhr.status === 400 || evt.detail.xhr.status === 422) {
                     evt.detail.shouldSwap = true;
                     evt.detail.isError = false;
+                }
+            });
+
+            // Before any HTMX swap, save scroll position of host table if target is or contains main-content
+            document.body.addEventListener('htmx:beforeSwap', function (evt) {
+                const target = evt.detail.target;
+                const trigger = evt.detail.elt;
+                // If user deliberately clicked a sidebar segment link, reset saved scroll to 0
+                if (trigger && (trigger.closest('#sidebar-container') || trigger.classList.contains('segment-tab'))) {
+                    savedTableScrollTop = 0;
+                    savedTableScrollLeft = 0;
+                    return;
+                }
+                if (target && (target.id === 'main-content' || target.querySelector('#main-content') || target.closest('#main-content'))) {
+                    const container = document.getElementById('host-table-scroll-container');
+                    if (container) {
+                        savedTableScrollTop = container.scrollTop;
+                        savedTableScrollLeft = container.scrollLeft;
+                    }
+                }
+            });
+
+            // After HTMX morph/swap, restore scroll position smoothly and maintain active state
+            document.body.addEventListener('htmx:afterSettle', function (evt) {
+                const target = evt.detail.target;
+                if (target && (target.id === 'main-content' || target.querySelector('#main-content') || target.closest('#main-content'))) {
+                    const container = document.getElementById('host-table-scroll-container');
+                    if (container && savedTableScrollTop > 0) {
+                        isInternalScrollRestoring = true;
+                        container.scrollTop = savedTableScrollTop;
+                        container.scrollLeft = savedTableScrollLeft;
+                        setTimeout(function() { isInternalScrollRestoring = false; }, 100);
+                    }
+                    // Keep active hover popover visible if user is currently hovering over it
+                    if (activePopoverId) {
+                        const popover = document.getElementById(activePopoverId);
+                        if (popover) {
+                            popover.classList.remove('hidden');
+                            popover.style.display = 'block';
+                        }
+                    }
+                    // Re-apply any active client-side column filters
+                    if (typeof applyColumnFilters === 'function') {
+                        applyColumnFilters();
+                    }
                 }
             });
         });
@@ -71,7 +121,7 @@
         .htmx-request.htmx-indicator { display: inline-block; }
     </style>
 </head>
-<body class="h-full flex overflow-hidden font-sans antialiased text-sm bg-slate-50 text-slate-800 dark:bg-slate-900 dark:text-slate-100 transition-colors duration-150">
+<body hx-ext="morph" class="h-full flex overflow-hidden font-sans antialiased text-sm bg-slate-50 text-slate-800 dark:bg-slate-900 dark:text-slate-100 transition-colors duration-150">
 
     <!-- Left Sidebar -->
     <aside id="sidebar-container" class="w-64 flex-shrink-0 bg-white border-r border-slate-200 dark:bg-slate-950 dark:border-slate-800 flex flex-col justify-between"
@@ -83,7 +133,7 @@
     <main class="flex-1 flex flex-col min-w-0 bg-slate-50 dark:bg-slate-900 overflow-hidden">
         <!-- Main Content (Table) -->
         <div id="main-content" class="flex-1 overflow-y-auto p-6"
-             hx-get="/partials/main_table" hx-trigger="load, refreshMainTable from:body" hx-swap="outerHTML">
+             hx-get="/partials/main_table" hx-trigger="load, refreshMainTable from:body" hx-swap="morph:outerHTML">
             <div class="flex items-center justify-center h-64 text-slate-400">
                 <svg class="animate-spin h-6 w-6 mr-3 text-blue-500" viewBox="0 0 24 24">
                     <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4" fill="none"></circle>
@@ -171,8 +221,14 @@
             }
         }
 
-        // Hide floating popover when scrolling main table
-        window.addEventListener('scroll', function() { hideHostPopover(); }, true);
+        // Hide floating popover when user manually scrolls main table (ignore automated morph scroll restoration)
+        window.addEventListener('scroll', function(e) {
+            if (isInternalScrollRestoring) return;
+            if (activePopoverId && e.target && e.target.closest && e.target.closest('#' + activePopoverId)) {
+                return;
+            }
+            hideHostPopover();
+        }, true);
     </script>
 </body>
 </html>

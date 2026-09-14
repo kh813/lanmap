@@ -45,13 +45,13 @@ func TestDetectLanguage(t *testing.T) {
 
 func TestT(t *testing.T) {
 	// English translation
-	if got := T("en", "col_hostname"); got != "Hostname" {
-		t.Errorf("expected Hostname, got %s", got)
+	if got := T("en", "col_hostname"); got != "Hostname / User" {
+		t.Errorf("expected Hostname / User, got %s", got)
 	}
 
 	// Japanese translation
-	if got := T("ja", "col_hostname"); got != "ホスト名" {
-		t.Errorf("expected ホスト名, got %s", got)
+	if got := T("ja", "col_hostname"); got != "ホスト名 / ユーザー" {
+		t.Errorf("expected ホスト名 / ユーザー, got %s", got)
 	}
 
 	// Formatting with args

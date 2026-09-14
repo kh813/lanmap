@@ -674,7 +674,7 @@ func (h *Handler) HandleToggleStaticIP(w http.ResponseWriter, r *http.Request, i
 		http.Error(w, "Host not found", http.StatusNotFound)
 		return
 	}
-	_ = h.db.UpdateHostManualByID(host.ID, host.DisplayName, host.VendorModel, host.UserName, !host.IsStaticIP, host.IgnoredPorts)
+	_ = h.db.UpdateHostManualByID(host.ID, host.DisplayName, host.VendorModel, host.UserName, !host.IsStaticIP, host.IgnoredPorts, host.ManualConnectionType)
 	h.HandleMainTablePartial(w, r)
 }
 
@@ -686,6 +686,10 @@ func (h *Handler) HandleUpdateHost(w http.ResponseWriter, r *http.Request, ip st
 	userName := strings.TrimSpace(r.FormValue("user_name"))
 	isStaticIP := r.FormValue("is_static_ip") == "true"
 	ignoredPorts := strings.TrimSpace(r.FormValue("ignored_ports"))
+	manualConnectionType := strings.TrimSpace(r.FormValue("connection_type"))
+	if manualConnectionType != "ethernet" && manualConnectionType != "wifi" {
+		manualConnectionType = ""
+	}
 
 	host, err := h.getHostFromRequest(r, ip)
 	if err != nil || host == nil {
@@ -693,7 +697,7 @@ func (h *Handler) HandleUpdateHost(w http.ResponseWriter, r *http.Request, ip st
 		return
 	}
 
-	_ = h.db.UpdateHostManualByID(host.ID, displayName, vendorModel, userName, isStaticIP, ignoredPorts)
+	_ = h.db.UpdateHostManualByID(host.ID, displayName, vendorModel, userName, isStaticIP, ignoredPorts, manualConnectionType)
 	h.HandleMainTablePartial(w, r)
 }
 
@@ -734,14 +738,20 @@ func (h *Handler) HandleCreateHost(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 
+	connType := strings.TrimSpace(r.FormValue("connection_type"))
+	if connType != "ethernet" && connType != "wifi" {
+		connType = ""
+	}
+
 	host := &db.Host{
-		IP:          ip,
-		SegmentID:   segID,
-		DisplayName: strings.TrimSpace(r.FormValue("display_name")),
-		VendorModel: strings.TrimSpace(r.FormValue("vendor_model")),
-		IsApproved:  r.FormValue("is_approved") == "true",
-		IsStaticIP:  r.FormValue("is_static_ip") == "true",
-		Status:      "up",
+		IP:                   ip,
+		SegmentID:            segID,
+		DisplayName:          strings.TrimSpace(r.FormValue("display_name")),
+		VendorModel:          strings.TrimSpace(r.FormValue("vendor_model")),
+		ManualConnectionType: connType,
+		IsApproved:           r.FormValue("is_approved") == "true",
+		IsStaticIP:           r.FormValue("is_static_ip") == "true",
+		Status:               "up",
 	}
 
 	if err := h.db.CreateManualHost(host); err != nil {

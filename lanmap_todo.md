@@ -762,3 +762,68 @@
   - [x] `lanmap_todo.md`: Phase 31 完了チェック
   - [x] `go test ./...` 100% PASS
   - [x] `make build` 完了
+
+---
+
+### 🔹 Phase 32: 接続形態判定の適正化（デフォルト有線LAN推定 & 確定Wi-Fi判定）および手動指定機能 (完了)
+- [x] **32.1 判定モデルの再構築 (`internal/db/host.go`)**
+  - [x] Ping RTT/ジッターによるWi-Fi誤断定ロジック（RTT ≥ 1.5ms）を撤廃
+  - [x] 「デフォルトは有線LAN（`ethernet`）と推定し、モバイル機器・スマート家電/IoT・ランダムMAC等の確定Wi-FiシグナルのみをWi-Fi判定」する判定モデルを導入
+  - [x] 判定理由（`ConnectionReason`）を更新（`手動指定`, `モバイル機器`, `スマート家電/IoT`, `ランダムMAC (Wi-Fi)`, `超低遅延有線 (<0.8ms)`, `有線LAN (標準)` 等）
+- [x] **32.2 接続形態の手動指定（管理者上書き）機能 (`internal/db`, `internal/web`, `web/template`)**
+  - [x] `hosts` テーブルに `manual_connection_type` カラム追加 & 自動マイグレーション (`migrateDB`)
+  - [x] `Host` 構造体に `ManualConnectionType` フィールド追加
+  - [x] `UpdateHostManualByID` / `UpdateHostManual` / `UpsertHostOnScan` / `CreateManualHost` / `scanHost` / SELECT クエリの更新
+  - [x] 巡回スキャン時に手動指定値が上書きされない永続保持設計
+  - [x] 拠点フェデレーション（`UpsertRemoteHosts`）同期対応
+  - [x] ホスト編集モーダル (`edit_host_modal.html`) に「接続形態（自動判定 / 🔌 有線LAN / 📶 Wi-Fi）」ドロップダウン選択フォームを追加
+  - [x] `handler.go` (`HandleUpdateHost`, `HandleToggleStaticIP`, `HandleCreateHost`) でのパラメーター受取・保存
+- [x] **32.3 テスト & ビルド検証**
+  - [x] `TestConnectionTypeDetection` 更新（有線PC 4.5ms での有線LAN維持、手動上書きテスト追加）
+  - [x] `TestManualConnectionTypePersistence` 実装（手動指定の保存 & スキャン後の保持確認）
+  - [x] `go test ./...` 100% PASS
+  - [x] `lanmap_design.md`, `README.md`, `lanmap_todo.md` ドキュメント更新
+  - [x] `make build` 完了
+
+---
+
+### 🔹 Phase 33: UI改善（表示期間フィルター整理 & 「ホスト名 / ユーザー」2行表示） (完了)
+- [x] **33.1 表示期間フィルターの重複解消 (`web/template/partials/main_table.html`)**
+  - [x] 「すべて」と実質的に同等になりやすい冗長な「直近7日」ボタンを撤廃
+  - [x] `[ 🟢 オンラインのみ ]` `[ 🕒 直近3日 ]` `[ 📋 すべて ]` の直感的かつシンプルな3ボタン構成に整理
+- [x] **33.2 「ホスト名 / ユーザー」列名変更 & 2行常時整列表示 (`internal/i18n`, `web/template`)**
+  - [x] 列ヘッダー辞書キー `col_hostname` を「ホスト名 / ユーザー」（EN: "Hostname / User"）に更新
+  - [x] 列フィルターのプレースホルダー `filter_hostname_ph` を「ホスト名 / ユーザー...」（EN: "Hostname / User..."）に更新
+  - [x] セル内描画を2行構成に刷新（1行目: ホスト名 / 2行目: 利用者・所有者名 `👤` または推定ヒント、未設定時は `-`）
+  - [x] 1列目（IP / MAC）と同様に全行の高さが美しく揃うようにレイアウトを統一
+- [x] **33.3 テスト・ビルド・ドキュメント更新**
+  - [x] `i18n_test.go` の翻訳テスト更新 & PASS
+  - [x] 全体テスト (`go test ./...`) 100% PASS
+  - [x] `lanmap_design.md`, `README.md`, `lanmap_todo.md` 反映
+  - [x] `make build` 完了
+
+---
+
+### 🔹 Phase 34: 一覧自動更新時のスクロール位置およびホバー・フォーカス保持（Idiomorph DOM Morphing導入） (完了)
+- [x] **34.1 Idiomorph 拡張ライブラリのローカル内包 (`web/static/idiomorph-ext.min.js`, `web/embed.go`)**
+  - [x] 単一バイナリ・完全自己完結ポリシー（外部CDN非依存・Air-gapped対応）に基づき、Idiomorph HTMX拡張を `web/static/` に内包・バイナリへ組み込み
+- [x] **34.2 全体テンプレート (`web/template/index.html`)**
+  - [x] `<script src="/static/idiomorph-ext.min.js"></script>` の読み込み
+  - [x] `<body hx-ext="morph">` でモーフィング拡張を有効化
+  - [x] `htmx:beforeSwap` および `htmx:afterSettle` によるスクロールコンテナ位置（`scrollTop`, `scrollLeft`）の自動記録・復元ガード
+  - [x] ホスト詳細ポップオーバー（ホバーカード）閲覧中の自動更新時におけるカード非表示防止・表示維持保護ロジック
+- [x] **34.3 パーシャルテンプレート (`web/template/partials`)**
+  - [x] `main_table.html`:
+    - 最外殻コンテナの更新トリガーを `hx-swap="morph:outerHTML"` に変更
+    - スクロールコンテナに `id="host-table-scroll-container"` を付与
+    - テーブル要素に `id="host-table"` を付与
+    - 固定IPチェックボックスの `hx-swap="morph:outerHTML"` 対応
+  - [x] `action_menu.html`: 各操作ボタン（承認/未承認、保護、DHCP、スキャン、削除）を `hx-swap="morph:outerHTML"` に更新
+  - [x] `edit_host_modal.html`: 編集フォーム送信を `hx-swap="morph:outerHTML"` に更新
+- [x] **34.4 テスト・ビルド・ドキュメント更新**
+  - [x] 静的アセット配信テスト (`internal/web/web_test.go`) に `idiomorph-ext.min.js` を追加
+  - [x] `go test ./...` 100% PASS
+  - [x] `lanmap_design.md`: 第3節、第6.3節にDOM Morphing仕様を追記
+  - [x] `lanmap_todo.md`: Phase 34 完了チェック
+  - [x] `make build` 完了
+

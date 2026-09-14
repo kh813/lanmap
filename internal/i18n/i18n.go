@@ -149,7 +149,7 @@ var translations = map[string]map[string]string{
 
 		// Table Columns
 		"col_ip_details":   "IP Address / Details",
-		"col_hostname":     "Hostname",
+		"col_hostname":     "Hostname / User",
 		"col_display_name": "Display Name",
 		"col_vendor_model": "Vendor / Model",
 		"col_os":           "Estimated OS",
@@ -166,7 +166,7 @@ var translations = map[string]map[string]string{
 		// Column Filters
 		"filter_all":                 "All",
 		"filter_ip_ph":               "IP / MAC...",
-		"filter_hostname_ph":         "Hostname...",
+		"filter_hostname_ph":         "Hostname / User...",
 		"filter_display_ph":          "Display Name...",
 		"filter_vendor_ph":           "Vendor / Model...",
 		"filter_clear_btn":           "Reset",
@@ -605,7 +605,7 @@ var translations = map[string]map[string]string{
 
 		// Table Columns
 		"col_ip_details":   "IPアドレス / 詳細",
-		"col_hostname":     "ホスト名",
+		"col_hostname":     "ホスト名 / ユーザー",
 		"col_display_name": "表示名",
 		"col_vendor_model": "メーカー / モデル",
 		"col_os":           "推定OS",
@@ -622,7 +622,7 @@ var translations = map[string]map[string]string{
 		// Column Filters
 		"filter_all":                 "すべて",
 		"filter_ip_ph":               "IP / MAC...",
-		"filter_hostname_ph":         "ホスト名...",
+		"filter_hostname_ph":         "ホスト名 / ユーザー...",
 		"filter_display_ph":          "表示名...",
 		"filter_vendor_ph":           "メーカー/型番...",
 		"filter_clear_btn":           "リセット",

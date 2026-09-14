@@ -392,14 +392,16 @@ func (s *Scanner) scanSegmentInternal(ctx context.Context, seg *db.Segment) ([]*
 			staticIP := false
 			ignored := ""
 			existingUserName := userName
+			existingConnType := ""
 			if existingHost, _ := s.db.GetHost(ipStr); existingHost != nil {
 				staticIP = existingHost.IsStaticIP
 				ignored = existingHost.IgnoredPorts
 				if existingUserName == "" {
 					existingUserName = existingHost.UserName
 				}
+				existingConnType = existingHost.ManualConnectionType
 			}
-			_ = s.db.UpdateHostManual(ipStr, displayName, vendor, existingUserName, staticIP, ignored)
+			_ = s.db.UpdateHostManual(ipStr, displayName, vendor, existingUserName, staticIP, ignored, existingConnType)
 			_, _ = s.db.Exec("UPDATE hosts SET is_approved = 1 WHERE ip = ?", ipStr)
 		}
 

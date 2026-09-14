@@ -670,6 +670,9 @@ func TestConnectionTypeDetection(t *testing.T) {
 	if h2.ConnectionType() != "wifi" {
 		t.Errorf("expected h2 wifi, got %s", h2.ConnectionType())
 	}
+	if h2.ConnectionReason() != "ランダムMAC (Wi-Fi)" {
+		t.Errorf("expected randomized MAC reason, got %s", h2.ConnectionReason())
+	}
 
 	// 3. Infrastructure (OpenWrt / Synology) -> Ethernet
 	h3 := &Host{
@@ -689,19 +692,25 @@ func TestConnectionTypeDetection(t *testing.T) {
 	if h4.ConnectionType() != "ethernet" {
 		t.Errorf("expected h4 ethernet, got %s", h4.ConnectionType())
 	}
+	if h4.ConnectionReason() != "超低遅延有線 (<0.8ms)" {
+		t.Errorf("expected ultra low latency reason, got %s", h4.ConnectionReason())
+	}
 
-	// 5. Higher latency Wi-Fi (>1.5ms) -> Wi-Fi
+	// 5. Higher latency wired device (4.5ms) without Wi-Fi signature -> Ethernet (default)
 	rttSlow := 4.5
 	jitterSlow := 1.2
 	h5 := &Host{
 		PingRTTMs:    &rttSlow,
 		PingJitterMs: &jitterSlow,
 	}
-	if h5.ConnectionType() != "wifi" {
-		t.Errorf("expected h5 wifi, got %s", h5.ConnectionType())
+	if h5.ConnectionType() != "ethernet" {
+		t.Errorf("expected h5 ethernet (default), got %s", h5.ConnectionType())
+	}
+	if h5.ConnectionReason() != "有線LAN (標準)" {
+		t.Errorf("expected standard wired reason, got %s", h5.ConnectionReason())
 	}
 
-	// 6. Network Infrastructure (Netgear AP / Router) -> Ethernet (overrides Wi-Fi jitter)
+	// 6. Network Infrastructure (Netgear AP / Router) -> Ethernet
 	h6 := &Host{
 		VendorModel:  "Netgear",
 		PingRTTMs:    &rttSlow,
@@ -712,6 +721,31 @@ func TestConnectionTypeDetection(t *testing.T) {
 	}
 	if h6.ConnectionReason() != "ネットワーク機器 (AP/ルーター)" {
 		t.Errorf("expected network device reason, got %s", h6.ConnectionReason())
+	}
+
+	// 7. Manual Override: Force Wi-Fi on PC
+	h7 := &Host{
+		Hostname:             "desktop-pc",
+		ManualConnectionType: "wifi",
+	}
+	if h7.ConnectionType() != "wifi" {
+		t.Errorf("expected h7 wifi via manual override, got %s", h7.ConnectionType())
+	}
+	if h7.ConnectionReason() != "手動指定 (Wi-Fi)" {
+		t.Errorf("expected manual wifi reason, got %s", h7.ConnectionReason())
+	}
+
+	// 8. Manual Override: Force Ethernet on iPhone
+	h8 := &Host{
+		Hostname:             "iphone.local",
+		MDNSModel:            "iPhone 16 Pro",
+		ManualConnectionType: "ethernet",
+	}
+	if h8.ConnectionType() != "ethernet" {
+		t.Errorf("expected h8 ethernet via manual override, got %s", h8.ConnectionType())
+	}
+	if h8.ConnectionReason() != "手動指定 (有線LAN)" {
+		t.Errorf("expected manual ethernet reason, got %s", h8.ConnectionReason())
 	}
 }
 
@@ -1266,6 +1300,57 @@ generic,TCP,12345,OnlyOne,Only port,true
 	restoredPorts, _ := db.ListCustomPorts("")
 	if len(restoredPorts) != len(BuiltinDefaultPorts) {
 		t.Errorf("expected restored ports %d, got %d", len(BuiltinDefaultPorts), len(restoredPorts))
+	}
+}
+
+func TestManualConnectionTypePersistence(t *testing.T) {
+	db := setupTestDB(t)
+
+	host := &Host{
+		IP:         "192.168.1.50",
+		MACAddress: "00:11:22:33:44:55",
+		Hostname:   "test-pc",
+		Status:     "up",
+	}
+	_, _, err := db.UpsertHostOnScan(host)
+	if err != nil {
+		t.Fatalf("UpsertHostOnScan failed: %v", err)
+	}
+
+	saved, err := db.GetHost("192.168.1.50")
+	if err != nil || saved == nil {
+		t.Fatalf("GetHost failed: %v", err)
+	}
+	if saved.ConnectionType() != "ethernet" {
+		t.Errorf("expected default ethernet, got %s", saved.ConnectionType())
+	}
+
+	// Update to manual Wi-Fi
+	err = db.UpdateHostManualByID(saved.ID, saved.DisplayName, saved.VendorModel, saved.UserName, saved.IsStaticIP, saved.IgnoredPorts, "wifi")
+	if err != nil {
+		t.Fatalf("UpdateHostManualByID failed: %v", err)
+	}
+
+	saved2, err := db.GetHostByID(saved.ID)
+	if err != nil || saved2 == nil {
+		t.Fatalf("GetHostByID failed: %v", err)
+	}
+	if saved2.ManualConnectionType != "wifi" {
+		t.Errorf("expected manual_connection_type wifi, got %s", saved2.ManualConnectionType)
+	}
+	if saved2.ConnectionType() != "wifi" {
+		t.Errorf("expected ConnectionType wifi, got %s", saved2.ConnectionType())
+	}
+
+	// Subsequent scan should NOT overwrite manual_connection_type
+	host.Status = "up"
+	_, _, err = db.UpsertHostOnScan(host)
+	if err != nil {
+		t.Fatalf("subsequent UpsertHostOnScan failed: %v", err)
+	}
+	saved3, _ := db.GetHost("192.168.1.50")
+	if saved3.ManualConnectionType != "wifi" {
+		t.Errorf("manual_connection_type was overwritten by scan: got %s", saved3.ManualConnectionType)
 	}
 }
 

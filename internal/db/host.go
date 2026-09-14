@@ -66,9 +66,10 @@ type Host struct {
 	IPv6Addresses    string        `json:"ipv6_addresses"`
 	UserName         string        `json:"user_name"`
 	UserHint         string        `json:"user_hint"`
-	OSConfidence     string        `json:"os_confidence"`
-	OSEvidence       string        `json:"os_evidence"`
-	IsPreviousHost   bool          `json:"-"`
+	OSConfidence         string        `json:"os_confidence"`
+	OSEvidence           string        `json:"os_evidence"`
+	ManualConnectionType string        `json:"manual_connection_type"`
+	IsPreviousHost       bool          `json:"-"`
 	PingChartSVG     template.HTML `json:"-"`
 	UptimeBlocksSVG  template.HTML `json:"-"`
 	PingStats7d      string        `json:"-"`
@@ -732,7 +733,15 @@ func (h *Host) IsRandomizedMAC() bool {
 
 // ConnectionType returns "wifi", "ethernet", or "unknown"
 func (h *Host) ConnectionType() string {
-	combined := strings.ToLower(h.Hostname + " " + h.MDNSModel + " " + h.VendorModel + " " + h.UPnPName + " " + h.DisplayName)
+	// 0. Manual override by administrator takes highest priority
+	if h.ManualConnectionType == "ethernet" {
+		return "ethernet"
+	}
+	if h.ManualConnectionType == "wifi" {
+		return "wifi"
+	}
+
+	combined := strings.ToLower(h.Hostname + " " + h.MDNSModel + " " + h.VendorModel + " " + h.UPnPName + " " + h.DisplayName + " " + h.UserHint + " " + h.OSVendor)
 
 	// 1. Definite mobile / wireless-only device classes
 	if strings.Contains(combined, "iphone") ||
@@ -741,14 +750,17 @@ func (h *Host) ConnectionType() string {
 		strings.Contains(combined, "galaxy") ||
 		strings.Contains(combined, "pixel") ||
 		strings.Contains(combined, "android") ||
+		strings.Contains(combined, "ios") ||
 		strings.Contains(combined, "google home") ||
 		strings.Contains(combined, "nest") ||
 		strings.Contains(combined, "echo") ||
 		strings.Contains(combined, "homepod") ||
 		strings.Contains(combined, "cast") ||
+		strings.Contains(combined, "chromecast") ||
 		strings.Contains(combined, "espressif") ||
 		strings.Contains(combined, "tuya") ||
 		strings.Contains(combined, "shelly") ||
+		strings.Contains(combined, "switchbot") ||
 		strings.Contains(combined, "switch") ||
 		strings.Contains(combined, "airplay") {
 		return "wifi"
@@ -759,41 +771,8 @@ func (h *Host) ConnectionType() string {
 		return "wifi"
 	}
 
-	// 3. Known wired infrastructure (Routers, Gateways, Managed Switches, NAS, Hypervisors, Network APs)
-	if strings.Contains(combined, "openwrt") ||
-		strings.Contains(combined, "luci") ||
-		strings.Contains(combined, "synology") ||
-		strings.Contains(combined, "qnap") ||
-		strings.Contains(combined, "truenas") ||
-		strings.Contains(combined, "proxmox") ||
-		strings.Contains(combined, "esxi") ||
-		strings.Contains(combined, "netgear") ||
-		strings.Contains(combined, "cisco") ||
-		strings.Contains(combined, "ubiquiti") ||
-		strings.Contains(combined, "unifi") ||
-		strings.Contains(combined, "yamaha") ||
-		strings.Contains(combined, "fortinet") ||
-		strings.Contains(combined, "mikrotik") ||
-		strings.Contains(combined, "allied telesis") ||
-		strings.Contains(combined, "juniper") ||
-		strings.Contains(combined, "aruba") ||
-		strings.Contains(combined, "router") ||
-		strings.Contains(combined, "access point") ||
-		strings.Contains(combined, "server") {
-		return "ethernet"
-	}
-
-	// 4. Ping latency & jitter statistical signature
-	if h.PingRTTMs != nil && *h.PingRTTMs >= 0 {
-		if *h.PingRTTMs < 0.8 && (h.PingJitterMs == nil || *h.PingJitterMs < 0.2) {
-			return "ethernet"
-		}
-		if *h.PingRTTMs >= 1.5 || (h.PingJitterMs != nil && *h.PingJitterMs >= 0.4) {
-			return "wifi"
-		}
-	}
-
-	return "unknown"
+	// 3. Default to Ethernet (wired LAN) for all other devices (PCs, servers, printers, network infrastructure, etc.)
+	return "ethernet"
 }
 
 // ConnectionLabel returns user-friendly label (e.g. "📶 Wi-Fi", "🔌 有線LAN")
@@ -822,29 +801,36 @@ func (h *Host) ConnectionBadgeClass() string {
 
 // ConnectionReason returns human-readable explanation of why this connection type was determined
 func (h *Host) ConnectionReason() string {
-	combined := strings.ToLower(h.Hostname + " " + h.MDNSModel + " " + h.VendorModel + " " + h.UPnPName + " " + h.DisplayName)
-	if strings.Contains(combined, "iphone") || strings.Contains(combined, "ipad") || strings.Contains(combined, "watch") || strings.Contains(combined, "galaxy") {
+	if h.ManualConnectionType == "ethernet" {
+		return "手動指定 (有線LAN)"
+	}
+	if h.ManualConnectionType == "wifi" {
+		return "手動指定 (Wi-Fi)"
+	}
+
+	combined := strings.ToLower(h.Hostname + " " + h.MDNSModel + " " + h.VendorModel + " " + h.UPnPName + " " + h.DisplayName + " " + h.UserHint + " " + h.OSVendor)
+	if strings.Contains(combined, "iphone") || strings.Contains(combined, "ipad") || strings.Contains(combined, "watch") || strings.Contains(combined, "galaxy") || strings.Contains(combined, "pixel") || strings.Contains(combined, "android") || strings.Contains(combined, "ios") {
 		return "モバイル機器"
 	}
-	if strings.Contains(combined, "google home") || strings.Contains(combined, "cast") || strings.Contains(combined, "espressif") {
+	if strings.Contains(combined, "google home") || strings.Contains(combined, "nest") || strings.Contains(combined, "echo") || strings.Contains(combined, "homepod") || strings.Contains(combined, "cast") || strings.Contains(combined, "chromecast") || strings.Contains(combined, "espressif") || strings.Contains(combined, "tuya") || strings.Contains(combined, "shelly") || strings.Contains(combined, "switchbot") || strings.Contains(combined, "switch") {
 		return "スマート家電/IoT"
 	}
 	if h.IsRandomizedMAC() {
-		return "ランダムMAC"
+		return "ランダムMAC (Wi-Fi)"
 	}
-	if strings.Contains(combined, "netgear") || strings.Contains(combined, "cisco") || strings.Contains(combined, "yamaha") || strings.Contains(combined, "ubiquiti") || strings.Contains(combined, "router") || strings.Contains(combined, "access point") {
+	if strings.Contains(combined, "netgear") || strings.Contains(combined, "cisco") || strings.Contains(combined, "yamaha") || strings.Contains(combined, "ubiquiti") || strings.Contains(combined, "router") || strings.Contains(combined, "access point") || strings.Contains(combined, "allied") || strings.Contains(combined, "juniper") || strings.Contains(combined, "fortinet") || strings.Contains(combined, "aruba") {
 		return "ネットワーク機器 (AP/ルーター)"
 	}
-	if strings.Contains(combined, "openwrt") || strings.Contains(combined, "synology") || strings.Contains(combined, "server") {
-		return "固定インフラ"
+	if strings.Contains(combined, "openwrt") || strings.Contains(combined, "synology") || strings.Contains(combined, "qnap") || strings.Contains(combined, "server") || strings.Contains(combined, "proxmox") || strings.Contains(combined, "esxi") || strings.Contains(combined, "truenas") {
+		return "固定インフラ/サーバー"
 	}
-	if h.PingRTTMs != nil && *h.PingRTTMs < 0.8 {
-		return "超低遅延 (<0.8ms)"
+	if strings.Contains(combined, "printer") || strings.Contains(combined, "canon") || strings.Contains(combined, "epson") || strings.Contains(combined, "brother") || strings.Contains(combined, "ricoh") || strings.Contains(combined, "fuji") {
+		return "プリンター/複合機"
 	}
-	if h.PingRTTMs != nil && *h.PingRTTMs >= 1.5 {
-		return "遅延/ジッター特性"
+	if h.PingRTTMs != nil && *h.PingRTTMs < 0.8 && (h.PingJitterMs == nil || *h.PingJitterMs < 0.2) {
+		return "超低遅延有線 (<0.8ms)"
 	}
-	return "推定"
+	return "有線LAN (標準)"
 }
 
 // SearchKeywords returns a consolidated lowercase string of all searchable attributes of the host
@@ -915,7 +901,7 @@ func (db *DB) UpsertHostOnScan(h *Host) (isNew bool, isReplaced bool, err error)
 			is_approved, is_protected, is_static_ip, is_dhcp,
 			is_monitored, is_paused, has_conflict, kuma_name, uptime_kuma_id,
 			first_seen, last_seen, ipv6_addresses,
-			user_name, user_hint, os_confidence, os_evidence
+			user_name, user_hint, os_confidence, os_evidence, manual_connection_type
 		) VALUES (
 			?, ?, ?, ?, ?, ?,
 			?, ?, ?, ?, 100.0,
@@ -924,7 +910,7 @@ func (db *DB) UpsertHostOnScan(h *Host) (isNew bool, isReplaced bool, err error)
 			?, 0, 0, ?,
 			0, 0, 0, '', NULL,
 			?, ?, ?,
-			?, ?, ?, ?
+			?, ?, ?, ?, ?
 		)
 		`
 		status := h.Status
@@ -937,7 +923,7 @@ func (db *DB) UpsertHostOnScan(h *Host) (isNew bool, isReplaced bool, err error)
 			h.OpenPorts, h.HTTPTitle, h.UPnPName, h.UPnPModel, h.UPnPSerial,
 			h.TLSSubject, h.TLSExpiry, h.MDNSModel,
 			h.IsApproved, h.IsDHCP, now, now, initialIPv6,
-			h.UserName, h.UserHint, h.OSConfidence, h.OSEvidence,
+			h.UserName, h.UserHint, h.OSConfidence, h.OSEvidence, h.ManualConnectionType,
 		)
 		return true, isReplaced, err
 	}
@@ -1129,7 +1115,7 @@ func (db *DB) GetHost(ip string) (*Host, error) {
 		is_approved, is_protected, is_static_ip, is_dhcp,
 		is_monitored, is_paused, has_conflict, kuma_name, uptime_kuma_id,
 		first_seen, last_seen, last_port_scan, next_port_scan, ignored_ports, agent_id, ipv6_addresses,
-		user_name, user_hint, os_confidence, os_evidence
+		user_name, user_hint, os_confidence, os_evidence, manual_connection_type
 	FROM hosts
 	WHERE ip = ?
 	ORDER BY CASE WHEN status = 'up' THEN 0 ELSE 1 END, last_seen DESC
@@ -1156,7 +1142,7 @@ func (db *DB) GetHost(ip string) (*Host, error) {
 			is_approved, is_protected, is_static_ip, is_dhcp,
 			is_monitored, is_paused, has_conflict, kuma_name, uptime_kuma_id,
 			first_seen, last_seen, last_port_scan, next_port_scan, ignored_ports, agent_id, ipv6_addresses,
-			user_name, user_hint, os_confidence, os_evidence
+			user_name, user_hint, os_confidence, os_evidence, manual_connection_type
 		FROM hosts
 		WHERE instr(LOWER(ipv6_addresses), ?) > 0
 		ORDER BY CASE WHEN status = 'up' THEN 0 ELSE 1 END, last_seen DESC
@@ -1185,7 +1171,7 @@ func (db *DB) GetHostByID(id int64) (*Host, error) {
 		is_approved, is_protected, is_static_ip, is_dhcp,
 		is_monitored, is_paused, has_conflict, kuma_name, uptime_kuma_id,
 		first_seen, last_seen, last_port_scan, next_port_scan, ignored_ports, agent_id, ipv6_addresses,
-		user_name, user_hint, os_confidence, os_evidence
+		user_name, user_hint, os_confidence, os_evidence, manual_connection_type
 	FROM hosts
 	WHERE id = ?
 	`
@@ -1208,7 +1194,7 @@ func (db *DB) GetHostByMAC(mac string) (*Host, error) {
 		is_approved, is_protected, is_static_ip, is_dhcp,
 		is_monitored, is_paused, has_conflict, kuma_name, uptime_kuma_id,
 		first_seen, last_seen, last_port_scan, next_port_scan, ignored_ports, agent_id, ipv6_addresses,
-		user_name, user_hint, os_confidence, os_evidence
+		user_name, user_hint, os_confidence, os_evidence, manual_connection_type
 	FROM hosts
 	WHERE LOWER(TRIM(mac_address)) = ?
 	ORDER BY CASE WHEN status = 'up' THEN 0 ELSE 1 END, last_seen DESC
@@ -1248,7 +1234,7 @@ func (db *DB) ListHostsFilteredWithAgent(segmentID *int64, filterMode string, da
 		is_approved, is_protected, is_static_ip, is_dhcp,
 		is_monitored, is_paused, has_conflict, kuma_name, uptime_kuma_id,
 		first_seen, last_seen, last_port_scan, next_port_scan, ignored_ports, agent_id, ipv6_addresses,
-		user_name, user_hint, os_confidence, os_evidence
+		user_name, user_hint, os_confidence, os_evidence, manual_connection_type
 	FROM hosts
 	WHERE 1=1
 	`)
@@ -1458,27 +1444,28 @@ func (db *DB) ToggleDHCP(ip string) (bool, error) {
 }
 
 // UpdateHostManualByID updates manually editable fields by host ID
-func (db *DB) UpdateHostManualByID(id int64, displayName, vendorModel, userName string, isStaticIP bool, ignoredPorts string) error {
+func (db *DB) UpdateHostManualByID(id int64, displayName, vendorModel, userName string, isStaticIP bool, ignoredPorts string, manualConnectionType string) error {
 	query := `
 	UPDATE hosts SET
 		display_name = ?,
 		vendor_model = CASE WHEN ? != '' THEN ? ELSE vendor_model END,
 		user_name = ?,
 		is_static_ip = ?,
-		ignored_ports = ?
+		ignored_ports = ?,
+		manual_connection_type = ?
 	WHERE id = ?
 	`
-	_, err := db.Exec(query, displayName, vendorModel, vendorModel, userName, isStaticIP, ignoredPorts, id)
+	_, err := db.Exec(query, displayName, vendorModel, vendorModel, userName, isStaticIP, ignoredPorts, manualConnectionType, id)
 	return err
 }
 
 // UpdateHostManual updates manually editable fields (fallback using IP)
-func (db *DB) UpdateHostManual(ip, displayName, vendorModel, userName string, isStaticIP bool, ignoredPorts string) error {
+func (db *DB) UpdateHostManual(ip, displayName, vendorModel, userName string, isStaticIP bool, ignoredPorts string, manualConnectionType string) error {
 	h, err := db.GetHost(ip)
 	if err != nil || h == nil {
 		return fmt.Errorf("host not found: %s", ip)
 	}
-	return db.UpdateHostManualByID(h.ID, displayName, vendorModel, userName, isStaticIP, ignoredPorts)
+	return db.UpdateHostManualByID(h.ID, displayName, vendorModel, userName, isStaticIP, ignoredPorts, manualConnectionType)
 }
 
 // TogglePortIgnoredByID toggles whether warnings for a specific port are suppressed on a host by ID
@@ -1547,7 +1534,8 @@ func (db *DB) CreateManualHost(h *Host) error {
 		tls_subject, tls_expiry, mdns_model, broadcast_count_1m, is_storming,
 		is_approved, is_protected, is_static_ip, is_dhcp,
 		is_monitored, is_paused, has_conflict, kuma_name, uptime_kuma_id,
-		first_seen, last_seen, ignored_ports, ipv6_addresses
+		first_seen, last_seen, ignored_ports, ipv6_addresses,
+		manual_connection_type
 	) VALUES (
 		?, ?, ?, ?, ?, ?,
 		?, ?, ?, ?, 100.0,
@@ -1555,7 +1543,8 @@ func (db *DB) CreateManualHost(h *Host) error {
 		?, ?, ?, ?, ?,
 		?, ?, ?, ?,
 		?, ?, ?, ?, ?,
-		?, ?, ?, ?
+		?, ?, ?, ?,
+		?
 	)
 	`
 	_, err := db.Exec(query,
@@ -1566,6 +1555,7 @@ func (db *DB) CreateManualHost(h *Host) error {
 		h.IsApproved, h.IsProtected, h.IsStaticIP, h.IsDHCP,
 		h.IsMonitored, h.IsPaused, h.HasConflict, h.KumaName, h.UptimeKumaID,
 		now, now, h.IgnoredPorts, initialIPv6,
+		h.ManualConnectionType,
 	)
 	return err
 }
@@ -1597,7 +1587,7 @@ func scanHost(s scannable) (*Host, error) {
 	var ignoredPorts sql.NullString
 	var agentID sql.NullString
 	var ipv6Addrs sql.NullString
-	var userName, userHint, osConfidence, osEvidence sql.NullString
+	var userName, userHint, osConfidence, osEvidence, manualConnType sql.NullString
 
 	err := s.Scan(
 		&h.ID,
@@ -1642,6 +1632,7 @@ func scanHost(s scannable) (*Host, error) {
 		&userHint,
 		&osConfidence,
 		&osEvidence,
+		&manualConnType,
 	)
 	if err != nil {
 		if err == sql.ErrNoRows {
@@ -1676,6 +1667,7 @@ func scanHost(s scannable) (*Host, error) {
 	h.UserHint = userHint.String
 	h.OSConfidence = osConfidence.String
 	h.OSEvidence = osEvidence.String
+	h.ManualConnectionType = manualConnType.String
 
 	if rtt.Valid {
 		h.PingRTTMs = &rtt.Float64
@@ -1720,7 +1712,7 @@ func (db *DB) GetDuePortScanHost() (*Host, error) {
 		is_approved, is_protected, is_static_ip, is_dhcp,
 		is_monitored, is_paused, has_conflict, kuma_name, uptime_kuma_id,
 		first_seen, last_seen, last_port_scan, next_port_scan, ignored_ports, agent_id, ipv6_addresses,
-		user_name, user_hint, os_confidence, os_evidence
+		user_name, user_hint, os_confidence, os_evidence, manual_connection_type
 	FROM hosts
 	WHERE status = 'up' AND is_paused = 0 AND agent_id IS NULL AND (next_port_scan IS NULL OR next_port_scan <= ?)
 	ORDER BY (CASE WHEN next_port_scan IS NULL THEN 0 ELSE 1 END), next_port_scan ASC
