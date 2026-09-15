@@ -388,15 +388,40 @@ func TestScoreOS(t *testing.T) {
 	}
 
 	// 13. SwitchBot IoT Device
-	iotInput := OSScoreInput{
-		IP:       "192.168.1.202",
-		Hostname: "SwitchBot-Hub2",
-		Vendor:   "SwitchBot (Woan Tech)",
-		TTL:      64,
+	// 14. Multifunction Printer (MFP) with Samba/SMB enabled
+	mfpInput := OSScoreInput{
+		IP:          "192.168.1.150",
+		Hostname:    "RICOH-IM-C3000",
+		Vendor:      "Ricoh Company, Ltd.",
+		OpenPorts:   "80:HTTP,445:SMB,9100:RAW,631:IPP",
+		IsNetBIOS:   true,
+		NetBIOSName: "RICOH-IMC3000",
+		TTL:         64,
 	}
-	resIoT := ScoreOS(iotInput)
-	if !strings.Contains(resIoT.OS, "SwitchBot") {
-		t.Errorf("expected SwitchBot OS, got %+v", resIoT)
+	resMFP := ScoreOS(mfpInput)
+	if !strings.Contains(resMFP.OS, "Printer Firmware") && !strings.Contains(resMFP.OS, "Ricoh") {
+		t.Errorf("expected Printer Firmware for Ricoh MFP, got %+v", resMFP)
+	}
+	if strings.Contains(resMFP.OS, "Windows") {
+		t.Errorf("MFP should not be classified as Windows, got %+v", resMFP)
+	}
+
+	// 15. Canon MFP with NetBIOS
+	canonInput := OSScoreInput{
+		IP:          "192.168.1.151",
+		Hostname:    "CANON-IR-ADV-C3520",
+		Vendor:      "Canon Inc.",
+		OpenPorts:   "80:HTTP,445:SMB,515:LPD,9100:RAW",
+		IsNetBIOS:   true,
+		NetBIOSName: "CANON-ADV",
+		TTL:         64,
+	}
+	resCanon := ScoreOS(canonInput)
+	if !strings.Contains(resCanon.OS, "Printer") && !strings.Contains(resCanon.OS, "Canon") {
+		t.Errorf("expected Printer for Canon MFP, got %+v", resCanon)
+	}
+	if strings.Contains(resCanon.OS, "Windows") {
+		t.Errorf("Canon MFP should not be classified as Windows, got %+v", resCanon)
 	}
 }
 

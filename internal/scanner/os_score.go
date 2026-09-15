@@ -156,10 +156,42 @@ func ScoreOS(input OSScoreInput) OSScoreResult {
 		}
 	}
 
+	// Check if device is a printer/MFP
+	isPrinterCandidate := func() bool {
+		vL := strings.ToLower(input.Vendor)
+		hL := strings.ToLower(input.Hostname)
+		nbL := strings.ToLower(input.NetBIOSName)
+		eL := evidenceLower
+		pPorts := input.OpenPorts
+
+		// Distinct printer ports
+		if strings.Contains(pPorts, "9100") || strings.Contains(pPorts, "631") || strings.Contains(pPorts, "515") {
+			return true
+		}
+		// Distinct printer vendors
+		if strings.Contains(vL, "canon") || strings.Contains(vL, "epson") || strings.Contains(vL, "brother") ||
+			strings.Contains(vL, "ricoh") || strings.Contains(vL, "fuji xerox") || strings.Contains(vL, "fujifilm") ||
+			strings.Contains(vL, "kyocera") || strings.Contains(vL, "konica") || strings.Contains(vL, "minolta") ||
+			strings.Contains(vL, "toshiba tec") || strings.Contains(vL, "riso") || strings.Contains(vL, "oki data") ||
+			strings.Contains(vL, "lexmark") || strings.Contains(vL, "zebra") || strings.Contains(vL, "sato") ||
+			strings.Contains(vL, "hp print") || strings.Contains(vL, "hewlett-packard print") {
+			return true
+		}
+		// Distinct hostnames / NetBIOS names / Web evidence
+		if strings.Contains(hL, "printer") || strings.Contains(hL, "laserjet") || strings.Contains(hL, "deskjet") || strings.Contains(hL, "taskalfa") || strings.Contains(hL, "bizhub") || strings.Contains(hL, "imagerunner") || strings.Contains(hL, "docuprint") || strings.Contains(hL, "apeos") || strings.Contains(hL, "imagio") ||
+			strings.Contains(nbL, "printer") || strings.Contains(nbL, "laserjet") || strings.Contains(nbL, "taskalfa") || strings.Contains(nbL, "bizhub") || strings.Contains(nbL, "mfp") ||
+			strings.Contains(eL, "printer") || strings.Contains(eL, "laserjet") || strings.Contains(eL, "web image monitor") || strings.Contains(eL, "centreware") || strings.Contains(eL, "command center") {
+			return true
+		}
+		return false
+	}()
+
 	// 3.5 NetBIOS Node Signatures (0.85 - 0.95)
 	if input.IsNetBIOS {
 		nbLower := strings.ToLower(input.NetBIOSName)
-		if strings.Contains(nbLower, "server") || strings.Contains(nbLower, "dc") || strings.Contains(nbLower, "ad") {
+		if isPrinterCandidate {
+			addScore("Printer", "Printer Firmware (Embedded Linux/BSD with Samba)", 0.92, fmt.Sprintf("NetBIOS Node (%s, Samba MFP)", input.NetBIOSName))
+		} else if strings.Contains(nbLower, "server") || strings.Contains(nbLower, "dc") || strings.Contains(nbLower, "ad") {
 			addScore("Windows", "Windows Server", 0.95, fmt.Sprintf("NetBIOS Node (%s, Domain: %s)", input.NetBIOSName, input.NetBIOSDomain))
 		} else {
 			addScore("Windows", "Windows 11 / 10", 0.92, fmt.Sprintf("NetBIOS Node (%s, Domain: %s)", input.NetBIOSName, input.NetBIOSDomain))
@@ -167,7 +199,17 @@ func ScoreOS(input OSScoreInput) OSScoreResult {
 	}
 
 	// 4. Web Titles & HTTP Headers (0.80 - 0.90)
-	if strings.Contains(evidenceLower, "fortigate") || strings.Contains(evidenceLower, "fortinet") || strings.Contains(evidenceLower, "fortios") {
+	if strings.Contains(evidenceLower, "web image monitor") || strings.Contains(evidenceLower, "ricoh") {
+		addScore("Printer", "Ricoh Printer/MFP OS (Embedded Linux/BSD)", 0.92, "Web/Title (Ricoh Web Image Monitor)")
+	} else if strings.Contains(evidenceLower, "centreware") || strings.Contains(evidenceLower, "fujifilm") || strings.Contains(evidenceLower, "fuji xerox") || strings.Contains(evidenceLower, "apeos") {
+		addScore("Printer", "Fujifilm MFP Firmware (Embedded Linux/BSD)", 0.92, "Web/Title (Fujifilm/FujiXerox)")
+	} else if strings.Contains(evidenceLower, "command center") || strings.Contains(evidenceLower, "taskalfa") || strings.Contains(evidenceLower, "kyocera") {
+		addScore("Printer", "Kyocera MFP Firmware (Embedded Linux/BSD)", 0.92, "Web/Title (Kyocera Command Center)")
+	} else if strings.Contains(evidenceLower, "pagescope") || strings.Contains(evidenceLower, "bizhub") || strings.Contains(evidenceLower, "konica") {
+		addScore("Printer", "Konica Minolta MFP Firmware (Embedded Linux/BSD)", 0.92, "Web/Title (Konica Minolta PageScope)")
+	} else if strings.Contains(evidenceLower, "remote ui") || strings.Contains(evidenceLower, "imagerunner") || strings.Contains(evidenceLower, "canon") {
+		addScore("Printer", "Canon MFP Firmware (Embedded Linux)", 0.92, "Web/Title (Canon Remote UI)")
+	} else if strings.Contains(evidenceLower, "fortigate") || strings.Contains(evidenceLower, "fortinet") || strings.Contains(evidenceLower, "fortios") {
 		addScore("Network", "FortiOS (Fortinet)", 0.92, "Web/Title (FortiGate)")
 	} else if strings.Contains(evidenceLower, "aruba") || strings.Contains(evidenceLower, "instant on") {
 		addScore("Network", "ArubaOS (Aruba Networks / HPE)", 0.90, "Web/Title (Aruba)")
@@ -283,11 +325,18 @@ func ScoreOS(input OSScoreInput) OSScoreResult {
 
 	// 6. SMB & Windows ports (0.60 - 0.80)
 	if strings.Contains(input.OpenPorts, "445") || strings.Contains(input.OpenPorts, "139") {
-		if strings.Contains(evidenceLower, "server") {
+		if isPrinterCandidate {
+			addScore("Printer", "Printer Firmware (Embedded Linux/BSD with Samba)", 0.88, "Port 445/139 (Samba MFP)")
+		} else if strings.Contains(evidenceLower, "server") {
 			addScore("Windows", "Windows Server", 0.80, "Port 445/139 (SMB) & Server")
 		} else {
 			addScore("Windows", "Windows 11 / 10", 0.65, "Port 445/139 (SMB)")
 		}
+	}
+
+	// 6.5 Dedicated Printer Ports (Port 9100 RAW, 631 IPP, 515 LPD)
+	if strings.Contains(input.OpenPorts, "9100") || strings.Contains(input.OpenPorts, "631") || strings.Contains(input.OpenPorts, "515") {
+		addScore("Printer", "Printer Firmware (Embedded Linux/BSD)", 0.90, "Port 9100/631/515 (RAW/IPP/LPD Printer)")
 	}
 
 	// 7. OUI Vendor & Hostname patterns (0.35 - 0.75)
@@ -298,8 +347,12 @@ func ScoreOS(input OSScoreInput) OSScoreResult {
 		addScore("Windows", "Windows", 0.40, "OUI Vendor (Microsoft)")
 	} else if strings.Contains(vLower, "raspberry") || strings.Contains(hLower, "raspberrypi") {
 		addScore("Linux", "Raspberry Pi OS (Linux)", 0.75, "Vendor/Hostname (Raspberry Pi)")
-	} else if strings.Contains(vLower, "canon") || strings.Contains(vLower, "epson") || strings.Contains(vLower, "brother") || strings.Contains(vLower, "fuji xerox") || strings.Contains(vLower, "ricoh") {
-		addScore("Printer", "Printer Firmware", 0.65, fmt.Sprintf("OUI Vendor (%s)", input.Vendor))
+	} else if strings.Contains(vLower, "canon") || strings.Contains(vLower, "epson") || strings.Contains(vLower, "brother") ||
+		strings.Contains(vLower, "fuji xerox") || strings.Contains(vLower, "fujifilm") || strings.Contains(vLower, "ricoh") ||
+		strings.Contains(vLower, "kyocera") || strings.Contains(vLower, "konica") || strings.Contains(vLower, "minolta") ||
+		strings.Contains(vLower, "toshiba tec") || strings.Contains(vLower, "riso") || strings.Contains(vLower, "oki data") ||
+		strings.Contains(vLower, "lexmark") || strings.Contains(vLower, "zebra") || strings.Contains(vLower, "sato") {
+		addScore("Printer", "Printer Firmware (Embedded Linux/BSD)", 0.88, fmt.Sprintf("OUI Vendor (%s)", input.Vendor))
 	} else if strings.Contains(vLower, "nintendo") {
 		addScore("IoT", "Nintendo Switch OS", 0.85, "OUI Vendor (Nintendo)")
 	} else if strings.Contains(vLower, "sony") && (strings.Contains(evidenceLower, "playstation") || strings.Contains(evidenceLower, "ps5")) {
