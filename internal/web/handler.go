@@ -462,9 +462,14 @@ func (h *Handler) HandleHostProbePorts(w http.ResponseWriter, r *http.Request, i
 		hostname = currentHost.Hostname
 	}
 
-	openPorts, httpTitle, upnpName, upnpModel, upnpSerial, tlsSubj, tlsExp := scanner.ProbeHostPortsWithContext(ip, vendor, osVendor, hostname, 0)
+	openPorts, httpTitle, upnpName, upnpModel, upnpSerial, tlsSubj, tlsExp, inferredModel := scanner.ProbeHostPortsWithContext(ip, vendor, osVendor, hostname, 0)
 
 	_ = h.db.UpdateHostExtendedProbes(ip, openPorts, httpTitle, upnpName, upnpModel, upnpSerial, tlsSubj, tlsExp)
+	if inferredModel != "" {
+		if enriched := scanner.EnrichVendorWithModel(vendor, inferredModel); enriched != vendor && enriched != "" {
+			_, _ = h.db.Exec("UPDATE hosts SET vendor_model = ? WHERE ip = ?", enriched, ip)
+		}
+	}
 
 	lang := i18n.DetectLanguage(r)
 	w.Header().Set("Content-Type", "text/html; charset=utf-8")
@@ -504,9 +509,14 @@ func (h *Handler) HandleHostFullScan(w http.ResponseWriter, r *http.Request, ip 
 		hostname = currentHost.Hostname
 	}
 
-	openPorts, httpTitle, upnpName, upnpModel, upnpSerial, tlsSubj, tlsExp := scanner.ProbeHostPortsFull(ip, vendor, osVendor, hostname, 0)
+	openPorts, httpTitle, upnpName, upnpModel, upnpSerial, tlsSubj, tlsExp, inferredModel := scanner.ProbeHostPortsFull(ip, vendor, osVendor, hostname, 0)
 
 	_ = h.db.UpdateHostExtendedProbes(ip, openPorts, httpTitle, upnpName, upnpModel, upnpSerial, tlsSubj, tlsExp)
+	if inferredModel != "" {
+		if enriched := scanner.EnrichVendorWithModel(vendor, inferredModel); enriched != vendor && enriched != "" {
+			_, _ = h.db.Exec("UPDATE hosts SET vendor_model = ? WHERE ip = ?", enriched, ip)
+		}
+	}
 	now := time.Now()
 	nextScan := db.CalculateNextPortScanWithJitter(now)
 	_ = h.db.UpdateHostPortScanSchedule(ip, openPorts, nextScan)

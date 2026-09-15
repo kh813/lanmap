@@ -6,12 +6,24 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"path/filepath"
+	"strings"
 	"sync/atomic"
 	"testing"
 	"time"
 
 	"lanmap/internal/db"
 )
+
+func setupTestDB(t *testing.T) (*db.DB, string) {
+	tempDir := t.TempDir()
+	dbPath := filepath.Join(tempDir, "test_notifier.db")
+	database, err := db.Open(dbPath)
+	if err != nil {
+		t.Fatalf("db.Open failed: %v", err)
+	}
+	t.Cleanup(func() { database.Close() })
+	return database, dbPath
+}
 
 func TestPayloadFormatting(t *testing.T) {
 	hosts := []*db.Host{

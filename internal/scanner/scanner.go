@@ -312,6 +312,7 @@ func (s *Scanner) scanSegmentInternal(ctx context.Context, seg *db.Segment) ([]*
 		var upnpName, upnpModel, upnpSerial string
 		var tlsSubj string
 		var tlsExp *time.Time
+		var inferredModel string
 
 		// Port probing based on 3-tier scanMode:
 		// - "stealth": completely skip active TCP port probing
@@ -319,11 +320,15 @@ func (s *Scanner) scanSegmentInternal(ctx context.Context, seg *db.Segment) ([]*
 		// - "full": probe comprehensive 40+ common ports (ProbeHostPortsFull)
 		switch scanMode {
 		case db.ScanModeSafe:
-			openPorts, httpTitle, upnpName, upnpModel, upnpSerial, tlsSubj, tlsExp = ProbeHostPortsWithContext(ipStr, vendor, osVendor, hostname, ttl)
+			openPorts, httpTitle, upnpName, upnpModel, upnpSerial, tlsSubj, tlsExp, inferredModel = ProbeHostPortsWithContext(ipStr, vendor, osVendor, hostname, ttl)
 		case db.ScanModeFull:
-			openPorts, httpTitle, upnpName, upnpModel, upnpSerial, tlsSubj, tlsExp = ProbeHostPortsFull(ipStr, vendor, osVendor, hostname, ttl)
+			openPorts, httpTitle, upnpName, upnpModel, upnpSerial, tlsSubj, tlsExp, inferredModel = ProbeHostPortsFull(ipStr, vendor, osVendor, hostname, ttl)
 		case db.ScanModeStealth:
 			// No active port probing in stealth mode
+		}
+
+		if inferredModel != "" {
+			vendor = EnrichVendorWithModel(vendor, inferredModel)
 		}
 
 		// 4. mDNS Model & Device Info (Query target port 5353 for verified model signature)
@@ -498,12 +503,12 @@ func generateIPs(cidr string) ([]net.IP, error) {
 }
 
 // ProbeHostPortsWithContext performs active port scan and inspection with full host context (vendor, OS, hostname, TTL)
-func ProbeHostPortsWithContext(ipStr, vendor, osVendor, hostname string, ttl int) (openPorts, httpTitle, upnpName, upnpModel, upnpSerial, tlsSubj string, tlsExp *time.Time) {
+func ProbeHostPortsWithContext(ipStr, vendor, osVendor, hostname string, ttl int) (openPorts, httpTitle, upnpName, upnpModel, upnpSerial, tlsSubj string, tlsExp *time.Time, inferredModel string) {
 	profile := DetermineDeviceProfile(vendor, osVendor, hostname, ttl)
 	openPorts = ScanOpenPortsForProfile(ipStr, profile, 100*time.Millisecond)
 
-	// 1. Web Title
-	httpTitle = ExtractWebTitle(ipStr, openPorts)
+	// 1. Web Title & Model
+	httpTitle, inferredModel = ExtractWebTitleAndModel(ipStr, openPorts, vendor)
 
 	// 2. UPnP / SSDP info (only probe if not a mobile client)
 	if profile != ProfileAppleMobile {
@@ -522,20 +527,20 @@ func ProbeHostPortsWithContext(ipStr, vendor, osVendor, hostname string, ttl int
 		}
 	}
 
-	return openPorts, httpTitle, upnpName, upnpModel, upnpSerial, tlsSubj, tlsExp
+	return openPorts, httpTitle, upnpName, upnpModel, upnpSerial, tlsSubj, tlsExp, inferredModel
 }
 
 // ProbeHostPorts performs on-demand active port scan using adaptive profiling
-func ProbeHostPorts(ipStr, vendor, osVendor string) (openPorts, httpTitle, upnpName, upnpModel, upnpSerial, tlsSubj string, tlsExp *time.Time) {
+func ProbeHostPorts(ipStr, vendor, osVendor string) (openPorts, httpTitle, upnpName, upnpModel, upnpSerial, tlsSubj string, tlsExp *time.Time, inferredModel string) {
 	return ProbeHostPortsWithContext(ipStr, vendor, osVendor, "", 0)
 }
 
 // ProbeHostPortsFull performs active comprehensive port scan across 40+ common services
-func ProbeHostPortsFull(ipStr, vendor, osVendor, hostname string, ttl int) (openPorts, httpTitle, upnpName, upnpModel, upnpSerial, tlsSubj string, tlsExp *time.Time) {
+func ProbeHostPortsFull(ipStr, vendor, osVendor, hostname string, ttl int) (openPorts, httpTitle, upnpName, upnpModel, upnpSerial, tlsSubj string, tlsExp *time.Time, inferredModel string) {
 	openPorts = ScanOpenPortsFull(ipStr, 70*time.Millisecond)
 
-	// 1. Web Title
-	httpTitle = ExtractWebTitle(ipStr, openPorts)
+	// 1. Web Title & Model
+	httpTitle, inferredModel = ExtractWebTitleAndModel(ipStr, openPorts, vendor)
 
 	// 2. UPnP / SSDP info
 	if upnp := FetchUPnPInfo(ipStr); upnp != nil {
@@ -552,7 +557,7 @@ func ProbeHostPortsFull(ipStr, vendor, osVendor, hostname string, ttl int) (open
 		}
 	}
 
-	return openPorts, httpTitle, upnpName, upnpModel, upnpSerial, tlsSubj, tlsExp
+	return openPorts, httpTitle, upnpName, upnpModel, upnpSerial, tlsSubj, tlsExp, inferredModel
 }
 
 // performDailyLowNoisePatrol sequentially inspects one due online host per scan cycle

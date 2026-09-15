@@ -854,4 +854,20 @@
   - [x] `make test` 100% PASS 確認
   - [x] `lanmap_design.md`, `README.md` 反映
 
+---
+
+### 🔹 Phase 36: Web管理画面・HTMLタイトル/シグネチャからの機種名・型番（Model）自動抽出エンジンの実装 (完了)
+- [x] **36.1 Webタイトル & 機種名抽出エンジン (`internal/scanner/web_title.go`)**
+  - [x] `ExtractWebTitleAndModel`: HTTP/HTTPS レスポンスの `<title>` および HTML body からメーカー・機器型番を抽出
+  - [x] `InferModelFromWebResponse`: 主要ネットワーク機器・IoT・OA機器の型番シグネチャ（Netgear, Yamaha, Fortinet/FortiGate, Buffalo, Cisco/Meraki, Aruba, Mist, TP-Link, Allied Telesis, Synology, QNAP, 複合機/プリンタ, 監視カメラ, IP電話）を完全網羅
+  - [x] `EnrichVendorWithModel`: 一般的なメーカー名（OUI由来）から具体的な型番付き機器名への自動昇格ロジック
+- [x] **36.2 スキャナー & オンデマンド診断との統合 (`internal/scanner/scanner.go`, `internal/web/handler.go`)**
+  - [x] `ScanSegment`: セグメント巡回スキャン時に検出された型番情報を用いてホストの `VendorModel` を自動更新
+  - [x] `ProbeHostPortsWithContext` / `ProbeHostPortsFull`: オンデマンド診断時に型番を特定して DB 更新
+- [x] **36.3 単体テスト & 検証 (`internal/scanner/web_title_test.go`)**
+  - [x] 各メーカー機器のタイトル/HTML シグネチャからの型番抽出テスト
+  - [x] `EnrichVendorWithModel` テスト
+  - [x] `ExtractWebTitleAndModel_Server` モックサーバー結合テスト
+  - [x] `go test ./...` 100% PASS 確認
+
 
