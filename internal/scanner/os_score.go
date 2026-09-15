@@ -84,9 +84,35 @@ func ScoreOS(input OSScoreInput) OSScoreResult {
 			} else if strings.Contains(banner, "Raspbian") {
 				addScore("Linux", "Raspberry Pi OS (Debian)", 0.95, fmt.Sprintf("SSH Banner (%s)", banner))
 			} else if strings.Contains(banner, "dropbear") {
-				addScore("Linux", "OpenWrt Linux (dropbear)", 0.95, fmt.Sprintf("SSH Banner (%s)", banner))
+				vLower := strings.ToLower(input.Vendor)
+				if strings.Contains(vLower, "mist") || strings.Contains(vLower, "juniper") {
+					addScore("Network", "Mist AI (Mist Systems / Juniper)", 0.96, fmt.Sprintf("SSH Banner (Dropbear) & Vendor (%s)", input.Vendor))
+				} else if strings.Contains(vLower, "aruba") || strings.Contains(vLower, "hewlett") {
+					addScore("Network", "ArubaOS (Aruba Networks / HPE)", 0.96, fmt.Sprintf("SSH Banner (Dropbear) & Vendor (%s)", input.Vendor))
+				} else if strings.Contains(vLower, "fortinet") || strings.Contains(vLower, "fortigate") {
+					addScore("Network", "FortiOS (Fortinet)", 0.96, fmt.Sprintf("SSH Banner (Dropbear) & Vendor (%s)", input.Vendor))
+				} else if strings.Contains(vLower, "yamaha") {
+					addScore("Network", "Yamaha Network OS (RevBoot)", 0.96, fmt.Sprintf("SSH Banner (Dropbear) & Vendor (%s)", input.Vendor))
+				} else if strings.Contains(vLower, "ubiquiti") {
+					addScore("Network", "UniFi OS (Embedded Linux)", 0.96, fmt.Sprintf("SSH Banner (Dropbear) & Vendor (%s)", input.Vendor))
+				} else if strings.Contains(vLower, "netgear") {
+					addScore("Network", "Netgear Firmware (Embedded Linux)", 0.95, fmt.Sprintf("SSH Banner (Dropbear) & Vendor (%s)", input.Vendor))
+				} else {
+					addScore("Linux", "OpenWrt Linux (dropbear)", 0.90, fmt.Sprintf("SSH Banner (%s)", banner))
+				}
 			} else {
-				addScore("Linux", "Linux / OpenSSH", 0.80, fmt.Sprintf("SSH Banner (%s)", banner))
+				vLower := strings.ToLower(input.Vendor)
+				if strings.Contains(vLower, "mist") || strings.Contains(vLower, "juniper") {
+					addScore("Network", "Mist AI (Mist Systems / Juniper)", 0.95, fmt.Sprintf("SSH Banner (%s) & Vendor (%s)", banner, input.Vendor))
+				} else if strings.Contains(vLower, "aruba") || strings.Contains(vLower, "hewlett") {
+					addScore("Network", "ArubaOS (Aruba Networks / HPE)", 0.95, fmt.Sprintf("SSH Banner (%s) & Vendor (%s)", banner, input.Vendor))
+				} else if strings.Contains(vLower, "fortinet") || strings.Contains(vLower, "fortigate") {
+					addScore("Network", "FortiOS (Fortinet)", 0.95, fmt.Sprintf("SSH Banner (%s) & Vendor (%s)", banner, input.Vendor))
+				} else if strings.Contains(vLower, "cisco") {
+					addScore("Network", "Cisco IOS / Network OS", 0.95, fmt.Sprintf("SSH Banner (%s) & Vendor (%s)", banner, input.Vendor))
+				} else {
+					addScore("Linux", "Linux / OpenSSH", 0.80, fmt.Sprintf("SSH Banner (%s)", banner))
+				}
 			}
 		}
 	}
