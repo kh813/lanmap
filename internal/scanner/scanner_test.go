@@ -503,40 +503,48 @@ func TestScanOpenPortsLowNoise(t *testing.T) {
 
 func TestRefineVendorModel(t *testing.T) {
 	// 1. Apple mDNS takes highest priority
-	if res := RefineVendorModel("Intel Corporate", "MacBook Pro (14-inch, M5, 2025)", "", "", "macOS", "Hiroshi-MBP"); res != "MacBook Pro (14-inch, M5, 2025)" {
+	if res := RefineVendorModel("Intel Corporate", "MacBook Pro (14-inch, M5, 2025)", "", "", "", "macOS", "Hiroshi-MBP"); res != "MacBook Pro (14-inch, M5, 2025)" {
 		t.Errorf("expected mDNS model, got %s", res)
 	}
 
-	// 2. Windows resolved model takes priority
-	if res := RefineVendorModel("Realtek Semiconductor", "", "Lenovo ThinkPad X1 Carbon Gen 12", "", "Windows 11 / 10", "THINKPAD-X1"); res != "Lenovo ThinkPad X1 Carbon Gen 12" {
+	// 2. NAS resolved model takes high priority
+	if res := RefineVendorModel("Synology Incorporated", "", "", "Synology DS920+", "", "Linux", "DS920-Vault"); res != "Synology DS920+" {
+		t.Errorf("expected Synology model, got %s", res)
+	}
+	if res := RefineVendorModel("QNAP Systems, Inc.", "", "", "QNAP TS-453D", "", "Linux", "QNAP-NAS"); res != "QNAP TS-453D" {
+		t.Errorf("expected QNAP model, got %s", res)
+	}
+
+	// 3. Windows resolved model takes priority
+	if res := RefineVendorModel("Realtek Semiconductor", "", "Lenovo ThinkPad X1 Carbon Gen 12", "", "", "Windows 11 / 10", "THINKPAD-X1"); res != "Lenovo ThinkPad X1 Carbon Gen 12" {
 		t.Errorf("expected ThinkPad model, got %s", res)
 	}
 
-	// 3. Surface Pro Copilot+ / 2025
-	if res := RefineVendorModel("Intel Corporate", "", "Microsoft Surface Pro (11th Edition / Copilot+ PC)", "", "Windows 11 / 10", "SURFACE-PRO"); res != "Microsoft Surface Pro (11th Edition / Copilot+ PC)" {
+	// 4. Surface Pro Copilot+ / 2025
+	if res := RefineVendorModel("Intel Corporate", "", "Microsoft Surface Pro (11th Edition / Copilot+ PC)", "", "", "Windows 11 / 10", "SURFACE-PRO"); res != "Microsoft Surface Pro (11th Edition / Copilot+ PC)" {
 		t.Errorf("expected Surface model, got %s", res)
 	}
 
-	// 4. Inferred model from Web/SNMP
-	if res := RefineVendorModel("NETGEAR", "", "", "NETGEAR GS108Tv3", "Network Device", "switch"); res != "NETGEAR GS108Tv3" {
+	// 5. Inferred model from Web/SNMP
+	if res := RefineVendorModel("NETGEAR", "", "", "", "NETGEAR GS108Tv3", "Network Device", "switch"); res != "NETGEAR GS108Tv3" {
 		t.Errorf("expected Inferred model, got %s", res)
 	}
 
-	// 5. Hostname inference when NIC chip is Intel/Realtek
-	if res := RefineVendorModel("Intel Corporate", "", "", "", "Windows 11 / 10", "LAPTOP-THINKPAD"); res != "Lenovo ThinkPad" {
+	// 6. Hostname inference when NIC chip is Intel/Realtek
+	if res := RefineVendorModel("Intel Corporate", "", "", "", "", "Windows 11 / 10", "LAPTOP-THINKPAD"); res != "Lenovo ThinkPad" {
 		t.Errorf("expected Lenovo ThinkPad from hostname, got %s", res)
 	}
-	if res := RefineVendorModel("Realtek Semiconductor", "", "", "", "Windows 11 / 10", "DESKTOP-DELL-5520"); res != "Dell" {
+	if res := RefineVendorModel("Realtek Semiconductor", "", "", "", "", "Windows 11 / 10", "DESKTOP-DELL-5520"); res != "Dell" {
 		t.Errorf("expected Dell from hostname, got %s", res)
 	}
 
-	// 6. Generic fallback for NIC chip vendor
-	if res := RefineVendorModel("Intel Corporate", "", "", "", "Windows 11 / 10", "DESKTOP-ABC1234"); res != "Windows PC" {
+	// 7. Generic fallback for NIC chip vendor
+	if res := RefineVendorModel("Intel Corporate", "", "", "", "", "Windows 11 / 10", "DESKTOP-ABC1234"); res != "Windows PC" {
 		t.Errorf("expected Windows PC fallback, got %s", res)
 	}
 
-	// 7. Non-NIC real vendor stays as-is
-	if res := RefineVendorModel("Canon Inc.", "", "", "", "Printer Firmware", "CANON-MFP"); res != "Canon Inc." {
+	// 8. Non-NIC real vendor stays as-is
+	if res := RefineVendorModel("Canon Inc.", "", "", "", "", "Printer Firmware", "CANON-MFP"); res != "Canon Inc." {
 		t.Errorf("expected Canon Inc., got %s", res)
 	}
 }

@@ -42,9 +42,9 @@ var (
 	// Allied Telesis: e.g. AT-GS950, AT-x230, CentreCOM GS908M
 	reAlliedModel = regexp.MustCompile(`(?i)\b(AT-GS\d{3}[A-Z0-9/-]*|AT-x\d{3}[A-Z0-9/-]*|CentreCOM\s+[A-Z0-9/-]+)\b`)
 
-	// Synology / QNAP: e.g. DS920+, TS-453D
-	reSynologyModel = regexp.MustCompile(`(?i)\b(DS\d{3,4}[A-Za-z0-9]*(?:\+)?|RS\d{3,4}[A-Za-z0-9]*(?:\+)?)`)
-	reQNAPModel     = regexp.MustCompile(`(?i)\b(TS-\d{3,4}[A-Za-z0-9]*(?:\+)?|TVS-\d{3,4}[A-Za-z0-9]*(?:\+)?)`)
+	// Synology / QNAP / NAS: e.g. DS920+, TS-453D
+	reSynologyModel = regexp.MustCompile(`(?i)\b(DS\d{3,4}[A-Za-z0-9]*(?:\+)?|RS\d{3,4}[A-Za-z0-9]*(?:\+)?|FS\d{4}[A-Za-z0-9]*|SA\d{4}[A-Za-z0-9]*|UC\d{4}[A-Za-z0-9]*|DVA\d{4}[A-Za-z0-9]*|BST\d{3}[A-Za-z0-9-]*|BeeStation|RT\d{4}[a-z]*|WRX\d{3}[a-z]*)`)
+	reQNAPModel     = regexp.MustCompile(`(?i)\b(TS-[A-Za-z0-9+-]+|TVS-[A-Za-z0-9+-]+|TBS-[A-Za-z0-9+-]+|HS-[A-Za-z0-9+-]+)\b`)
 
 	// Printers / MFPs
 	reCanonModel     = regexp.MustCompile(`(?i)\b(imageRUNNER\s+ADVANCE\s+[A-Z0-9-]+|iR-ADV\s+[A-Z0-9-]+|LBP\d{3,4}[A-Z]*)\b`)
@@ -124,7 +124,7 @@ func ExtractWebTitleAndModel(ip string, openPorts string, currentVendor string) 
 				continue
 			}
 			req.Close = true
-			req.Header.Set("User-Agent", "Mozilla/5.0 (Windows NT 10.0; Win64; x64) lanmap/0.0.36")
+			req.Header.Set("User-Agent", "Mozilla/5.0 (Windows NT 10.0; Win64; x64) lanmap/0.0.37")
 
 			resp, err := client.Do(req)
 			if err != nil {
@@ -393,10 +393,13 @@ func IsNICChipVendor(vendor string) bool {
 }
 
 // RefineVendorModel cleanses raw NIC vendors and synthesizes accurate product model or brand
-func RefineVendorModel(currentVendor, mdnsModel, winModel, inferredModel, osVendor, hostname string) string {
-	// 1. Highest priority: verified hardware model from mDNS or UPnP/NetBIOS/Web
+func RefineVendorModel(currentVendor, mdnsModel, winModel, nasModel, inferredModel, osVendor, hostname string) string {
+	// 1. Highest priority: verified hardware model from mDNS, NAS detection, UPnP/NetBIOS, or WebUI
 	if mdnsModel != "" {
 		return mdnsModel
+	}
+	if nasModel != "" {
+		return nasModel
 	}
 	if winModel != "" {
 		return winModel

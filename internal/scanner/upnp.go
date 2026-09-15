@@ -35,8 +35,14 @@ func FetchUPnPInfo(ip string) *UPnPDeviceInfo {
 		fmt.Sprintf("http://%s:1900/rootDesc.xml", ip),
 		fmt.Sprintf("http://%s:49152/description.xml", ip),
 		fmt.Sprintf("http://%s:49153/description.xml", ip),
-		fmt.Sprintf("http://%s:5000/rootDesc.xml", ip), // Synology
+		fmt.Sprintf("http://%s:5000/ssdp/desc-DSM-eth0.xml", ip), // Synology DSM eth0
+		fmt.Sprintf("http://%s:5000/ssdp/desc-DSM-eth1.xml", ip), // Synology DSM eth1
+		fmt.Sprintf("http://%s:5000/ssdp/desc-DSM-ovs_eth0.xml", ip), // Synology DSM OVS
+		fmt.Sprintf("http://%s:5000/rootDesc.xml", ip),          // Synology
+		fmt.Sprintf("http://%s:5000/description.xml", ip),       // Synology
+		fmt.Sprintf("http://%s:8080/description.xml", ip),       // QNAP default
 		fmt.Sprintf("http://%s:80/description.xml", ip),
+		fmt.Sprintf("http://%s:80/rootDesc.xml", ip),
 	}
 
 	client := &http.Client{
@@ -52,7 +58,7 @@ func FetchUPnPInfo(ip string) *UPnPDeviceInfo {
 			continue
 		}
 		req.Close = true
-		req.Header.Set("User-Agent", "lanmap/0.0.5")
+		req.Header.Set("User-Agent", "lanmap/0.0.37")
 
 		resp, err := client.Do(req)
 		if err != nil {
@@ -68,18 +74,21 @@ func FetchUPnPInfo(ip string) *UPnPDeviceInfo {
 		var root rootXML
 		if err := xml.Unmarshal(body, &root); err == nil && (root.Device.FriendlyName != "" || root.Device.ModelName != "") {
 			model := strings.TrimSpace(root.Device.ModelName)
-			if root.Device.ModelNumber != "" {
+			modelNum := strings.TrimSpace(root.Device.ModelNumber)
+			if modelNum != "" && !strings.EqualFold(model, modelNum) && !strings.HasPrefix(strings.ToLower(modelNum), strings.ToLower(model)) {
 				if model != "" {
-					model = fmt.Sprintf("%s (%s)", model, strings.TrimSpace(root.Device.ModelNumber))
+					model = fmt.Sprintf("%s (%s)", model, modelNum)
 				} else {
-					model = strings.TrimSpace(root.Device.ModelNumber)
+					model = modelNum
 				}
+			} else if model == "" {
+				model = modelNum
 			}
 
 			return &UPnPDeviceInfo{
 				FriendlyName: strings.TrimSpace(root.Device.FriendlyName),
 				ModelName:    model,
-				ModelNumber:  strings.TrimSpace(root.Device.ModelNumber),
+				ModelNumber:  modelNum,
 				Manufacturer: strings.TrimSpace(root.Device.Manufacturer),
 				SerialNumber: strings.TrimSpace(root.Device.SerialNumber),
 			}

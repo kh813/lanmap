@@ -316,6 +316,11 @@ func ResolveMDNSModel(rawModel string) string {
 	if rawModel == "" {
 		return ""
 	}
+	// Ignore generic Apple icon hints used by NAS (Synology, QNAP, Linux Samba/Avahi)
+	rawLower := strings.ToLower(rawModel)
+	if strings.Contains(rawLower, "xserve") || strings.Contains(rawLower, "xserver") || strings.Contains(rawLower, "rackmac") {
+		return ""
+	}
 	if pretty, found := appleModelMap[rawModel]; found {
 		return pretty
 	}

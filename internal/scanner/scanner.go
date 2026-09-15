@@ -353,6 +353,12 @@ func (s *Scanner) scanSegmentInternal(ctx context.Context, seg *db.Segment) ([]*
 			winModel = ResolveWindowsModel(upnpModel, upnpName, hostname, vendor)
 		}
 
+		// NAS Model Resolution (e.g. Synology DS920+, QNAP TS-453D, Buffalo TS5410DN, I-O DATA LANDISK)
+		nasModel := ""
+		if mdnsModel == "" && winModel == "" {
+			nasModel = ResolveNASModel(upnpModel, upnpName, httpTitle, hostname, vendor)
+		}
+
 		// 5. Refined OS & Version Detection via Weighted Scoring Engine
 		scoreRes := ScoreOS(OSScoreInput{
 			IP:            ipStr,
@@ -381,7 +387,7 @@ func (s *Scanner) scanSegmentInternal(ctx context.Context, seg *db.Segment) ([]*
 		userHint := ExtractUserHint(nbInfo.UserName, hostname, mdnsInfo.DeviceName, mdnsModel, winModel, upnpName)
 
 		// 6.5 Refined Vendor / Model Synthesis (Prioritize verified product model over raw NIC vendor)
-		refinedVendorModel := RefineVendorModel(vendor, mdnsModel, winModel, inferredModel, osVendor, hostname)
+		refinedVendorModel := RefineVendorModel(vendor, mdnsModel, winModel, nasModel, inferredModel, osVendor, hostname)
 
 		// 7. Jitter
 		var jitterPtr *float64
