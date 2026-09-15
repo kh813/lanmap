@@ -149,6 +149,17 @@
     <div id="submodal-container"></div>
 
     <script>
+        // Prevent disclaimer modal from popping up if agreed in browser localStorage
+        document.body.addEventListener('htmx:configRequest', function(evt) {
+            if (evt.detail.path === '/modals/disclaimer') {
+                try {
+                    if (localStorage.getItem('lanmap_disclaimer_agreed') === 'true') {
+                        evt.preventDefault();
+                    }
+                } catch(e) {}
+            }
+        });
+
         function closeSubmodal() {
             const container = document.getElementById('submodal-container');
             if (container) container.innerHTML = '';

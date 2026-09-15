@@ -177,7 +177,24 @@ func (db *DB) GetDisclaimerAgreed() (bool, error) {
 	if err != nil {
 		return false, err
 	}
-	return val == "true" || val == "1", nil
+	if val == "true" || val == "1" {
+		return true, nil
+	}
+	if val == "false" || val == "0" {
+		return false, nil
+	}
+
+	// If disclaimer_agreed is unset (e.g. existing database before disclaimer feature or upgrade)
+	// Check if this database already contains existing host records
+	var count int
+	err = db.QueryRow("SELECT COUNT(*) FROM hosts").Scan(&count)
+	if err == nil && count > 0 {
+		// Existing active installation: automatically record agreement and do not prompt
+		_ = db.SetDisclaimerAgreed(true)
+		return true, nil
+	}
+
+	return false, nil
 }
 
 // SetDisclaimerAgreed marks the disclaimer as agreed

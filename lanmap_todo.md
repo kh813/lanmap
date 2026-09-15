@@ -870,4 +870,16 @@
   - [x] `ExtractWebTitleAndModel_Server` モックサーバー結合テスト
   - [x] `go test ./...` 100% PASS 確認
 
+---
+
+### 🔹 Phase 37: 免責事項同意状態の永続化・アップデート時再表示抑止の修正 (完了)
+- [x] **37.1 DB層 (`internal/db/settings.go`)**
+  - [x] `GetDisclaimerAgreed`: 既存ホストが存在する（稼働中データベースをアップデートした）場合は自動的に同意済みとして扱い、アップデート後の不要な再表示を防止
+- [x] **37.2 Web/フロントエンド層 (`web/template`)**
+  - [x] `disclaimer_modal.html`: 同意ボタンの非同期 fetch ＆ `localStorage` 永続化を実装し、DOM削除によるリクエスト中断を解消
+  - [x] `index.html`: `htmx:configRequest` による `localStorage` 判定を追加し、ブラウザ同意済みの場合はモーダルリクエスト自体を即座にキャンセル
+- [x] **37.3 単体テスト & ビルド検証**
+  - [x] `db_test.go`: 既存データベースにおける自動同意判定テストを追加
+  - [x] `go test ./...` 100% PASS 確認
+
 

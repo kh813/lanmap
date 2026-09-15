@@ -317,6 +317,17 @@ func TestDisclaimerSettings(t *testing.T) {
 	if !agreed {
 		t.Errorf("expected DisclaimerAgreed to be true, got false")
 	}
+
+	// Test existing DB with hosts: should auto-resolve to true without prompt
+	dbExisting := setupTestDB(t)
+	_, _ = dbExisting.Exec("INSERT INTO hosts (ip, mac_address) VALUES ('192.168.1.99', 'aa:bb:cc:dd:ee:ff')")
+	agreedExisting, err := dbExisting.GetDisclaimerAgreed()
+	if err != nil {
+		t.Fatalf("GetDisclaimerAgreed on existing DB failed: %v", err)
+	}
+	if !agreedExisting {
+		t.Errorf("expected existing database with hosts to auto-agree disclaimer, got false")
+	}
 }
 
 func TestHostUpsertDHCPSupport(t *testing.T) {
