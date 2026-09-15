@@ -172,7 +172,7 @@ func TestNotifyMonitoredHostStatus(t *testing.T) {
 	database, _ := setupTestDB(t)
 	ctx := context.Background()
 
-	var receivedSlack, receivedDiscord bool
+	var receivedSlack, receivedDiscord, receivedGChat bool
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		if strings.Contains(r.URL.Path, "slack") {
 			receivedSlack = true
@@ -180,12 +180,16 @@ func TestNotifyMonitoredHostStatus(t *testing.T) {
 		if strings.Contains(r.URL.Path, "discord") {
 			receivedDiscord = true
 		}
+		if strings.Contains(r.URL.Path, "gchat") {
+			receivedGChat = true
+		}
 		w.WriteHeader(http.StatusOK)
 	}))
 	defer server.Close()
 
 	_ = database.SetSetting("webhook_slack_url", server.URL+"/slack")
 	_ = database.SetSetting("webhook_discord_url", server.URL+"/discord")
+	_ = database.SetSetting("webhook_gchat_url", server.URL+"/gchat")
 
 	n := NewNotifier(database)
 
@@ -203,18 +207,34 @@ func TestNotifyMonitoredHostStatus(t *testing.T) {
 		t.Fatalf("NotifyMonitoredHostStatus(down) failed: %v", err)
 	}
 
-	if !receivedSlack || !receivedDiscord {
-		t.Errorf("expected alerts received: slack=%v, discord=%v", receivedSlack, receivedDiscord)
+	if !receivedSlack || !receivedDiscord || !receivedGChat {
+		t.Errorf("expected alerts received: slack=%v, discord=%v, gchat=%v", receivedSlack, receivedDiscord, receivedGChat)
 	}
 
 	// Test Recovery Alert
 	receivedSlack = false
 	receivedDiscord = false
+	receivedGChat = false
 	if err := n.NotifyMonitoredHostStatus(ctx, host, "up"); err != nil {
 		t.Fatalf("NotifyMonitoredHostStatus(up) failed: %v", err)
 	}
-	if !receivedSlack || !receivedDiscord {
-		t.Errorf("expected recovery alerts received: slack=%v, discord=%v", receivedSlack, receivedDiscord)
+	if !receivedSlack || !receivedDiscord || !receivedGChat {
+		t.Errorf("expected recovery alerts received: slack=%v, discord=%v, gchat=%v", receivedSlack, receivedDiscord, receivedGChat)
+	}
+
+	// Test DHCP Unapproved host should NOT trigger webhook
+	receivedSlack = false
+	receivedGChat = false
+	dhcpHost := &db.Host{
+		IP:         "192.168.1.199",
+		IsApproved: false,
+		IsDHCP:     true,
+	}
+	if err := n.NotifyUnapprovedHosts(ctx, []*db.Host{dhcpHost}); err != nil {
+		t.Fatalf("NotifyUnapprovedHosts(dhcp) failed: %v", err)
+	}
+	if receivedSlack || receivedGChat {
+		t.Errorf("DHCP unapproved host should NOT trigger webhook alert")
 	}
 }
 

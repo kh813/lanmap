@@ -37,7 +37,7 @@ func NewNotifier(database *db.DB) *Notifier {
 
 // ShouldAlert determines if a host should trigger an alert based on section 8.1
 func (n *Notifier) ShouldAlert(h *db.Host, isNew, isReplaced bool, previousStatus string) bool {
-	if h.IsApproved {
+	if h.IsApproved || h.IsDHCP {
 		return false
 	}
 
@@ -104,9 +104,17 @@ func (n *Notifier) SendTestWebhook(ctx context.Context, provider, targetURL stri
 	}
 }
 
-// NotifyUnapprovedHosts sends batched alerts to all configured webhooks
+// NotifyUnapprovedHosts sends batched alerts to all configured webhooks for non-DHCP unapproved hosts
 func (n *Notifier) NotifyUnapprovedHosts(ctx context.Context, hosts []*db.Host) error {
-	if len(hosts) == 0 {
+	var alertableHosts []*db.Host
+	for _, h := range hosts {
+		if h != nil && !h.IsApproved && !h.IsDHCP {
+			// Only alert for unapproved static/unknown IP hosts (ignore DHCP assigned hosts)
+			alertableHosts = append(alertableHosts, h)
+		}
+	}
+
+	if len(alertableHosts) == 0 {
 		return nil
 	}
 
@@ -124,28 +132,28 @@ func (n *Notifier) NotifyUnapprovedHosts(ctx context.Context, hosts []*db.Host) 
 
 	// Google Chat
 	if gchatURL != "" {
-		if err := n.sendGoogleChat(ctx, gchatURL, hosts); err != nil {
+		if err := n.sendGoogleChat(ctx, gchatURL, alertableHosts); err != nil {
 			errs = append(errs, fmt.Sprintf("Google Chat: %v", err))
 		}
 	}
 
 	// Slack
 	if slackURL != "" {
-		if err := n.sendSlack(ctx, slackURL, hosts); err != nil {
+		if err := n.sendSlack(ctx, slackURL, alertableHosts); err != nil {
 			errs = append(errs, fmt.Sprintf("Slack: %v", err))
 		}
 	}
 
 	// Teams
 	if teamsURL != "" {
-		if err := n.sendTeams(ctx, teamsURL, hosts); err != nil {
+		if err := n.sendTeams(ctx, teamsURL, alertableHosts); err != nil {
 			errs = append(errs, fmt.Sprintf("Teams: %v", err))
 		}
 	}
 
 	// Discord
 	if discordURL != "" {
-		if err := n.sendDiscord(ctx, discordURL, hosts); err != nil {
+		if err := n.sendDiscord(ctx, discordURL, alertableHosts); err != nil {
 			errs = append(errs, fmt.Sprintf("Discord: %v", err))
 		}
 	}

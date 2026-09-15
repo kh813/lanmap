@@ -1408,6 +1408,14 @@ func (h *Handler) HandleScanNow(w http.ResponseWriter, r *http.Request) {
 		if rep.UnapprovedAlert {
 			unapprovedHosts = append(unapprovedHosts, rep.Host)
 		}
+		if rep.MonitoredDownAlert && rep.Host != nil {
+			log.Printf("[WARN] 🚨 Monitored target host went DOWN: %s (%s)", rep.Host.IP, rep.Host.Hostname)
+			_ = h.notifier.NotifyMonitoredHostStatus(ctx, rep.Host, "down")
+		}
+		if rep.MonitoredUpAlert && rep.Host != nil {
+			log.Printf("[INFO] 🟢 Monitored target host RECOVERED: %s (%s)", rep.Host.IP, rep.Host.Hostname)
+			_ = h.notifier.NotifyMonitoredHostStatus(ctx, rep.Host, "up")
+		}
 	}
 
 	if len(unapprovedHosts) > 0 {
