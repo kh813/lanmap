@@ -797,6 +797,42 @@ func TestConnectionTypeDetection(t *testing.T) {
 	if h8.ConnectionReason() != "手動指定 (有線LAN)" {
 		t.Errorf("expected manual ethernet reason, got %s", h8.ConnectionReason())
 	}
+
+	// 9. Synology VMM Virtual Machine with 02:11:32 MAC and Ubuntu -> Ethernet (Virtual Machine)
+	h9 := &Host{
+		MACAddress:  "02:11:32:12:34:56",
+		VendorModel: "Synology (仮想マシン VMM)",
+		OSVendor:    "Ubuntu 24.04 LTS",
+	}
+	if h9.IsRandomizedMAC() {
+		t.Errorf("expected h9 Synology VMM MAC NOT to be recognized as randomized Wi-Fi MAC")
+	}
+	if h9.ConnectionType() != "ethernet" {
+		t.Errorf("expected h9 ethernet for Synology VMM, got %s", h9.ConnectionType())
+	}
+	if h9.ConnectionReason() != "仮想マシン / 仮想NIC" {
+		t.Errorf("expected VM reason for h9, got %s", h9.ConnectionReason())
+	}
+
+	// 10. QEMU / KVM Guest with 52:54:00 MAC and Debian -> Ethernet
+	h10 := &Host{
+		MACAddress:  "52:54:00:ab:cd:ef",
+		VendorModel: "QEMU / KVM (仮想マシン)",
+		OSVendor:    "Debian Linux",
+	}
+	if h10.ConnectionType() != "ethernet" {
+		t.Errorf("expected h10 ethernet for QEMU, got %s", h10.ConnectionType())
+	}
+
+	// 11. Hyper-V Guest with 00:15:5D MAC and Windows Server -> Ethernet
+	h11 := &Host{
+		MACAddress:  "00:15:5d:11:22:33",
+		VendorModel: "Microsoft Hyper-V / WSL2 (仮想マシン)",
+		OSVendor:    "Windows Server 2022",
+	}
+	if h11.ConnectionType() != "ethernet" {
+		t.Errorf("expected h11 ethernet for Hyper-V, got %s", h11.ConnectionType())
+	}
 }
 
 func TestDHCPRangeAndGuess(t *testing.T) {

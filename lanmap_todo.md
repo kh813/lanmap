@@ -882,4 +882,19 @@
   - [x] `db_test.go`: 既存データベースにおける自動同意判定テストを追加
   - [x] `go test ./...` 100% PASS 確認
 
+---
+
+### 🔹 Phase 38: ハイパーバイザー・仮想マシンMACアドレス自動識別 ＆ 有線LAN誤判定防止エンジンの実装 (完了)
+- [x] **38.1 OUI / 仮想MACデータベース拡充 (`internal/scanner/data/oui.csv`, `internal/scanner/oui.go`)**
+  - [x] Synology VMM (`02:11:32`)、QEMU/KVM (`52:54:00`)、Proxmox VE (`BC:24:11`)、VMware (`00:50:56`, `00:0C:29`, `00:05:69`, `00:1C:14`)、Microsoft Hyper-V / WSL2 (`00:15:5D`, `00:03:FF`)、Oracle VirtualBox (`08:00:27`)、Xen / Citrix (`00:16:3E`)、Parallels (`00:1C:42`)、Nutanix AHV (`50:6B:8D`)、Red Hat oVirt (`00:1A:4A`)、Docker (`02:42:xx`)、Kubernetes/Calico (`EE:EE:EE`) を網羅
+  - [x] `LookupVendor`: LAA判定よりも前に仮想マシン・コンテナ用プレフィックスを優先解決
+- [x] **38.2 接続タイプ・ランダムMAC判定ロジックの適正化 (`internal/db/host.go`)**
+  - [x] `IsRandomizedMAC`: `02:11:32` (Synology VMM) や `02:42` (Docker) 等の仮想化LAAプレフィックスをWi-FiランダムMAC判定から除外
+  - [x] `ConnectionType`: 仮想マシン・ハイパーバイザー・LinuxサーバーOSを確実に「🔌 有線LAN」として判定
+  - [x] `ConnectionReason`: 「仮想マシン / 仮想NIC」としての明確な理由表示
+- [x] **38.3 単体テスト & 総合検証**
+  - [x] `scanner_test.go` (`TestOUILookup`): 全ハイパーバイザープレフィックスの解決テスト
+  - [x] `db_test.go` (`TestConnectionTypeDetection`): Synology VMM, QEMU, Hyper-V 等の接続タイプ検証
+  - [x] `go test ./...` 100% PASS 確認
+
 

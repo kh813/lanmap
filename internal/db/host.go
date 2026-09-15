@@ -722,14 +722,32 @@ func (h *Host) DaysUntilTLSExpiry() int {
 }
 
 // IsRandomizedMAC returns true if the MAC address has the Locally Administered Address (LAA) bit set
+// and is NOT a known virtual machine or container MAC prefix (e.g. Synology VMM 02:11:32 or Docker 02:42:xx).
 func (h *Host) IsRandomizedMAC() bool {
 	mac := strings.ToLower(strings.TrimSpace(h.MACAddress))
-	if len(mac) < 2 {
+	clean := strings.ReplaceAll(strings.ReplaceAll(strings.ReplaceAll(mac, ":", ""), "-", ""), ".", "")
+	if len(clean) < 2 {
 		return false
 	}
 	// Check second hex digit of first byte (2, 6, a, e indicate randomized/LAA MAC)
-	secondChar := mac[1]
-	return secondChar == '2' || secondChar == '6' || secondChar == 'a' || secondChar == 'e'
+	secondChar := clean[1]
+	isLAA := secondChar == '2' || secondChar == '6' || secondChar == 'a' || secondChar == 'e'
+	if !isLAA {
+		return false
+	}
+
+	// Exclude known hypervisors / containers that use LAA prefixes
+	if len(clean) >= 6 {
+		p6 := clean[:6]
+		if p6 == "021132" || p6 == "525400" || p6 == "0242ac" || p6 == "024200" || p6 == "eeeeee" || p6 == "42010a" {
+			return false
+		}
+	}
+	if len(clean) >= 4 && clean[:4] == "0242" {
+		return false
+	}
+
+	return true
 }
 
 // ConnectionType returns "wifi", "ethernet", or "unknown"
@@ -744,7 +762,24 @@ func (h *Host) ConnectionType() string {
 
 	combined := strings.ToLower(h.Hostname + " " + h.MDNSModel + " " + h.VendorModel + " " + h.UPnPName + " " + h.DisplayName + " " + h.UserHint + " " + h.OSVendor)
 
-	// 1. Definite mobile / wireless-only device classes
+	// 1. Virtual Machines / Hypervisors (always Wired / Virtual Ethernet)
+	if strings.Contains(combined, "仮想マシン") ||
+		strings.Contains(combined, "virtual machine") ||
+		strings.Contains(combined, "vmm") ||
+		strings.Contains(combined, "hyper-v") ||
+		strings.Contains(combined, "vmware") ||
+		strings.Contains(combined, "qemu") ||
+		strings.Contains(combined, "kvm") ||
+		strings.Contains(combined, "proxmox") ||
+		strings.Contains(combined, "virtualbox") ||
+		strings.Contains(combined, "xen") ||
+		strings.Contains(combined, "parallels") ||
+		strings.Contains(combined, "nutanix") ||
+		strings.Contains(combined, "docker") {
+		return "ethernet"
+	}
+
+	// 2. Definite mobile / wireless-only device classes
 	if strings.Contains(combined, "iphone") ||
 		strings.Contains(combined, "ipad") ||
 		strings.Contains(combined, "watch") ||
@@ -767,12 +802,17 @@ func (h *Host) ConnectionType() string {
 		return "wifi"
 	}
 
-	// 2. Private / Randomized MAC is almost exclusively used on Wi-Fi interfaces
+	// 3. Private / Randomized MAC is almost exclusively used on Wi-Fi interfaces
 	if h.IsRandomizedMAC() {
+		// If OS is server Linux or FreeBSD, avoid false positive Wi-Fi classification
+		osLower := strings.ToLower(h.OSVendor)
+		if strings.Contains(osLower, "ubuntu") || strings.Contains(osLower, "debian") || strings.Contains(osLower, "centos") || strings.Contains(osLower, "red hat") || strings.Contains(osLower, "almalinux") || strings.Contains(osLower, "rocky") || strings.Contains(osLower, "alpine") || strings.Contains(osLower, "freebsd") {
+			return "ethernet"
+		}
 		return "wifi"
 	}
 
-	// 3. Default to Ethernet (wired LAN) for all other devices (PCs, servers, printers, network infrastructure, etc.)
+	// 4. Default to Ethernet (wired LAN) for all other devices (PCs, servers, printers, network infrastructure, etc.)
 	return "ethernet"
 }
 
@@ -810,6 +850,10 @@ func (h *Host) ConnectionReason() string {
 	}
 
 	combined := strings.ToLower(h.Hostname + " " + h.MDNSModel + " " + h.VendorModel + " " + h.UPnPName + " " + h.DisplayName + " " + h.UserHint + " " + h.OSVendor)
+
+	if strings.Contains(combined, "仮想マシン") || strings.Contains(combined, "virtual machine") || strings.Contains(combined, "vmm") || strings.Contains(combined, "hyper-v") || strings.Contains(combined, "vmware") || strings.Contains(combined, "qemu") || strings.Contains(combined, "kvm") || strings.Contains(combined, "proxmox") || strings.Contains(combined, "virtualbox") || strings.Contains(combined, "xen") || strings.Contains(combined, "parallels") || strings.Contains(combined, "nutanix") || strings.Contains(combined, "docker") {
+		return "仮想マシン / 仮想NIC"
+	}
 	if strings.Contains(combined, "iphone") || strings.Contains(combined, "ipad") || strings.Contains(combined, "watch") || strings.Contains(combined, "galaxy") || strings.Contains(combined, "pixel") || strings.Contains(combined, "android") || strings.Contains(combined, "ios") {
 		return "モバイル機器"
 	}

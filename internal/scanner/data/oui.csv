@@ -37,7 +37,7 @@
 0004F2,Poly / Polycom (VoIP)
 000502,Apple
 000531,Cisco
-000569,VMware
+000569,VMware (仮想マシン)
 000573,Cisco
 00059A,Cisco
 0005DC,Cisco
@@ -76,7 +76,7 @@
 000B86,Aruba Networks (HPE)
 000B97,Panasonic (Camera/VoIP)
 000C25,Allied Telesis
-000C29,VMware
+000C29,VMware Workstation / Fusion (仮想マシン)
 000C41,Cisco
 000C85,Cisco
 000C86,Cisco
@@ -133,7 +133,7 @@
 0014F2,Cisco
 00152B,Cisco
 00152C,Cisco
-00155D,Microsoft
+00155D,Microsoft Hyper-V / WSL2 (仮想マシン)
 001562,Cisco
 001563,Cisco
 001565,Yealink (IP Phone)
@@ -267,7 +267,7 @@
 0038DF,Cisco IP Phone
 004048,Hikvision (Camera)
 00408C,Axis Communications (Camera)
-005056,VMware
+005056,VMware ESXi / vSphere (仮想マシン)
 005E58,Cisco IP Phone
 0061A5,Fortinet (FortiGate)
 007147,Amazon (Echo/Fire)
@@ -282,7 +282,7 @@
 00A0DE,Yamaha (Network)
 00E04C,Realtek
 00FC8B,Amazon (Echo/Fire)
-0242AC,Docker Container
+0242AC,Docker Container (仮想NIC)
 0418D6,Ubiquiti
 044B80,Fortinet (FortiGate)
 045D4B,Sony
@@ -293,7 +293,7 @@
 04D9F5,ASUS
 04E676,NEC
 08000F,Mitel (VoIP)
-080027,Oracle VirtualBox
+080027,Oracle VirtualBox (仮想マシン)
 08028E,Netgear
 0836C9,Netgear
 0857FB,Amazon (Echo/Fire)
@@ -442,7 +442,17 @@
 50D4F7,TP-Link
 50EC50,Hikvision (Camera)
 50F5DA,Amazon (Echo/Fire)
-525400,QEMU / KVM
+506B8D,Nutanix AHV (仮想マシン)
+525400,QEMU / KVM (仮想マシン)
+BC2411,Proxmox VE (仮想マシン)
+021132,Synology (仮想マシン VMM)
+0242AC,Docker Container (仮想NIC)
+024200,Docker Container (仮想NIC)
+00163E,Xen / Citrix / LXD (仮想マシン)
+001C42,Parallels Desktop (仮想マシン)
+001A4A,Red Hat KVM / oVirt (仮想マシン)
+EEEEEE,Kubernetes / Calico (仮想NIC)
+42010A,Google Cloud (仮想NIC)
 542696,Apple
 5443B2,Espressif (ESP32/ESP8266)
 5448E6,Xiaomi (Smart Home)

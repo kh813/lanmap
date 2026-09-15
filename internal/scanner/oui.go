@@ -58,6 +58,11 @@ func LookupVendor(mac string) string {
 		return vendor
 	}
 
+	// 4-char prefix fallback (e.g. Docker default 02:42:xx:xx:xx:xx)
+	if len(clean) >= 4 && clean[:4] == "0242" {
+		return "Docker Container (仮想NIC)"
+	}
+
 	// Check if this is a Locally Administered Address (LAA / Randomized MAC)
 	// In IEEE 802, bit 1 of byte 0 is 1 (e.g. first octet has 2nd hex digit as 2, 6, A, E)
 	if isLocallyAdministeredMAC(clean) {

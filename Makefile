@@ -1,6 +1,6 @@
 APP_NAME=lanmap
 CMD_DIR=./cmd/lanmap
-VERSION=v0.0.30
+VERSION=v0.0.31
 BUILD_DIR=./dist
 
 .PHONY: all build clean test test-federation cross-compile package
