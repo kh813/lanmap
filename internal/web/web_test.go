@@ -1470,4 +1470,62 @@ func TestToggleStaticIPWebEndpoint(t *testing.T) {
 	}
 }
 
+func TestDisclaimerAndTodayFilterWeb(t *testing.T) {
+	_, router, database := setupTestWeb(t)
+
+	// 1. Initial GET / should contain hx-get="/modals/disclaimer" on #modal-container
+	reqIndex := httptest.NewRequest("GET", "/", nil)
+	recIndex := httptest.NewRecorder()
+	router.ServeHTTP(recIndex, reqIndex)
+	if recIndex.Code != http.StatusOK {
+		t.Fatalf("expected 200 from GET /, got %d", recIndex.Code)
+	}
+	if !strings.Contains(recIndex.Body.String(), "hx-get=\"/modals/disclaimer\"") {
+		t.Errorf("expected index.html to include hx-get=\"/modals/disclaimer\" on first launch, got %s", recIndex.Body.String())
+	}
+
+	// 2. GET /modals/disclaimer should render warning text
+	reqDisc := httptest.NewRequest("GET", "/modals/disclaimer?lang=ja", nil)
+	recDisc := httptest.NewRecorder()
+	router.ServeHTTP(recDisc, reqDisc)
+	if recDisc.Code != http.StatusOK {
+		t.Fatalf("expected 200 from GET /modals/disclaimer, got %d", recDisc.Code)
+	}
+	discBody := recDisc.Body.String()
+	if !strings.Contains(discBody, "許可されたネットワーク") || !strings.Contains(discBody, "同意し、今後表示しない") {
+		t.Errorf("expected disclaimer modal to contain authorized network warning and agree button, got: %s", discBody)
+	}
+
+	// 3. POST /api/disclaimer/agree should set DB setting to true
+	reqAgree := httptest.NewRequest("POST", "/api/disclaimer/agree", nil)
+	recAgree := httptest.NewRecorder()
+	router.ServeHTTP(recAgree, reqAgree)
+	if recAgree.Code != http.StatusOK {
+		t.Fatalf("expected 200 from POST /api/disclaimer/agree, got %d", recAgree.Code)
+	}
+	agreed, _ := database.GetDisclaimerAgreed()
+	if !agreed {
+		t.Fatalf("expected GetDisclaimerAgreed to be true in DB after POST /api/disclaimer/agree")
+	}
+
+	// 4. Subsequent GET / should NOT contain hx-get="/modals/disclaimer"
+	recIndex2 := httptest.NewRecorder()
+	router.ServeHTTP(recIndex2, reqIndex)
+	if strings.Contains(recIndex2.Body.String(), "hx-get=\"/modals/disclaimer\"") {
+		t.Errorf("expected index.html NOT to include disclaimer modal trigger after agreed")
+	}
+
+	// 5. GET /partials/main_table?filter=today should render with today filter active
+	reqToday := httptest.NewRequest("GET", "/partials/main_table?filter=today&lang=ja", nil)
+	recToday := httptest.NewRecorder()
+	router.ServeHTTP(recToday, reqToday)
+	if recToday.Code != http.StatusOK {
+		t.Fatalf("expected 200 from /partials/main_table?filter=today, got %d", recToday.Code)
+	}
+	todayBody := recToday.Body.String()
+	if !strings.Contains(todayBody, "filter=today") || !strings.Contains(todayBody, "今日") {
+		t.Errorf("expected main table to contain today filter button, got %s", todayBody)
+	}
+}
+
 

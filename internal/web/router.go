@@ -37,6 +37,10 @@ func NewRouter(h *Handler) http.Handler {
 	mux.HandleFunc("GET /modals/custom_port", h.HandleCustomPortModal)
 	mux.HandleFunc("GET /modals/custom_ports_import", h.HandleCustomPortsImportModal)
 	mux.HandleFunc("GET /modals/federation", h.HandleFederationModal)
+	mux.HandleFunc("GET /modals/disclaimer", h.HandleDisclaimerModal)
+
+	// Disclaimer API
+	mux.HandleFunc("POST /api/disclaimer/agree", h.HandleDisclaimerAgree)
 
 	// Federation API
 	mux.HandleFunc("POST /api/federation/pair/start", h.HandleStartPairing)

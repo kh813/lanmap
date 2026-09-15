@@ -137,6 +137,7 @@ var translations = map[string]map[string]string{
 		// Main Table Header & Actions
 		"table_total_hosts":      "Total %d host(s) registered (Auto-refreshes every 30s / Hover IP for details)",
 		"table_filter_online":    "🟢 Online Only",
+		"table_filter_today":     "📅 Today",
 		"table_filter_3d":        "🕒 3 Days",
 		"table_filter_7d":        "🗓️ 7 Days",
 		"table_filter_all":       "📋 All",
@@ -554,6 +555,13 @@ var translations = map[string]map[string]string{
 		"agent_report_failed":     "❌ Report submission failed: %s",
 		"agent_unpaired_success":  "Federation agent disconnected. Running in standalone mode.",
 
+		// First Launch Disclaimer Modal
+		"disclaimer_title":      "⚠️ Important Notice & Disclaimer",
+		"disclaimer_lead":       "Please use this application only on authorized networks and at your own risk.",
+		"disclaimer_body":       "This software (lanmap) performs active and passive network discovery to monitor and manage LAN devices. Performing scans on unauthorized networks may violate local laws or organizational security policies. Ensure you only use this software on networks you own or have explicit authorization to monitor.\n\nThe authors and contributors assume no liability and are not responsible for any damage or consequences caused by the use of this software.",
+		"disclaimer_btn_agree":  "Agree and Do Not Show Again",
+		"disclaimer_btn_close":  "Close for Now",
+
 		// Language Switcher
 		"lang_en": "EN",
 		"lang_ja": "JP",
@@ -593,6 +601,7 @@ var translations = map[string]map[string]string{
 		// Main Table Header & Actions
 		"table_total_hosts":      "合計 %d 台の端末が登録されています (30秒ごとに自動更新 / IPホバーでWeb名・型番・SSL・ポート詳細表示)",
 		"table_filter_online":    "🟢 オンラインのみ",
+		"table_filter_today":     "📅 今日",
 		"table_filter_3d":        "🕒 直近3日",
 		"table_filter_7d":        "🗓️ 直近7日",
 		"table_filter_all":       "📋 すべて",
@@ -1009,6 +1018,13 @@ var translations = map[string]map[string]string{
 		"agent_report_success":    "✅ 親機へのレポート送信が完了しました (%d 端末)",
 		"agent_report_failed":     "❌ 親機へのレポート送信に失敗しました: %s",
 		"agent_unpaired_success":  "親機との連携を解除しました。スタンドアロンモードで動作します。",
+
+		// First Launch Disclaimer Modal
+		"disclaimer_title":      "⚠️ 利用上の注意と免責事項",
+		"disclaimer_lead":       "このアプリケーションは、許可されたネットワークで、自己責任で利用してください。",
+		"disclaimer_body":       "本ソフトウェア（lanmap）は、ローカルネットワーク内の端末検出・死活監視・管理を目的として各種プローブやパケット送受信を行います。\n\n無断で第三者のネットワークや管理権限のない環境に対してスキャンを行うことは、法令やセキュリティポリシーに抵触する恐れがあります。必ずご自身が管理権限を持つネットワーク、または正当な許可を得たネットワーク環境でのみご利用ください。\n\n本ソフトウェアの利用または利用不能により生じたいかなる損害についても、開発者および著作権者は一切の責任を負いません。",
+		"disclaimer_btn_agree":  "同意し、今後表示しない",
+		"disclaimer_btn_close":  "今回は閉じる",
 
 		// Language Switcher
 		"lang_en": "EN",

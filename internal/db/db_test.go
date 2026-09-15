@@ -252,31 +252,70 @@ func TestListHostsDaysFilter(t *testing.T) {
 		t.Errorf("expected 1 online host, got %d", len(onlineHosts))
 	}
 
-	// 2. 3 days filter (should include online + 2 days ago = 2 hosts)
+	// 1.5. Today filter (should include online host + host seen earlier today)
+	oneHourAgo := now.Add(-1 * time.Hour)
+	_, _ = db.Exec("INSERT INTO hosts (ip, mac_address, status, first_seen, last_seen) VALUES (?, ?, 'down', ?, ?)",
+		"192.168.1.15", "ee:55:55:55:55:55", oneHourAgo, oneHourAgo)
+
+	hostsToday, err := db.ListHostsFiltered(nil, "today", 0)
+	if err != nil {
+		t.Fatalf("ListHostsFiltered today failed: %v", err)
+	}
+	if len(hostsToday) != 2 {
+		t.Errorf("expected 2 hosts for today filter (online + seen today), got %d", len(hostsToday))
+	}
+
+	// 2. 3 days filter (should include online + today + 2 days ago = 3 hosts)
 	hosts3d, err := db.ListHostsFiltered(nil, "days", 3)
 	if err != nil {
 		t.Fatalf("ListHostsFiltered 3d failed: %v", err)
 	}
-	if len(hosts3d) != 2 {
-		t.Errorf("expected 2 hosts for 3-day filter, got %d", len(hosts3d))
+	if len(hosts3d) != 3 {
+		t.Errorf("expected 3 hosts for 3-day filter, got %d", len(hosts3d))
 	}
 
-	// 3. 7 days filter (should include online + 2 days + 5 days = 3 hosts)
+	// 3. 7 days filter (should include online + today + 2 days + 5 days = 4 hosts)
 	hosts7d, err := db.ListHostsFiltered(nil, "days", 7)
 	if err != nil {
 		t.Fatalf("ListHostsFiltered 7d failed: %v", err)
 	}
-	if len(hosts7d) != 3 {
-		t.Errorf("expected 3 hosts for 7-day filter, got %d", len(hosts7d))
+	if len(hosts7d) != 4 {
+		t.Errorf("expected 4 hosts for 7-day filter, got %d", len(hosts7d))
 	}
 
-	// 4. All filter (should include all 4 hosts)
+	// 4. All filter (should include all 5 hosts)
 	hostsAll, err := db.ListHostsFiltered(nil, "all", 0)
 	if err != nil {
 		t.Fatalf("ListHostsFiltered all failed: %v", err)
 	}
-	if len(hostsAll) != 4 {
-		t.Errorf("expected 4 hosts for all filter, got %d", len(hostsAll))
+	if len(hostsAll) != 5 {
+		t.Errorf("expected 5 hosts for all filter, got %d", len(hostsAll))
+	}
+}
+
+func TestDisclaimerSettings(t *testing.T) {
+	db := setupTestDB(t)
+
+	// Default should be false (not agreed yet)
+	agreed, err := db.GetDisclaimerAgreed()
+	if err != nil {
+		t.Fatalf("GetDisclaimerAgreed failed: %v", err)
+	}
+	if agreed {
+		t.Errorf("expected default DisclaimerAgreed to be false, got true")
+	}
+
+	// Set to true
+	if err := db.SetDisclaimerAgreed(true); err != nil {
+		t.Fatalf("SetDisclaimerAgreed(true) failed: %v", err)
+	}
+
+	agreed, err = db.GetDisclaimerAgreed()
+	if err != nil {
+		t.Fatalf("GetDisclaimerAgreed after set failed: %v", err)
+	}
+	if !agreed {
+		t.Errorf("expected DisclaimerAgreed to be true, got false")
 	}
 }
 

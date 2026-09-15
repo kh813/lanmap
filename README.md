@@ -186,4 +186,4 @@ make test
 
 ## 📄 ライセンス
 
-MIT License
+Apache License 2.0 - 詳細は [LICENSE](LICENSE) をご覧ください。

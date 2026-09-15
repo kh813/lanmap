@@ -64,9 +64,11 @@ func NewHandler(database *db.DB, cfg *config.Config, sc *scanner.Scanner, notif 
 // HandleIndex serves the main single-page layout
 func (h *Handler) HandleIndex(w http.ResponseWriter, r *http.Request) {
 	lang := i18n.DetectLanguage(r)
+	disclaimerAgreed, _ := h.db.GetDisclaimerAgreed()
 	if err := h.tmpl.ExecuteTemplate(w, "index.html", map[string]interface{}{
-		"Lang":    lang,
-		"Version": h.cfg.Version,
+		"Lang":             lang,
+		"Version":          h.cfg.Version,
+		"DisclaimerAgreed": disclaimerAgreed,
 	}); err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 	}
@@ -198,6 +200,9 @@ func (h *Handler) HandleMainTablePartial(w http.ResponseWriter, r *http.Request)
 	switch filter {
 	case "online":
 		filterMode = "online"
+		daysLimit = 0
+	case "today":
+		filterMode = "today"
 		daysLimit = 0
 	case "7d":
 		filterMode = "days"
@@ -1468,6 +1473,24 @@ func (h *Handler) HandleImportCustomPortsCSV(w http.ResponseWriter, r *http.Requ
 		}
 	}
 	h.HandleCustomPortsPartial(w, r)
+}
+
+// HandleDisclaimerModal renders the first-launch network usage disclaimer modal
+func (h *Handler) HandleDisclaimerModal(w http.ResponseWriter, r *http.Request) {
+	lang := i18n.DetectLanguage(r)
+	_ = h.tmpl.ExecuteTemplate(w, "disclaimer_modal.html", map[string]interface{}{
+		"Lang": lang,
+	})
+}
+
+// HandleDisclaimerAgree marks the disclaimer as agreed in the database
+func (h *Handler) HandleDisclaimerAgree(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodPost {
+		http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
+		return
+	}
+	_ = h.db.SetDisclaimerAgreed(true)
+	w.WriteHeader(http.StatusOK)
 }
 
 // StaticFS returns http.FileSystem for embedded static assets

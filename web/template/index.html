@@ -145,7 +145,7 @@
     </main>
 
     <!-- Global Modal Containers (main modal + nested submodal) -->
-    <div id="modal-container"></div>
+    <div id="modal-container" {{if not .DisclaimerAgreed}}hx-get="/modals/disclaimer" hx-trigger="load" hx-swap="innerHTML"{{end}}></div>
     <div id="submodal-container"></div>
 
     <script>

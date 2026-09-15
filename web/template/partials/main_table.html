@@ -30,12 +30,17 @@
         </div>
 
         <div class="flex items-center space-x-2 flex-wrap gap-2">
-            <!-- Filter Switch (Online, 3 Days [Default], All) -->
+            <!-- Filter Switch (Online, Today, 3 Days [Default], All) -->
             <div class="bg-slate-200/80 dark:bg-slate-800/80 p-0.5 rounded-lg flex text-xs border border-slate-300 dark:border-slate-700">
                 <button hx-get="/partials/main_table?segment_id={{.CurrentSegmentID}}&agent_id={{.CurrentAgentID}}&filter=online"
                         hx-target="#main-content" hx-swap="outerHTML"
                         class="px-2.5 py-1 rounded-md font-medium transition {{if eq .CurrentFilter "online"}}bg-white text-slate-900 dark:bg-slate-900 dark:text-white shadow-sm{{else}}text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-200{{end}}">
                     {{t .Lang "table_filter_online"}}
+                </button>
+                <button hx-get="/partials/main_table?segment_id={{.CurrentSegmentID}}&agent_id={{.CurrentAgentID}}&filter=today"
+                        hx-target="#main-content" hx-swap="outerHTML"
+                        class="px-2.5 py-1 rounded-md font-medium transition {{if eq .CurrentFilter "today"}}bg-white text-slate-900 dark:bg-slate-900 dark:text-white shadow-sm{{else}}text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-200{{end}}">
+                    {{t .Lang "table_filter_today"}}
                 </button>
                 <button hx-get="/partials/main_table?segment_id={{.CurrentSegmentID}}&agent_id={{.CurrentAgentID}}&filter=3d"
                         hx-target="#main-content" hx-swap="outerHTML"

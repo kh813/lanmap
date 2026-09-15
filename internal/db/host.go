@@ -1276,6 +1276,11 @@ func (db *DB) ListHostsFilteredWithAgent(segmentID *int64, filterMode string, da
 	switch filterMode {
 	case "online":
 		query.WriteString(" AND status = 'up'")
+	case "today":
+		now := time.Now()
+		startOfToday := time.Date(now.Year(), now.Month(), now.Day(), 0, 0, 0, 0, now.Location())
+		query.WriteString(" AND (status = 'up' OR (last_seen IS NOT NULL AND last_seen >= ?) OR (last_seen IS NULL AND first_seen >= ?))")
+		args = append(args, startOfToday, startOfToday)
 	case "days":
 		if daysLimit <= 0 {
 			daysLimit = 3

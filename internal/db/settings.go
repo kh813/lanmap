@@ -170,3 +170,21 @@ func (db *DB) SetIPVersionSettings(ipv4 bool, ipv6 bool) error {
 	}
 	return db.SetSetting("enable_ipv6", v6Str)
 }
+
+// GetDisclaimerAgreed returns whether user has agreed to the network usage disclaimer
+func (db *DB) GetDisclaimerAgreed() (bool, error) {
+	val, err := db.GetSetting("disclaimer_agreed")
+	if err != nil {
+		return false, err
+	}
+	return val == "true" || val == "1", nil
+}
+
+// SetDisclaimerAgreed marks the disclaimer as agreed
+func (db *DB) SetDisclaimerAgreed(agreed bool) error {
+	val := "false"
+	if agreed {
+		val = "true"
+	}
+	return db.SetSetting("disclaimer_agreed", val)
+}
