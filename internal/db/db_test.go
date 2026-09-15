@@ -1524,3 +1524,85 @@ func TestCompareIPAndNumericHostSorting(t *testing.T) {
 	}
 }
 
+func TestIPAssignmentAndMonitoredTargetDB(t *testing.T) {
+	db := setupTestDB(t)
+
+	h := &Host{
+		IP:          "192.168.1.88",
+		DisplayName: "Test Host",
+		IsApproved:  true,
+		Status:      "up",
+	}
+	if err := db.CreateManualHost(h); err != nil {
+		t.Fatalf("CreateManualHost failed: %v", err)
+	}
+
+	saved, err := db.GetHost("192.168.1.88")
+	if err != nil || saved == nil {
+		t.Fatalf("GetHost failed: %v", err)
+	}
+
+	// 1. Initial status: unknown assignment, unmonitored
+	if saved.IPAssignment() != "unknown" {
+		t.Errorf("expected IPAssignment()=unknown, got %s", saved.IPAssignment())
+	}
+	if saved.IsMonitored {
+		t.Errorf("expected IsMonitored=false initially")
+	}
+
+	// 2. Set assignment to static
+	if err := db.SetIPAssignmentByID(saved.ID, "static"); err != nil {
+		t.Fatalf("SetIPAssignmentByID(static) failed: %v", err)
+	}
+	saved, _ = db.GetHost("192.168.1.88")
+	if saved.IPAssignment() != "static" || !saved.IsStaticIP || saved.IsDHCP {
+		t.Errorf("expected static IP, got static=%v dhcp=%v assignment=%s", saved.IsStaticIP, saved.IsDHCP, saved.IPAssignment())
+	}
+
+	// 3. Set assignment to dhcp
+	if err := db.SetIPAssignment("192.168.1.88", "dhcp"); err != nil {
+		t.Fatalf("SetIPAssignment(dhcp) failed: %v", err)
+	}
+	saved, _ = db.GetHost("192.168.1.88")
+	if saved.IPAssignment() != "dhcp" || saved.IsStaticIP || !saved.IsDHCP {
+		t.Errorf("expected DHCP IP, got static=%v dhcp=%v assignment=%s", saved.IsStaticIP, saved.IsDHCP, saved.IPAssignment())
+	}
+
+	// 4. Set assignment to unknown
+	if err := db.SetIPAssignment("192.168.1.88", "unknown"); err != nil {
+		t.Fatalf("SetIPAssignment(unknown) failed: %v", err)
+	}
+	saved, _ = db.GetHost("192.168.1.88")
+	if saved.IPAssignment() != "unknown" || saved.IsStaticIP || saved.IsDHCP {
+		t.Errorf("expected unknown IP, got static=%v dhcp=%v assignment=%s", saved.IsStaticIP, saved.IsDHCP, saved.IPAssignment())
+	}
+
+	// 5. Toggle Monitored
+	newMon, err := db.ToggleHostMonitoredByID(saved.ID)
+	if err != nil || !newMon {
+		t.Fatalf("ToggleHostMonitoredByID failed: newMon=%v, err=%v", newMon, err)
+	}
+	saved, _ = db.GetHost("192.168.1.88")
+	if !saved.IsMonitored {
+		t.Errorf("expected IsMonitored=true after toggle")
+	}
+
+	// Toggle back
+	newMon, err = db.ToggleHostMonitored("192.168.1.88")
+	if err != nil || newMon {
+		t.Fatalf("ToggleHostMonitored failed: newMon=%v, err=%v", newMon, err)
+	}
+	saved, _ = db.GetHost("192.168.1.88")
+	if saved.IsMonitored {
+		t.Errorf("expected IsMonitored=false after second toggle")
+	}
+
+	// Set Monitored directly
+	_ = db.SetHostMonitoredByID(saved.ID, true)
+	saved, _ = db.GetHost("192.168.1.88")
+	if !saved.IsMonitored {
+		t.Errorf("expected IsMonitored=true after SetHostMonitoredByID")
+	}
+}
+
+

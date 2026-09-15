@@ -155,3 +155,54 @@ func TestWebhookDelivery(t *testing.T) {
 		t.Error("expected error for invalid Google Chatroom browser URL, got nil")
 	}
 }
+
+func TestNotifyMonitoredHostStatus(t *testing.T) {
+	database, _ := setupTestDB(t)
+	ctx := context.Background()
+
+	var receivedSlack, receivedDiscord bool
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if strings.Contains(r.URL.Path, "slack") {
+			receivedSlack = true
+		}
+		if strings.Contains(r.URL.Path, "discord") {
+			receivedDiscord = true
+		}
+		w.WriteHeader(http.StatusOK)
+	}))
+	defer server.Close()
+
+	_ = database.SetSetting("webhook_slack_url", server.URL+"/slack")
+	_ = database.SetSetting("webhook_discord_url", server.URL+"/discord")
+
+	n := NewNotifier(database)
+
+	host := &db.Host{
+		IP:          "192.168.1.50",
+		Hostname:    "core-switch",
+		DisplayName: "Core Switch",
+		MACAddress:  "00:11:22:33:44:55",
+		VendorModel: "Cisco Systems",
+		IsMonitored: true,
+	}
+
+	// Test Down Alert
+	if err := n.NotifyMonitoredHostStatus(ctx, host, "down"); err != nil {
+		t.Fatalf("NotifyMonitoredHostStatus(down) failed: %v", err)
+	}
+
+	if !receivedSlack || !receivedDiscord {
+		t.Errorf("expected alerts received: slack=%v, discord=%v", receivedSlack, receivedDiscord)
+	}
+
+	// Test Recovery Alert
+	receivedSlack = false
+	receivedDiscord = false
+	if err := n.NotifyMonitoredHostStatus(ctx, host, "up"); err != nil {
+		t.Fatalf("NotifyMonitoredHostStatus(up) failed: %v", err)
+	}
+	if !receivedSlack || !receivedDiscord {
+		t.Errorf("expected recovery alerts received: slack=%v, discord=%v", receivedSlack, receivedDiscord)
+	}
+}
+

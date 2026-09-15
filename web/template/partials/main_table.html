@@ -109,10 +109,10 @@
                         <th class="py-3 px-3">{{t .Lang "col_vendor_model"}}</th>
                         <th class="py-3 px-3">{{t .Lang "col_os"}}</th>
                         <th class="py-3 px-3 text-center">{{t .Lang "col_connection"}}</th>
-                        <th class="py-3 px-3 text-center">{{t .Lang "col_approval"}}</th>
+                        <th class="py-3 px-3 text-center">{{t .Lang "col_ip_assignment"}}</th>
                         <th class="py-3 px-3 text-center">{{t .Lang "col_status"}}</th>
                         <th class="py-3 px-3 text-center">{{t .Lang "col_latency"}}</th>
-                        <th class="py-3 px-3 text-center">{{t .Lang "col_static_ip"}}</th>
+                        <th class="py-3 px-3 text-center">{{t .Lang "col_is_monitored"}}</th>
                         <th class="py-3 px-3 text-right">{{t .Lang "col_actions"}}</th>
                     </tr>
                     <!-- Column Filter Row -->
@@ -156,13 +156,13 @@
                             </select>
                         </th>
                         <th class="py-1.5 px-2 text-center">
-                            <select id="col-filter-approval"
+                            <select id="col-filter-assignment"
                                     onchange="applyColumnFilters()"
                                     class="w-full py-1 px-1 text-[11px] bg-white dark:bg-slate-900 border border-slate-300 dark:border-slate-700 rounded text-slate-800 dark:text-slate-200 focus:outline-none focus:border-blue-500 cursor-pointer font-normal">
-                                <option value="">{{t .Lang "filter_all"}}</option>
-                                <option value="approved">{{t .Lang "filter_approval_approved"}}</option>
-                                <option value="unapproved">{{t .Lang "filter_approval_unapproved"}}</option>
-                                <option value="dhcp">{{t .Lang "filter_approval_dhcp"}}</option>
+                                <option value="">{{t .Lang "filter_assignment_all"}}</option>
+                                <option value="dhcp">{{t .Lang "filter_assignment_dhcp"}}</option>
+                                <option value="static">{{t .Lang "filter_assignment_static"}}</option>
+                                <option value="unknown">{{t .Lang "filter_assignment_unknown"}}</option>
                             </select>
                         </th>
                         <th class="py-1.5 px-2 text-center">
@@ -176,12 +176,12 @@
                         </th>
                         <th class="py-1.5 px-2 text-center text-slate-400 font-mono text-[10px] font-normal">-</th>
                         <th class="py-1.5 px-2 text-center">
-                            <select id="col-filter-static"
+                            <select id="col-filter-monitored"
                                     onchange="applyColumnFilters()"
                                     class="w-full py-1 px-1 text-[11px] bg-white dark:bg-slate-900 border border-slate-300 dark:border-slate-700 rounded text-slate-800 dark:text-slate-200 focus:outline-none focus:border-blue-500 cursor-pointer font-normal">
-                                <option value="">{{t .Lang "filter_all"}}</option>
-                                <option value="static">{{t .Lang "filter_static_yes"}}</option>
-                                <option value="dhcp">{{t .Lang "filter_static_dhcp"}}</option>
+                                <option value="">{{t .Lang "filter_monitored_all"}}</option>
+                                <option value="monitored">{{t .Lang "filter_monitored_yes"}}</option>
+                                <option value="unmonitored">{{t .Lang "filter_monitored_no"}}</option>
                             </select>
                         </th>
                         <th class="py-1.5 px-2 text-right">
@@ -221,9 +221,9 @@
                         data-vendor="{{if .VendorModel}}{{.VendorModel}}{{end}}"
                         data-os="{{if .OSVendor}}{{.OSVendor}}{{end}} {{if .OSEvidence}}{{.OSEvidence}}{{end}}"
                         data-conn="{{.ConnectionType}}"
-                        data-approval="{{if .IsApproved}}approved{{else if .IsDHCP}}dhcp{{else}}unapproved{{end}}"
+                        data-assignment="{{.IPAssignment}}"
                         data-status="{{.Status}}"
-                        data-static="{{if .IsStaticIP}}static{{else}}dhcp{{end}}">
+                        data-monitored="{{if .IsMonitored}}monitored{{else}}unmonitored{{end}}">
                         <!-- IP & MAC with Smart Hover Popover -->
                         <td class="py-3 px-3 cursor-pointer group/ip"
                             onmouseenter="showHostPopover(this, 'popover-{{.IPID}}')"
@@ -548,38 +548,17 @@
                             </span>
                         </td>
 
-                        <!-- Approval Status (Section 6.1) -->
-                        <td class="py-3 px-3 text-center">
-                            {{if .IsApproved}}
-                            <span class="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-medium bg-emerald-100 text-emerald-800 dark:bg-emerald-500/10 dark:text-emerald-400 border border-emerald-200 dark:border-emerald-500/20">
-                                {{t $.Lang "badge_approved"}}
-                            </span>
-                            {{else if .IsStaticIP}}
-                            <span class="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-medium bg-emerald-50 text-emerald-700 dark:bg-emerald-950/40 dark:text-emerald-400 border border-emerald-200 dark:border-emerald-900/60"
-                                  title="{{t $.Lang "col_static_ip"}}">
-                                🟢 {{t $.Lang "col_static_ip"}}
-                            </span>
-                            {{else if .IsDHCP}}
-                                {{if .IsNewHost}}
-                                <span class="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-bold bg-blue-100 text-blue-800 dark:bg-blue-950/60 dark:text-blue-300 border border-blue-300 dark:border-blue-800"
-                                      title="DHCP">
-                                    {{t $.Lang "badge_dhcp_new"}}
-                                </span>
-                                {{else}}
-                                <span class="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-medium bg-blue-50 text-blue-700 dark:bg-blue-950/40 dark:text-blue-400 border border-blue-200 dark:border-blue-900/60"
-                                      title="DHCP">
-                                    {{t $.Lang "badge_dhcp_dynamic"}}
-                                </span>
-                                {{end}}
-                            {{else if .IsNewHost}}
-                            <span class="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-bold bg-purple-100 text-purple-800 dark:bg-purple-500/20 dark:text-purple-300 border border-purple-200 dark:border-purple-500/30 animate-pulse">
-                                {{t $.Lang "badge_new"}}
-                            </span>
-                            {{else}}
-                            <span class="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-medium bg-amber-100 text-amber-800 dark:bg-amber-950/60 dark:text-amber-300 border border-amber-300 dark:border-amber-800">
-                                {{t $.Lang "badge_unapproved"}}
-                            </span>
-                            {{end}}
+                        <!-- IP Assignment (DHCP / Static IP / Unknown Dropdown) -->
+                        <td class="py-3 px-3 text-center" onclick="event.stopPropagation()">
+                            <select name="assignment"
+                                    hx-post="/api/hosts/{{.IP}}/set_ip_assignment?id={{.ID}}"
+                                    hx-target="#main-content" hx-swap="morph:outerHTML"
+                                    onclick="event.stopPropagation()"
+                                    class="text-[11px] py-0.5 px-1.5 rounded border focus:outline-none focus:ring-1 focus:ring-blue-500 cursor-pointer {{.IPAssignmentBadgeClass}}">
+                                <option value="dhcp" {{if eq .IPAssignment "dhcp"}}selected{{end}}>DHCP</option>
+                                <option value="static" {{if eq .IPAssignment "static"}}selected{{end}}>{{if eq $.Lang "ja"}}固定IP{{else}}Static IP{{end}}</option>
+                                <option value="unknown" {{if eq .IPAssignment "unknown"}}selected{{end}}>{{if eq $.Lang "ja"}}不明{{else}}Unknown{{end}}</option>
+                            </select>
                         </td>
 
                         <!-- Up/Down Status -->
@@ -622,12 +601,13 @@
                             {{end}}
                         </td>
 
-                        <!-- Static IP -->
+                        <!-- Monitored Target -->
                         <td class="py-3 px-3 text-center" onclick="event.stopPropagation()">
-                            <input type="checkbox" {{if .IsStaticIP}}checked{{end}}
-                                   hx-post="/api/hosts/{{.IP}}/toggle_static?id={{.ID}}"
+                            <input type="checkbox" {{if .IsMonitored}}checked{{end}}
+                                   hx-post="/api/hosts/{{.IP}}/toggle_monitored?id={{.ID}}"
                                    hx-target="#main-content" hx-swap="morph:outerHTML"
                                    onclick="event.stopPropagation()"
+                                   title="{{if eq $.Lang "ja"}}監視対象の切り替え (障害発生時にWebhook通知){{else}}Toggle Monitored (Alerts on Failure via Webhook){{end}}"
                                    class="rounded bg-white dark:bg-slate-800 border-slate-300 dark:border-slate-700 text-blue-600 focus:ring-0 cursor-pointer">
                         </td>
 
@@ -656,9 +636,9 @@
             vendor: '',
             os: '',
             conn: '',
-            approval: '',
+            assignment: '',
             status: '',
-            static: ''
+            monitored: ''
         };
 
         function applyColumnFilters() {
@@ -667,9 +647,9 @@
             const vendVal = (document.getElementById('col-filter-vendor')?.value || '').toLowerCase().trim();
             const osVal = document.getElementById('col-filter-os')?.value || '';
             const connVal = document.getElementById('col-filter-conn')?.value || '';
-            const appVal = document.getElementById('col-filter-approval')?.value || '';
+            const assignVal = document.getElementById('col-filter-assignment')?.value || '';
             const statVal = document.getElementById('col-filter-status')?.value || '';
-            const staticVal = document.getElementById('col-filter-static')?.value || '';
+            const monVal = document.getElementById('col-filter-monitored')?.value || '';
 
             // Save state for HTMX refreshes
             window.colFilterState = {
@@ -678,12 +658,12 @@
                 vendor: vendVal,
                 os: osVal,
                 conn: connVal,
-                approval: appVal,
+                assignment: assignVal,
                 status: statVal,
-                static: staticVal
+                monitored: monVal
             };
 
-            const isFiltering = !!(ipVal || hostVal || vendVal || osVal || connVal || appVal || statVal || staticVal);
+            const isFiltering = !!(ipVal || hostVal || vendVal || osVal || connVal || assignVal || statVal || monVal);
             const rows = document.querySelectorAll('#host-table-body tr.host-row');
             let visibleCount = 0;
 
@@ -693,9 +673,9 @@
                 const rowVend = (row.getAttribute('data-vendor') || '').toLowerCase();
                 const rowOS = (row.getAttribute('data-os') || '').toLowerCase();
                 const rowConn = row.getAttribute('data-conn') || '';
-                const rowApp = row.getAttribute('data-approval') || '';
+                const rowAssign = row.getAttribute('data-assignment') || '';
                 const rowStat = row.getAttribute('data-status') || '';
-                const rowStatic = row.getAttribute('data-static') || '';
+                const rowMon = row.getAttribute('data-monitored') || '';
 
                 let match = true;
                 if (ipVal && !rowIP.includes(ipVal)) match = false;
@@ -715,9 +695,9 @@
                 }
 
                 if (match && connVal && rowConn !== connVal) match = false;
-                if (match && appVal && rowApp !== appVal) match = false;
+                if (match && assignVal && rowAssign !== assignVal) match = false;
                 if (match && statVal && rowStat !== statVal) match = false;
-                if (match && staticVal && rowStatic !== staticVal) match = false;
+                if (match && monVal && rowMon !== monVal) match = false;
 
                 row.style.display = match ? '' : 'none';
                 if (match) visibleCount++;
@@ -754,7 +734,7 @@
         function clearAllColumnFilters() {
             const ids = [
                 'col-filter-ip', 'col-filter-hostname', 'col-filter-vendor',
-                'col-filter-os', 'col-filter-conn', 'col-filter-approval', 'col-filter-status', 'col-filter-static'
+                'col-filter-os', 'col-filter-conn', 'col-filter-assignment', 'col-filter-status', 'col-filter-monitored'
             ];
             ids.forEach(id => {
                 const el = document.getElementById(id);
@@ -762,7 +742,7 @@
             });
             window.colFilterState = {
                 ip: '', hostname: '', vendor: '',
-                os: '', conn: '', approval: '', status: '', static: ''
+                os: '', conn: '', assignment: '', status: '', monitored: ''
             };
             applyColumnFilters();
         }
@@ -780,9 +760,9 @@
                 setVal('col-filter-vendor', s.vendor);
                 setVal('col-filter-os', s.os);
                 setVal('col-filter-conn', s.conn);
-                setVal('col-filter-approval', s.approval);
+                setVal('col-filter-assignment', s.assignment);
                 setVal('col-filter-status', s.status);
-                setVal('col-filter-static', s.static);
+                setVal('col-filter-monitored', s.monitored);
 
                 applyColumnFilters();
             }

@@ -1408,14 +1408,14 @@ func TestMonitoringSettingsModalTab(t *testing.T) {
 	}
 }
 
-func TestToggleStaticIPWebEndpoint(t *testing.T) {
+func TestToggleMonitoredAndIPAssignmentWebEndpoint(t *testing.T) {
 	_, router, database := setupTestWeb(t)
 
 	seg, _ := database.CreateSegment("Static LAN", "192.168.10.0/24", "eth0", true)
 	seg.DHCPRange = "192.168.10.50-192.168.10.100"
 	_ = database.UpdateSegment(seg)
 
-	// Create host inside DHCP range
+	// Create host
 	_ = database.CreateManualHost(&db.Host{
 		IP:          "192.168.10.60",
 		SegmentID:   &seg.ID,
@@ -1423,6 +1423,7 @@ func TestToggleStaticIPWebEndpoint(t *testing.T) {
 		Hostname:    "printer-01",
 		IsApproved:  true,
 		IsStaticIP:  false,
+		IsMonitored: false,
 		Status:      "up",
 	})
 
@@ -1433,38 +1434,55 @@ func TestToggleStaticIPWebEndpoint(t *testing.T) {
 	if rec.Code != http.StatusOK {
 		t.Fatalf("expected 200, got %d", rec.Code)
 	}
-	if !strings.Contains(rec.Body.String(), "data-static=\"dhcp\"") {
-		t.Errorf("expected host to be data-static=dhcp initially")
+	if !strings.Contains(rec.Body.String(), "data-assignment=\"dhcp\"") {
+		t.Errorf("expected host in DHCP range to be data-assignment=dhcp initially")
+	}
+	if !strings.Contains(rec.Body.String(), "data-monitored=\"unmonitored\"") {
+		t.Errorf("expected host to be data-monitored=unmonitored initially")
 	}
 
-	// 2. Toggle static IP on this host via POST /api/hosts/{ip}/toggle_static
+	// 2. Set IP assignment to "static" via POST /api/hosts/{ip}/set_ip_assignment
 	h, _ := database.GetHost("192.168.10.60")
-	reqToggle := httptest.NewRequest("POST", fmt.Sprintf("/api/hosts/192.168.10.60/toggle_static?id=%d", h.ID), nil)
-	recToggle := httptest.NewRecorder()
-	router.ServeHTTP(recToggle, reqToggle)
-	if recToggle.Code != http.StatusOK {
-		t.Fatalf("expected 200 from toggle_static, got %d", recToggle.Code)
+	reqAssign := httptest.NewRequest("POST", fmt.Sprintf("/api/hosts/192.168.10.60/set_ip_assignment?id=%d&assignment=static", h.ID), nil)
+	recAssign := httptest.NewRecorder()
+	router.ServeHTTP(recAssign, reqAssign)
+	if recAssign.Code != http.StatusOK {
+		t.Fatalf("expected 200 from set_ip_assignment, got %d", recAssign.Code)
 	}
 
 	// Verify DB state
 	hAfter, _ := database.GetHost("192.168.10.60")
 	if !hAfter.IsStaticIP {
-		t.Fatalf("expected IsStaticIP to be true in DB after toggle")
+		t.Fatalf("expected IsStaticIP to be true in DB after set_ip_assignment")
 	}
 	if hAfter.IsDHCP {
 		t.Errorf("expected IsDHCP in DB to be false when IsStaticIP is true")
 	}
 
-	// 3. Verify main table rendered response after toggle contains data-static="static" and checked checkbox
+	// 3. Toggle monitored on this host via POST /api/hosts/{ip}/toggle_monitored
+	reqToggle := httptest.NewRequest("POST", fmt.Sprintf("/api/hosts/192.168.10.60/toggle_monitored?id=%d", h.ID), nil)
+	recToggle := httptest.NewRecorder()
+	router.ServeHTTP(recToggle, reqToggle)
+	if recToggle.Code != http.StatusOK {
+		t.Fatalf("expected 200 from toggle_monitored, got %d", recToggle.Code)
+	}
+
+	// Verify DB state
+	hMonAfter, _ := database.GetHost("192.168.10.60")
+	if !hMonAfter.IsMonitored {
+		t.Fatalf("expected IsMonitored to be true in DB after toggle_monitored")
+	}
+
+	// 4. Verify main table rendered response after toggle contains data-monitored="monitored" and checked checkbox
 	body := recToggle.Body.String()
-	if !strings.Contains(body, "data-static=\"static\"") {
-		t.Errorf("expected data-static=\"static\" in response table, got body=%s", body)
+	if !strings.Contains(body, "data-monitored=\"monitored\"") {
+		t.Errorf("expected data-monitored=\"monitored\" in response table, got body=%s", body)
 	}
 	if !strings.Contains(body, "checked") {
 		t.Errorf("expected checkbox to be checked in response")
 	}
 
-	// 4. Verify trigger header is set
+	// 5. Verify trigger header is set
 	if !strings.Contains(recToggle.Header().Get("HX-Trigger"), "refreshMainTable") {
 		t.Errorf("expected HX-Trigger to contain refreshMainTable, got %s", recToggle.Header().Get("HX-Trigger"))
 	}

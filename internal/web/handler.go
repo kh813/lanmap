@@ -688,13 +688,72 @@ func (h *Handler) HandleToggleStaticIP(w http.ResponseWriter, r *http.Request, i
 	h.HandleMainTablePartial(w, r)
 }
 
+// HandleSetIPAssignment sets the IP assignment mode ("static", "dhcp", or "unknown")
+func (h *Handler) HandleSetIPAssignment(w http.ResponseWriter, r *http.Request, ip string) {
+	_ = r.ParseForm()
+	host, err := h.getHostFromRequest(r, ip)
+	if err != nil || host == nil {
+		http.Error(w, "Host not found", http.StatusNotFound)
+		return
+	}
+
+	assignment := r.FormValue("assignment")
+	if assignment == "" {
+		assignment = r.URL.Query().Get("assignment")
+	}
+
+	if assignment != "static" && assignment != "dhcp" && assignment != "unknown" {
+		http.Error(w, "Invalid assignment mode", http.StatusBadRequest)
+		return
+	}
+
+	if err := h.db.SetIPAssignmentByID(host.ID, assignment); err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+
+	// Auto-adjust segment DHCP range if marked as DHCP
+	if assignment == "dhcp" {
+		var segID int64
+		if host.SegmentID != nil {
+			segID = *host.SegmentID
+		} else {
+			seg, _ := h.db.FindSegmentForIP(net.ParseIP(host.IP))
+			if seg != nil {
+				segID = seg.ID
+			}
+		}
+		if segID > 0 {
+			_, _ = h.db.AutoAdjustSegmentDHCPRange(segID)
+		}
+	}
+
+	w.Header().Set("HX-Trigger", "refreshMainTable, refreshSidebar")
+	h.HandleMainTablePartial(w, r)
+}
+
+// HandleToggleMonitored toggles the is_monitored status of a host
+func (h *Handler) HandleToggleMonitored(w http.ResponseWriter, r *http.Request, ip string) {
+	host, err := h.getHostFromRequest(r, ip)
+	if err != nil || host == nil {
+		http.Error(w, "Host not found", http.StatusNotFound)
+		return
+	}
+	_, err = h.db.ToggleHostMonitoredByID(host.ID)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+	w.Header().Set("HX-Trigger", "refreshMainTable, refreshSidebar")
+	h.HandleMainTablePartial(w, r)
+}
+
 // HandleUpdateHost updates host manual fields
 func (h *Handler) HandleUpdateHost(w http.ResponseWriter, r *http.Request, ip string) {
 	_ = r.ParseForm()
 	displayName := r.FormValue("display_name")
 	vendorModel := r.FormValue("vendor_model")
 	userName := strings.TrimSpace(r.FormValue("user_name"))
-	isStaticIP := r.FormValue("is_static_ip") == "true"
 	ignoredPorts := strings.TrimSpace(r.FormValue("ignored_ports"))
 	manualConnectionType := strings.TrimSpace(r.FormValue("connection_type"))
 	if manualConnectionType != "ethernet" && manualConnectionType != "wifi" {
@@ -707,7 +766,21 @@ func (h *Handler) HandleUpdateHost(w http.ResponseWriter, r *http.Request, ip st
 		return
 	}
 
+	isStaticIP := host.IsStaticIP
+	if val := r.FormValue("is_static_ip"); val != "" {
+		isStaticIP = (val == "true" || val == "1" || val == "on")
+	}
+
 	_ = h.db.UpdateHostManualByID(host.ID, displayName, vendorModel, userName, isStaticIP, ignoredPorts, manualConnectionType)
+
+	if assignment := r.FormValue("assignment"); assignment != "" {
+		_ = h.db.SetIPAssignmentByID(host.ID, assignment)
+	}
+
+	if monitoredVal := r.FormValue("is_monitored"); monitoredVal != "" {
+		_ = h.db.SetHostMonitoredByID(host.ID, monitoredVal == "true" || monitoredVal == "1" || monitoredVal == "on")
+	}
+
 	w.Header().Set("HX-Trigger", "refreshMainTable, refreshSidebar")
 	h.HandleMainTablePartial(w, r)
 }
@@ -754,14 +827,21 @@ func (h *Handler) HandleCreateHost(w http.ResponseWriter, r *http.Request) {
 		connType = ""
 	}
 
+	assignment := strings.ToLower(strings.TrimSpace(r.FormValue("assignment")))
+	isStaticIP := r.FormValue("is_static_ip") == "true" || r.FormValue("is_static_ip") == "1" || r.FormValue("is_static_ip") == "on" || assignment == "static"
+	isDHCP := assignment == "dhcp"
+	isMonitored := r.FormValue("is_monitored") == "true" || r.FormValue("is_monitored") == "1" || r.FormValue("is_monitored") == "on"
+
 	host := &db.Host{
 		IP:                   ip,
 		SegmentID:            segID,
 		DisplayName:          strings.TrimSpace(r.FormValue("display_name")),
 		VendorModel:          strings.TrimSpace(r.FormValue("vendor_model")),
 		ManualConnectionType: connType,
-		IsApproved:           r.FormValue("is_approved") == "true",
-		IsStaticIP:           r.FormValue("is_static_ip") == "true",
+		IsApproved:           r.FormValue("is_approved") == "true" || r.FormValue("is_approved") == "1" || r.FormValue("is_approved") == "on",
+		IsStaticIP:           isStaticIP,
+		IsDHCP:               isDHCP,
+		IsMonitored:          isMonitored,
 		Status:               "up",
 	}
 

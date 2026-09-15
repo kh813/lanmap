@@ -827,3 +827,31 @@
   - [x] `lanmap_todo.md`: Phase 34 完了チェック
   - [x] `make build` 完了
 
+---
+
+### 🔹 Phase 35: 「IP割当」3択プルダウン & 「監視対象」障害通知チェックボックスへの刷新 (完了)
+- [x] **35.1 DB・モデル層の実装 (`internal/db/host.go`)**
+  - [x] `IPAssignment()` (`"static" | "dhcp" | "unknown"`), `IPAssignmentBadgeClass()` メソッド追加
+  - [x] `SetIPAssignmentByID`, `SetIPAssignment` (ID/IPベースの割当更新) 実装
+  - [x] `ToggleHostMonitoredByID`, `ToggleHostMonitored`, `SetHostMonitoredByID`, `SetHostMonitored` (監視対象フラグ更新) 実装
+  - [x] `SearchKeywords()` への `IPAssignment()` および `監視対象` / `monitored` キーワード追加
+- [x] **35.2 Web ハンドラー & API ルーティング (`internal/web`)**
+  - [x] `POST /api/hosts/{ip}/set_ip_assignment` (`HandleSetIPAssignment`) 追加
+  - [x] `POST /api/hosts/{ip}/toggle_monitored` (`HandleToggleMonitored`) 追加
+  - [x] `HandleUpdateHost` および `HandleCreateHost` での `assignment` / `is_monitored` 送信対応
+- [x] **35.3 Webhook 監視対象ホスト障害・復旧通知 (`internal/notifier`, `internal/scanner`, `cmd/lanmap`)**
+  - [x] `NotifyMonitoredHostStatus(ctx, host, newStatus)` 実装（Google Chat, Slack, Teams, Discord）
+  - [x] スキャナーによる監視対象ホストの Down（障害）および Up（復旧）自動検知 & 高優先度アラート連携
+- [x] **35.4 多言語対応 & UI テンプレート刷新 (`internal/i18n`, `web/template`)**
+  - [x] `col_ip_assignment`（IP割当）, `col_is_monitored`（監視対象）, 各種列フィルター辞書追加
+  - [x] `main_table.html`:
+    - 「承認」列を「IP割当」3択プルダウン（DHCP / 固定IP / 不明）に置換
+    - 「固定IP」列を「監視対象」チェックボックスに置換
+    - 列フィルター行 & クライアント側 JS フィルターの `assignment` / `monitored` 対応
+  - [x] `add_host_modal.html`, `edit_host_modal.html`, `action_menu.html`, `host_detail_modal.html` の更新
+- [x] **35.5 テスト・ビルド・ドキュメント更新**
+  - [x] `db_test.go`, `webhook_test.go`, `web_test.go` 単体・結合テスト追加
+  - [x] `make test` 100% PASS 確認
+  - [x] `lanmap_design.md`, `README.md` 反映
+
+

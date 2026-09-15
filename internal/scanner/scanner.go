@@ -16,10 +16,12 @@ import (
 
 // ScanReport summarizes detection of a host in a scan run
 type ScanReport struct {
-	Host            *db.Host
-	IsNew           bool
-	IsReplaced      bool
-	UnapprovedAlert bool
+	Host               *db.Host
+	IsNew              bool
+	IsReplaced         bool
+	UnapprovedAlert    bool
+	MonitoredDownAlert bool
+	MonitoredUpAlert   bool
 }
 
 // Scanner orchestrates network scanning
@@ -406,6 +408,9 @@ func (s *Scanner) scanSegmentInternal(ctx context.Context, seg *db.Segment) ([]*
 			IsApproved:   isApproved,
 		}
 
+		prevHost, _ := s.db.GetHost(ipStr)
+		isMonitoredRecovery := (prevHost != nil && prevHost.IsMonitored && prevHost.Status == "down")
+
 		isNew, isReplaced, err := s.db.UpsertHostOnScan(hostObj)
 		if err != nil {
 			log.Printf("[ERROR] Scanner: failed to upsert host %s: %v", ipStr, err)
@@ -426,10 +431,11 @@ func (s *Scanner) scanSegmentInternal(ctx context.Context, seg *db.Segment) ([]*
 
 		unapproved := !savedHost.IsApproved
 		reports = append(reports, &ScanReport{
-			Host:            savedHost,
-			IsNew:           isNew,
-			IsReplaced:      isReplaced,
-			UnapprovedAlert: unapproved && (isNew || isReplaced),
+			Host:               savedHost,
+			IsNew:              isNew,
+			IsReplaced:         isReplaced,
+			UnapprovedAlert:    unapproved && (isNew || isReplaced),
+			MonitoredUpAlert:   isMonitoredRecovery,
 		})
 	}
 
@@ -440,6 +446,12 @@ func (s *Scanner) scanSegmentInternal(ctx context.Context, seg *db.Segment) ([]*
 			if !respondedIPs[eh.IP] && eh.Status == "up" {
 				_ = s.db.UpdateHostStatus(eh.IP, "down")
 				_ = s.db.RecordPingHistory(eh.IP, nil, "down")
+				if eh.IsMonitored {
+					reports = append(reports, &ScanReport{
+						Host:               eh,
+						MonitoredDownAlert: true,
+					})
+				}
 			}
 		}
 	}

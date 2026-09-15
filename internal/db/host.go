@@ -834,14 +834,40 @@ func (h *Host) ConnectionReason() string {
 	return "有線LAN (標準)"
 }
 
+// IPAssignment returns "static", "dhcp", or "unknown"
+func (h *Host) IPAssignment() string {
+	if h.IsStaticIP {
+		return "static"
+	}
+	if h.IsDHCP {
+		return "dhcp"
+	}
+	return "unknown"
+}
+
+// IPAssignmentBadgeClass returns Tailwind CSS styling for IP Assignment select/badge
+func (h *Host) IPAssignmentBadgeClass() string {
+	switch h.IPAssignment() {
+	case "static":
+		return "bg-emerald-50 text-emerald-700 border-emerald-300 dark:bg-emerald-950/60 dark:text-emerald-300 dark:border-emerald-800 font-semibold"
+	case "dhcp":
+		return "bg-blue-50 text-blue-700 border-blue-300 dark:bg-blue-950/60 dark:text-blue-300 dark:border-blue-800 font-semibold"
+	default:
+		return "bg-slate-100 text-slate-600 border-slate-300 dark:bg-slate-800 dark:text-slate-400 dark:border-slate-700 font-normal"
+	}
+}
+
 // SearchKeywords returns a consolidated lowercase string of all searchable attributes of the host
 func (h *Host) SearchKeywords() string {
 	var parts []string
-	parts = append(parts, h.IP, h.Hostname, h.DisplayName, h.MACAddress, h.VendorModel, h.OSVendor, h.MDNSModel, h.HTTPTitle, h.UPnPName, h.UPnPModel, h.OpenPorts, h.Status, h.ConnectionLabel(), h.ConnectionReason())
+	parts = append(parts, h.IP, h.Hostname, h.DisplayName, h.MACAddress, h.VendorModel, h.OSVendor, h.MDNSModel, h.HTTPTitle, h.UPnPName, h.UPnPModel, h.OpenPorts, h.Status, h.ConnectionLabel(), h.ConnectionReason(), h.IPAssignment())
 	if h.IsApproved {
 		parts = append(parts, "承認", "承認済", "approved")
 	} else {
 		parts = append(parts, "未承認", "unapproved", "警告")
+	}
+	if h.IsMonitored {
+		parts = append(parts, "監視対象", "monitored")
 	}
 	if h.IsStaticIP {
 		parts = append(parts, "固定ip", "static")
@@ -1546,6 +1572,72 @@ func (db *DB) ToggleDHCP(ip string) (bool, error) {
 		return false, fmt.Errorf("host not found: %s", ip)
 	}
 	return db.ToggleDHCPByID(h.ID)
+}
+
+// SetIPAssignmentByID sets the IP assignment mode ("static", "dhcp", or "unknown") for a host by ID
+func (db *DB) SetIPAssignmentByID(id int64, assignment string) error {
+	var isStatic, isDHCP bool
+	switch strings.ToLower(strings.TrimSpace(assignment)) {
+	case "static":
+		isStatic = true
+		isDHCP = false
+	case "dhcp":
+		isStatic = false
+		isDHCP = true
+	case "unknown", "":
+		isStatic = false
+		isDHCP = false
+	default:
+		return fmt.Errorf("invalid assignment mode: %s", assignment)
+	}
+	_, err := db.Exec("UPDATE hosts SET is_static_ip = ?, is_dhcp = ? WHERE id = ?", isStatic, isDHCP, id)
+	return err
+}
+
+// SetIPAssignment sets the IP assignment mode ("static", "dhcp", or "unknown") for a host (fallback using IP)
+func (db *DB) SetIPAssignment(ip string, assignment string) error {
+	h, err := db.GetHost(ip)
+	if err != nil || h == nil {
+		return fmt.Errorf("host not found: %s", ip)
+	}
+	return db.SetIPAssignmentByID(h.ID, assignment)
+}
+
+// ToggleHostMonitoredByID toggles the is_monitored status of a host by its internal ID
+func (db *DB) ToggleHostMonitoredByID(id int64) (bool, error) {
+	var current bool
+	err := db.QueryRow("SELECT is_monitored FROM hosts WHERE id = ?", id).Scan(&current)
+	if err != nil {
+		return false, err
+	}
+
+	newVal := !current
+	_, err = db.Exec("UPDATE hosts SET is_monitored = ? WHERE id = ?", newVal, id)
+	return newVal, err
+}
+
+// ToggleHostMonitored toggles the is_monitored status of a host (fallback using IP)
+func (db *DB) ToggleHostMonitored(ip string) (bool, error) {
+	h, err := db.GetHost(ip)
+	if err != nil || h == nil {
+		return false, fmt.Errorf("host not found: %s", ip)
+	}
+	return db.ToggleHostMonitoredByID(h.ID)
+}
+
+// SetHostMonitoredByID sets the is_monitored flag of a host by ID
+func (db *DB) SetHostMonitoredByID(id int64, monitored bool) error {
+	_, err := db.Exec("UPDATE hosts SET is_monitored = ? WHERE id = ?", monitored, id)
+	return err
+}
+
+// SetHostMonitored sets the is_monitored flag of a host (fallback using IP)
+func (db *DB) SetHostMonitored(ip string, monitored bool) error {
+	h, err := db.GetHost(ip)
+	if err != nil || h == nil {
+		return fmt.Errorf("host not found: %s", ip)
+	}
+	return db.SetHostMonitoredByID(h.ID, monitored)
 }
 
 // UpdateHostManualByID updates manually editable fields by host ID

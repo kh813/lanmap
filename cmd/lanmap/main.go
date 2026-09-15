@@ -345,6 +345,14 @@ func executeScanCycle(ctx context.Context, database *db.DB, sc *scanner.Scanner,
 		if r.UnapprovedAlert {
 			unapprovedAlerts = append(unapprovedAlerts, r.Host)
 		}
+		if r.MonitoredDownAlert && r.Host != nil {
+			log.Printf("[WARN] 🚨 Monitored target host went DOWN: %s (%s)", r.Host.IP, r.Host.Hostname)
+			_ = notif.NotifyMonitoredHostStatus(ctx, r.Host, "down")
+		}
+		if r.MonitoredUpAlert && r.Host != nil {
+			log.Printf("[INFO] 🟢 Monitored target host RECOVERED: %s (%s)", r.Host.IP, r.Host.Hostname)
+			_ = notif.NotifyMonitoredHostStatus(ctx, r.Host, "up")
+		}
 	}
 
 	if len(unapprovedAlerts) > 0 {

@@ -35,6 +35,15 @@
                        class="w-full mt-1 bg-white dark:bg-slate-950 border border-slate-300 dark:border-slate-700 rounded px-3 py-2 text-slate-800 dark:text-slate-200 focus:outline-none focus:border-blue-500">
             </div>
 
+            <div>
+                <label class="block font-medium text-slate-700 dark:text-slate-300">{{t .Lang "col_ip_assignment"}}</label>
+                <select name="assignment" class="w-full mt-1 bg-white dark:bg-slate-950 border border-slate-300 dark:border-slate-700 rounded px-3 py-2 text-slate-800 dark:text-slate-200 focus:outline-none focus:border-blue-500">
+                    <option value="static" selected>{{if eq .Lang "ja"}}🟢 固定IP{{else}}🟢 Static IP{{end}}</option>
+                    <option value="dhcp">{{if eq .Lang "ja"}}🔵 DHCP{{else}}🔵 DHCP{{end}}</option>
+                    <option value="unknown">{{if eq .Lang "ja"}}⚪ 不明 (自動検出){{else}}⚪ Unknown (Auto-detect){{end}}</option>
+                </select>
+            </div>
+
             <div class="space-y-2 pt-1">
                 <div class="flex items-center space-x-2">
                     <input type="checkbox" name="is_approved" id="add_is_approved" value="true" checked
@@ -42,9 +51,9 @@
                     <label for="add_is_approved" class="text-slate-700 dark:text-slate-300 font-medium cursor-pointer">{{t .Lang "add_host_approve_chk"}}</label>
                 </div>
                 <div class="flex items-center space-x-2">
-                    <input type="checkbox" name="is_static_ip" id="add_is_static_ip" value="true"
+                    <input type="checkbox" name="is_monitored" id="add_is_monitored" value="true"
                            class="rounded bg-white dark:bg-slate-800 border-slate-300 dark:border-slate-700 text-blue-600 focus:ring-0">
-                    <label for="add_is_static_ip" class="text-slate-700 dark:text-slate-300 font-medium cursor-pointer">{{t .Lang "add_host_protect_chk"}}</label>
+                    <label for="add_is_monitored" class="text-slate-700 dark:text-slate-300 font-medium cursor-pointer">{{if eq .Lang "ja"}}監視対象 (障害発生時にWebhook通知){{else}}Monitored Target (Alerts on Failure via Webhook){{end}}</label>
                 </div>
             </div>
 

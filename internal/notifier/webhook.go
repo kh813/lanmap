@@ -552,3 +552,112 @@ func (n *Notifier) NotifyVLANRouterNotice(ctx context.Context, mac, ip, iface, s
 	return nil
 }
 
+// NotifyMonitoredHostStatus sends high-priority alerts when a monitored target host goes down or recovers
+func (n *Notifier) NotifyMonitoredHostStatus(ctx context.Context, host *db.Host, newStatus string) error {
+	settings, err := n.db.GetAllSettings()
+	if err != nil {
+		return err
+	}
+
+	isDown := (newStatus == "down")
+	var icon, titleAction, stateText, colorHex string
+	if isDown {
+		icon = "🚨"
+		titleAction = "障害検知 (Down)"
+		stateText = "応答が途絶しました (Down)"
+		colorHex = "#DC2626" // Red
+	} else {
+		icon = "🟢"
+		titleAction = "復旧検知 (Up)"
+		stateText = "正常に応答を再開しました (Up)"
+		colorHex = "#16A34A" // Green
+	}
+
+	title := fmt.Sprintf("%s 【lanmap 監視対象%s】ホスト %s", icon, titleAction, host.IP)
+	hostName := host.Hostname
+	if hostName == "" {
+		hostName = "ホスト名なし"
+	}
+	if host.DisplayName != "" {
+		hostName = fmt.Sprintf("%s (%s)", host.DisplayName, hostName)
+	}
+	vendor := host.VendorModel
+	if vendor == "" {
+		vendor = "不明"
+	}
+	mac := host.MACAddress
+	if mac == "" {
+		mac = "Unknown MAC"
+	}
+
+	body := fmt.Sprintf("監視対象ホスト %s (%s / %s / MAC: `%s`) が%s。\n接続形態: %s (%s) / 発生日時: %s",
+		host.IP, hostName, vendor, mac, stateText,
+		host.ConnectionLabel(), host.ConnectionReason(),
+		time.Now().Format("2006-01-02 15:04:05"),
+	)
+
+	// Google Chat
+	if gchatURL := strings.TrimSpace(settings["webhook_gchat_url"]); gchatURL != "" {
+		_ = n.postJSON(ctx, gchatURL, map[string]interface{}{
+			"text": fmt.Sprintf("*%s*\n%s", title, body),
+		})
+	}
+
+	// Slack
+	if slackURL := strings.TrimSpace(settings["webhook_slack_url"]); slackURL != "" {
+		_ = n.postJSON(ctx, slackURL, map[string]interface{}{
+			"text": title,
+			"attachments": []map[string]interface{}{
+				{
+					"color": colorHex,
+					"title": fmt.Sprintf("監視対象ホスト状態変更: %s", host.IP),
+					"fields": []map[string]interface{}{
+						{"title": "状態", "value": stateText, "short": true},
+						{"title": "ホスト / 表示名", "value": hostName, "short": true},
+						{"title": "接続形態", "value": fmt.Sprintf("%s (%s)", host.ConnectionLabel(), host.ConnectionReason()), "short": true},
+						{"title": "MAC / メーカー", "value": fmt.Sprintf("`%s` / %s", mac, vendor), "short": true},
+					},
+					"footer": "lanmap Monitored Target Watcher",
+					"ts":     time.Now().Unix(),
+				},
+			},
+		})
+	}
+
+	// Teams
+	if teamsURL := strings.TrimSpace(settings["webhook_teams_url"]); teamsURL != "" {
+		_ = n.postJSON(ctx, teamsURL, map[string]interface{}{
+			"@type":      "MessageCard",
+			"@context":   "http://schema.org/extensions",
+			"summary":    title,
+			"themeColor": strings.TrimPrefix(colorHex, "#"),
+			"title":      title,
+			"text":       body,
+		})
+	}
+
+	// Discord
+	if discordURL := strings.TrimSpace(settings["webhook_discord_url"]); discordURL != "" {
+		var embedColor int
+		if isDown {
+			embedColor = 14423100 // Red
+		} else {
+			embedColor = 1483594 // Green
+		}
+		_ = n.postJSON(ctx, discordURL, map[string]interface{}{
+			"content": title,
+			"embeds": []map[string]interface{}{
+				{
+					"title":       fmt.Sprintf("監視対象ホスト状態変更: %s", host.IP),
+					"description": body,
+					"color":       embedColor,
+					"footer":      map[string]string{"text": "lanmap Monitored Target Watcher"},
+					"timestamp":   time.Now().UTC().Format(time.RFC3339),
+				},
+			},
+		})
+	}
+
+	return nil
+}
+

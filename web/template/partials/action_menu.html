@@ -15,6 +15,12 @@
             <span>{{if .Host.IsProtected}}{{t $.Lang "action_unprotect"}}{{else}}{{t $.Lang "action_protect"}}{{end}}</span>
         </button>
 
+        <!-- Toggle Monitored -->
+        <button hx-post="/api/hosts/{{.Host.IP}}/toggle_monitored?id={{.Host.ID}}" hx-target="#main-content" hx-swap="morph:outerHTML"
+                class="w-full text-left px-3 py-1.5 hover:bg-slate-100 dark:hover:bg-slate-800 flex items-center space-x-2 text-slate-800 dark:text-slate-200">
+            <span>{{if .Host.IsMonitored}}{{t $.Lang "action_unmonitor"}}{{else}}{{t $.Lang "action_monitor"}}{{end}}</span>
+        </button>
+
         <!-- Toggle DHCP -->
         <button hx-post="/api/hosts/{{.Host.IP}}/toggle_dhcp?id={{.Host.ID}}" hx-target="#main-content" hx-swap="morph:outerHTML"
                 class="w-full text-left px-3 py-1.5 hover:bg-slate-100 dark:hover:bg-slate-800 flex items-center space-x-2 text-slate-800 dark:text-slate-200">

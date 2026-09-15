@@ -109,6 +109,12 @@ func NewRouter(h *Handler) http.Handler {
 	mux.HandleFunc("POST /api/hosts/{ip}/toggle_static", func(w http.ResponseWriter, r *http.Request) {
 		h.HandleToggleStaticIP(w, r, r.PathValue("ip"))
 	})
+	mux.HandleFunc("POST /api/hosts/{ip}/set_ip_assignment", func(w http.ResponseWriter, r *http.Request) {
+		h.HandleSetIPAssignment(w, r, r.PathValue("ip"))
+	})
+	mux.HandleFunc("POST /api/hosts/{ip}/toggle_monitored", func(w http.ResponseWriter, r *http.Request) {
+		h.HandleToggleMonitored(w, r, r.PathValue("ip"))
+	})
 	mux.HandleFunc("POST /api/hosts/{ip}/toggle_port_suppress", func(w http.ResponseWriter, r *http.Request) {
 		h.HandleTogglePortSuppress(w, r, r.PathValue("ip"))
 	})
