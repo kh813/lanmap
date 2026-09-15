@@ -519,7 +519,7 @@ func TestResolveWindowsModel(t *testing.T) {
 		{
 			upnpModel: "ThinkPad X1 Carbon Gen 10",
 			vendor:    "Lenovo",
-			expected:  "Lenovo ThinkPad X1 Carbon",
+			expected:  "Lenovo ThinkPad X1 Carbon Gen 10",
 		},
 		{
 			upnpName: "CF-SV9",

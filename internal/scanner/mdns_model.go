@@ -35,7 +35,18 @@ var darwinToMacOSMap = map[string]string{
 }
 
 var appleModelMap = map[string]string{
-	// M4 series (2024)
+	// M5 series (2025 - 2026)
+	"Mac17,1":  "MacBook Pro (14-inch, M5, 2025)",
+	"Mac17,2":  "MacBook Pro (14-inch, M5 Pro, 2025)",
+	"Mac17,3":  "MacBook Pro (16-inch, M5 Pro, 2025)",
+	"Mac17,4":  "MacBook Pro (14-inch, M5 Max, 2025)",
+	"Mac17,5":  "MacBook Pro (16-inch, M5 Max, 2025)",
+	"Mac17,6":  "MacBook Air (13-inch, M5, 2026)",
+	"Mac17,7":  "MacBook Air (15-inch, M5, 2026)",
+	"Mac17,10": "Mac mini (M5, 2025)",
+	"Mac17,12": "Mac Studio (M5 Max, 2026)",
+
+	// M4 series (2024 - 2025)
 	"Mac16,1":  "MacBook Pro (14-inch, M4, 2024)",
 	"Mac16,2":  "iMac (24-inch, M4, 2-ports, 2024)",
 	"Mac16,3":  "iMac (24-inch, M4, 4-ports, 2024)",

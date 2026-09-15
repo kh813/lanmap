@@ -124,7 +124,7 @@ func ExtractWebTitleAndModel(ip string, openPorts string, currentVendor string) 
 				continue
 			}
 			req.Close = true
-			req.Header.Set("User-Agent", "Mozilla/5.0 (Windows NT 10.0; Win64; x64) lanmap/0.0.34")
+			req.Header.Set("User-Agent", "Mozilla/5.0 (Windows NT 10.0; Win64; x64) lanmap/0.0.35")
 
 			resp, err := client.Do(req)
 			if err != nil {
@@ -366,21 +366,86 @@ func InferModelFromWebResponse(title, body, serverHdr, currentVendor string) str
 
 // EnrichVendorWithModel enriches current vendor string with more detailed inferred model if available
 func EnrichVendorWithModel(currentVendor, inferredModel string) string {
-	if inferredModel == "" {
+	if inferredModel != "" {
+		return inferredModel
+	}
+	return currentVendor
+}
+
+// IsNICChipVendor checks if vendor is purely a component/NIC chipset manufacturer
+func IsNICChipVendor(vendor string) bool {
+	v := strings.ToLower(strings.TrimSpace(vendor))
+	if v == "" {
+		return false
+	}
+	nicKeywords := []string{
+		"intel corporate", "intel corp", "realtek", "azurewave", "murata",
+		"qualcomm", "atheros", "broadcom", "liteon", "hon hai", "foxconn",
+		"chicony", "mediatek", "marvell", "asix", "microchip", "wiznet",
+		"silicon labs", "texas instruments",
+	}
+	for _, k := range nicKeywords {
+		if strings.Contains(v, k) {
+			return true
+		}
+	}
+	return false
+}
+
+// RefineVendorModel cleanses raw NIC vendors and synthesizes accurate product model or brand
+func RefineVendorModel(currentVendor, mdnsModel, winModel, inferredModel, osVendor, hostname string) string {
+	// 1. Highest priority: verified hardware model from mDNS or UPnP/NetBIOS/Web
+	if mdnsModel != "" {
+		return mdnsModel
+	}
+	if winModel != "" {
+		return winModel
+	}
+	if inferredModel != "" {
+		return inferredModel
+	}
+
+	// 2. Check if currentVendor is a raw NIC chip vendor (Intel, Realtek, AzureWave, etc.)
+	if IsNICChipVendor(currentVendor) {
+		// Infer from hostname
+		hLower := strings.ToLower(hostname)
+		if strings.Contains(hLower, "thinkpad") {
+			return "Lenovo ThinkPad"
+		} else if strings.Contains(hLower, "surface") {
+			return "Microsoft Surface"
+		} else if strings.Contains(hLower, "macbook") {
+			return "Apple MacBook"
+		} else if strings.Contains(hLower, "imac") {
+			return "Apple iMac"
+		} else if strings.Contains(hLower, "letsnote") || strings.Contains(hLower, "let's note") || strings.Contains(hLower, "cf-s") || strings.Contains(hLower, "cf-f") {
+			return "Panasonic Let's note"
+		} else if strings.Contains(hLower, "lifebook") {
+			return "Fujitsu LIFEBOOK"
+		} else if strings.Contains(hLower, "dynabook") {
+			return "Dynabook"
+		} else if strings.Contains(hLower, "latitude") || strings.Contains(hLower, "optiplex") || strings.Contains(hLower, "xps") || strings.Contains(hLower, "dell") {
+			return "Dell"
+		} else if strings.Contains(hLower, "elitebook") || strings.Contains(hLower, "probook") || strings.Contains(hLower, "zbook") || strings.HasPrefix(hLower, "hp-") {
+			return "HP"
+		} else if strings.Contains(hLower, "vaio") {
+			return "VAIO"
+		}
+
+		// Fallback for Windows OS with NIC vendor
+		if strings.Contains(osVendor, "Windows") {
+			return "Windows PC"
+		} else if strings.Contains(osVendor, "macOS") {
+			return "Apple Mac"
+		} else if strings.Contains(osVendor, "Linux") {
+			return "Linux Device"
+		}
+	}
+
+	if currentVendor != "" && !isGenericVendor(currentVendor) {
 		return currentVendor
 	}
-	if currentVendor == "" || isGenericVendor(currentVendor) {
-		return inferredModel
-	}
-	// If inferredModel contains the current vendor name or vice-versa
-	if strings.Contains(strings.ToLower(inferredModel), strings.ToLower(currentVendor)) {
-		return inferredModel
-	}
-	firstWordInferred := strings.Fields(inferredModel)[0]
-	if strings.Contains(strings.ToLower(currentVendor), strings.ToLower(firstWordInferred)) {
-		return inferredModel
-	}
-	return inferredModel
+
+	return currentVendor
 }
 
 func isGenericVendor(vendor string) bool {

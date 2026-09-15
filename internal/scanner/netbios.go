@@ -206,7 +206,11 @@ func ResolveWindowsModel(upnpModel, upnpName, hostname, vendor string) string {
 
 	// Microsoft Surface Series
 	if strings.Contains(combinedLower, "surface") {
-		if strings.Contains(combinedLower, "pro 9") {
+		if strings.Contains(combinedLower, "pro 11") || strings.Contains(combinedLower, "pro (11") || strings.Contains(combinedLower, "pro 2024") || strings.Contains(combinedLower, "pro 2025") || strings.Contains(combinedLower, "pro (2025)") {
+			return "Microsoft Surface Pro (11th Edition / Copilot+ PC)"
+		} else if strings.Contains(combinedLower, "pro 10") {
+			return "Microsoft Surface Pro 10"
+		} else if strings.Contains(combinedLower, "pro 9") {
 			return "Microsoft Surface Pro 9"
 		} else if strings.Contains(combinedLower, "pro 8") {
 			return "Microsoft Surface Pro 8"
@@ -214,10 +218,16 @@ func ResolveWindowsModel(upnpModel, upnpName, hostname, vendor string) string {
 			return "Microsoft Surface Pro 7"
 		} else if strings.Contains(combinedLower, "pro") {
 			return "Microsoft Surface Pro"
+		} else if strings.Contains(combinedLower, "laptop 7") || strings.Contains(combinedLower, "laptop (7") {
+			return "Microsoft Surface Laptop (7th Edition / Copilot+ PC)"
+		} else if strings.Contains(combinedLower, "laptop 6") {
+			return "Microsoft Surface Laptop 6"
 		} else if strings.Contains(combinedLower, "laptop 5") {
 			return "Microsoft Surface Laptop 5"
 		} else if strings.Contains(combinedLower, "laptop 4") {
 			return "Microsoft Surface Laptop 4"
+		} else if strings.Contains(combinedLower, "laptop studio") {
+			return "Microsoft Surface Laptop Studio"
 		} else if strings.Contains(combinedLower, "laptop") {
 			return "Microsoft Surface Laptop"
 		} else if strings.Contains(combinedLower, "go") {
@@ -230,10 +240,24 @@ func ResolveWindowsModel(upnpModel, upnpName, hostname, vendor string) string {
 
 	// Lenovo ThinkPad / IdeaPad
 	if strings.Contains(combinedLower, "thinkpad") {
-		if strings.Contains(combinedLower, "x1 carbon") {
+		if strings.Contains(combinedLower, "x1 carbon gen 13") || strings.Contains(combinedLower, "x1 carbon gen13") {
+			return "Lenovo ThinkPad X1 Carbon Gen 13"
+		} else if strings.Contains(combinedLower, "x1 carbon gen 12") || strings.Contains(combinedLower, "x1 carbon gen12") {
+			return "Lenovo ThinkPad X1 Carbon Gen 12"
+		} else if strings.Contains(combinedLower, "x1 carbon gen 11") || strings.Contains(combinedLower, "x1 carbon gen11") {
+			return "Lenovo ThinkPad X1 Carbon Gen 11"
+		} else if strings.Contains(combinedLower, "x1 carbon gen 10") || strings.Contains(combinedLower, "x1 carbon gen10") {
+			return "Lenovo ThinkPad X1 Carbon Gen 10"
+		} else if strings.Contains(combinedLower, "x1 carbon") {
 			return "Lenovo ThinkPad X1 Carbon"
+		} else if strings.Contains(combinedLower, "x1 nano") {
+			return "Lenovo ThinkPad X1 Nano"
+		} else if strings.Contains(combinedLower, "x1 yoga") {
+			return "Lenovo ThinkPad X1 Yoga"
 		} else if strings.Contains(combinedLower, "x1") {
 			return "Lenovo ThinkPad X1 Series"
+		} else if strings.Contains(combinedLower, "t14s") {
+			return "Lenovo ThinkPad T14s"
 		} else if strings.Contains(combinedLower, "t14") {
 			return "Lenovo ThinkPad T14"
 		} else if strings.Contains(combinedLower, "t16") {

@@ -380,6 +380,9 @@ func (s *Scanner) scanSegmentInternal(ctx context.Context, seg *db.Segment) ([]*
 		// Priority: NetBIOS User Name (<03>), NetBIOS Computer Name, Hostname, mDNS Device Name, UPnP
 		userHint := ExtractUserHint(nbInfo.UserName, hostname, mdnsInfo.DeviceName, mdnsModel, winModel, upnpName)
 
+		// 6.5 Refined Vendor / Model Synthesis (Prioritize verified product model over raw NIC vendor)
+		refinedVendorModel := RefineVendorModel(vendor, mdnsModel, winModel, inferredModel, osVendor, hostname)
+
 		// 7. Jitter
 		var jitterPtr *float64
 		if rttPtr != nil {
@@ -393,7 +396,7 @@ func (s *Scanner) scanSegmentInternal(ctx context.Context, seg *db.Segment) ([]*
 			MACAddress:   mac,
 			Hostname:     hostname,
 			DisplayName:  displayName,
-			VendorModel:  vendor,
+			VendorModel:  refinedVendorModel,
 			OSVendor:     osVendor,
 			OSConfidence: scoreRes.Confidence,
 			OSEvidence:   scoreRes.Evidence,
