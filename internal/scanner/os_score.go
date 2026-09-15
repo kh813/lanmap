@@ -141,30 +141,118 @@ func ScoreOS(input OSScoreInput) OSScoreResult {
 	}
 
 	// 4. Web Titles & HTTP Headers (0.80 - 0.90)
-	if strings.Contains(evidenceLower, "luci 24") || strings.Contains(evidenceLower, "openwrt 24") {
+	if strings.Contains(evidenceLower, "fortigate") || strings.Contains(evidenceLower, "fortinet") || strings.Contains(evidenceLower, "fortios") {
+		addScore("Network", "FortiOS (Fortinet)", 0.92, "Web/Title (FortiGate)")
+	} else if strings.Contains(evidenceLower, "aruba") || strings.Contains(evidenceLower, "instant on") {
+		addScore("Network", "ArubaOS (Aruba Networks / HPE)", 0.90, "Web/Title (Aruba)")
+	} else if strings.Contains(evidenceLower, "mist") || strings.Contains(evidenceLower, "juniper") {
+		addScore("Network", "Mist AI / Junos OS (Mist Systems)", 0.90, "Web/Title (Mist/Juniper)")
+	} else if strings.Contains(evidenceLower, "luci 24") || strings.Contains(evidenceLower, "openwrt 24") {
 		addScore("Network", "OpenWrt 24.10 (Linux Router)", 0.90, "Web Title (OpenWrt 24)")
 	} else if strings.Contains(evidenceLower, "luci 23") || strings.Contains(evidenceLower, "openwrt 23") {
 		addScore("Network", "OpenWrt 23.05 (Linux Router)", 0.90, "Web Title (OpenWrt 23)")
 	} else if strings.Contains(evidenceLower, "openwrt") || strings.Contains(evidenceLower, "luci") {
 		addScore("Network", "OpenWrt (Linux Router)", 0.85, "Web Title (OpenWrt/LuCI)")
 	} else if strings.Contains(evidenceLower, "synology") || strings.Contains(evidenceLower, "dsm") {
-		addScore("Linux", "Synology DSM 7.x (Linux)", 0.88, "Web Title (Synology DSM)")
+		addScore("Linux", "Synology DSM (Linux)", 0.90, "Web Title (Synology DSM)")
+	} else if strings.Contains(evidenceLower, "qnap") || strings.Contains(evidenceLower, "qts") {
+		addScore("Linux", "QNAP QTS (Linux)", 0.90, "Web Title (QNAP QTS)")
+	} else if strings.Contains(evidenceLower, "asustor") || strings.Contains(evidenceLower, "adm") {
+		addScore("Linux", "ASUSTOR ADM (Linux)", 0.90, "Web Title (ASUSTOR)")
 	} else if strings.Contains(evidenceLower, "proxmox") {
 		addScore("Linux", "Proxmox VE (Debian Linux)", 0.90, "Web Title (Proxmox VE)")
-	} else if strings.Contains(evidenceLower, "truenas") {
+	} else if strings.Contains(evidenceLower, "truenas") || strings.Contains(evidenceLower, "freenas") {
 		addScore("Linux", "TrueNAS SCALE (Linux)", 0.88, "Web Title (TrueNAS)")
+	} else if strings.Contains(evidenceLower, "hikvision") || strings.Contains(evidenceLower, "web components") {
+		addScore("Camera", "Hikvision Embedded Linux", 0.90, "Web Title (Hikvision)")
+	} else if strings.Contains(evidenceLower, "dahua") {
+		addScore("Camera", "Dahua Embedded Linux", 0.90, "Web Title (Dahua)")
+	} else if strings.Contains(evidenceLower, "axis") {
+		addScore("Camera", "AXIS OS (Linux)", 0.90, "Web Title (AXIS)")
+	} else if strings.Contains(evidenceLower, "yealink") {
+		addScore("VoIP", "Yealink VoIP OS", 0.90, "Web Title (Yealink)")
+	} else if strings.Contains(evidenceLower, "polycom") || strings.Contains(evidenceLower, "soundpoint") {
+		addScore("VoIP", "Poly UC Software (VoIP)", 0.90, "Web Title (Polycom)")
+	} else if strings.Contains(evidenceLower, "grandstream") {
+		addScore("VoIP", "Grandstream VoIP OS", 0.90, "Web Title (Grandstream)")
 	}
 
-	// 5. Network Equipment vendor / title (0.75 - 0.85)
+	// 5. Network Equipment vendor / title (0.75 - 0.88)
 	vLower := strings.ToLower(input.Vendor)
-	if strings.Contains(vLower, "yamaha") || strings.Contains(evidenceLower, "yamaha") || strings.Contains(evidenceLower, "rtx") {
-		addScore("Network", "Yamaha Network OS (RevBoot)", 0.85, "Vendor/UPnP (Yamaha)")
+	if strings.Contains(vLower, "fortinet") || strings.Contains(vLower, "fortigate") {
+		addScore("Network", "FortiOS (Fortinet)", 0.88, "Vendor (Fortinet)")
+	} else if strings.Contains(vLower, "aruba") {
+		addScore("Network", "ArubaOS (Aruba Networks / HPE)", 0.88, "Vendor (Aruba)")
+	} else if strings.Contains(vLower, "mist") {
+		addScore("Network", "Mist AI (Mist Systems / Juniper)", 0.88, "Vendor (Mist Systems)")
+	} else if strings.Contains(vLower, "juniper") {
+		addScore("Network", "Junos OS (Juniper Networks)", 0.85, "Vendor (Juniper)")
+	} else if strings.Contains(vLower, "yamaha") || strings.Contains(evidenceLower, "yamaha") || strings.Contains(evidenceLower, "rtx") || strings.Contains(evidenceLower, "wlx") {
+		addScore("Network", "Yamaha Network OS (RevBoot)", 0.88, "Vendor/UPnP (Yamaha)")
+	} else if strings.Contains(vLower, "allied telesis") || strings.Contains(vLower, "allied") || strings.Contains(evidenceLower, "centrecom") {
+		addScore("Network", "AlliedWare Plus (Allied Telesis)", 0.85, "Vendor (Allied Telesis)")
 	} else if strings.Contains(vLower, "cisco") || strings.Contains(evidenceLower, "cisco") {
-		addScore("Network", "Cisco IOS / Network OS", 0.85, "Vendor/UPnP (Cisco)")
-	} else if strings.Contains(vLower, "netgear") || strings.Contains(evidenceLower, "netgear") {
-		addScore("Network", "Netgear Firmware (Embedded Linux)", 0.80, "Vendor/UPnP (Netgear)")
+		if strings.Contains(vLower, "cisco ip phone") || strings.Contains(evidenceLower, "cisco ip phone") {
+			addScore("VoIP", "Cisco IP Phone Firmware (SIP)", 0.90, "Vendor (Cisco VoIP)")
+		} else {
+			addScore("Network", "Cisco IOS / Network OS", 0.85, "Vendor/UPnP (Cisco)")
+		}
+	} else if strings.Contains(vLower, "netgear") || strings.Contains(evidenceLower, "netgear") || strings.Contains(evidenceLower, "orbi") || strings.Contains(evidenceLower, "nighthawk") {
+		addScore("Network", "Netgear Firmware (Embedded Linux)", 0.82, "Vendor/UPnP (Netgear)")
 	} else if strings.Contains(vLower, "ubiquiti") || strings.Contains(evidenceLower, "ubnt") || strings.Contains(evidenceLower, "unifi") {
-		addScore("Network", "UniFi OS (Embedded Linux)", 0.85, "Vendor/UPnP (UniFi)")
+		addScore("Network", "UniFi OS (Embedded Linux)", 0.88, "Vendor/UPnP (UniFi)")
+	} else if strings.Contains(vLower, "nec") || strings.Contains(evidenceLower, "aterm") {
+		addScore("Network", "NEC Aterm / Network Firmware", 0.80, "Vendor (NEC)")
+	} else if strings.Contains(vLower, "buffalo") || strings.Contains(evidenceLower, "airstation") {
+		if strings.Contains(evidenceLower, "terastation") || strings.Contains(evidenceLower, "linkstation") {
+			addScore("Linux", "Buffalo NAS Firmware (Linux)", 0.85, "Vendor/UPnP (Buffalo NAS)")
+		} else {
+			addScore("Network", "Buffalo AirStation Firmware", 0.80, "Vendor/UPnP (Buffalo)")
+		}
+	} else if strings.Contains(vLower, "tp-link") || strings.Contains(evidenceLower, "omada") || strings.Contains(evidenceLower, "deco") {
+		addScore("Network", "TP-Link Firmware (Embedded Linux)", 0.80, "Vendor/UPnP (TP-Link)")
+	}
+
+	// 5.5 Surveillance Cameras & VoIP Phones (0.75 - 0.88)
+	if strings.Contains(vLower, "hikvision") {
+		addScore("Camera", "Hikvision Embedded Linux", 0.88, "Vendor (Hikvision)")
+	} else if strings.Contains(vLower, "dahua") {
+		addScore("Camera", "Dahua Embedded Linux", 0.88, "Vendor (Dahua)")
+	} else if strings.Contains(vLower, "axis") {
+		addScore("Camera", "AXIS OS (Embedded Linux)", 0.88, "Vendor (Axis Communications)")
+	} else if strings.Contains(vLower, "hanwha") || strings.Contains(vLower, "techwin") {
+		addScore("Camera", "Hanwha Wisenet OS", 0.88, "Vendor (Hanwha)")
+	} else if strings.Contains(vLower, "yealink") {
+		addScore("VoIP", "Yealink VoIP OS", 0.88, "Vendor (Yealink)")
+	} else if strings.Contains(vLower, "poly") || strings.Contains(vLower, "polycom") {
+		addScore("VoIP", "Poly UC Software (VoIP)", 0.88, "Vendor (Polycom)")
+	} else if strings.Contains(vLower, "grandstream") {
+		addScore("VoIP", "Grandstream VoIP OS", 0.88, "Vendor (Grandstream)")
+	} else if strings.Contains(vLower, "snom") {
+		addScore("VoIP", "Snom VoIP OS", 0.88, "Vendor (Snom)")
+	} else if strings.Contains(vLower, "fanvil") {
+		addScore("VoIP", "Fanvil VoIP OS", 0.88, "Vendor (Fanvil)")
+	} else if strings.Contains(input.OpenPorts, "554") && (strings.Contains(input.OpenPorts, "8000") || strings.Contains(input.OpenPorts, "8899") || strings.Contains(input.OpenPorts, "37777")) {
+		addScore("Camera", "IP Camera / ONVIF Device", 0.80, "Ports 554/8000/8899 (RTSP/ONVIF)")
+	} else if strings.Contains(input.OpenPorts, "5060") || strings.Contains(input.OpenPorts, "5061") {
+		addScore("VoIP", "VoIP / SIP Terminal", 0.78, "Port 5060/5061 (SIP)")
+	}
+
+	// 5.6 IoT, Smart Home & Microcontrollers (0.70 - 0.85)
+	if strings.Contains(vLower, "switchbot") || strings.Contains(vLower, "woan") {
+		addScore("IoT", "SwitchBot OS (IoT)", 0.88, "Vendor (SwitchBot)")
+	} else if strings.Contains(vLower, "espressif") {
+		addScore("IoT", "FreeRTOS (ESP32/ESP8266)", 0.80, "OUI Vendor (Espressif)")
+	} else if strings.Contains(vLower, "tuya") {
+		addScore("IoT", "Tuya Smart OS (IoT)", 0.85, "Vendor (Tuya)")
+	} else if strings.Contains(vLower, "shelly") {
+		addScore("IoT", "Shelly Firmware (Mongoose OS)", 0.85, "Vendor (Shelly)")
+	} else if strings.Contains(vLower, "philips hue") || strings.Contains(vLower, "philips lighting") {
+		addScore("IoT", "Philips Hue Bridge OS", 0.88, "Vendor (Philips Hue)")
+	} else if strings.Contains(vLower, "xiaomi") || strings.Contains(vLower, "aqara") {
+		addScore("IoT", "Xiaomi / Aqara Smart OS", 0.82, "Vendor (Xiaomi)")
+	} else if strings.Contains(input.OpenPorts, "1883") || strings.Contains(input.OpenPorts, "8883") {
+		addScore("IoT", "Embedded IoT (MQTT)", 0.75, "Port 1883 (MQTT)")
 	}
 
 	// 6. SMB & Windows ports (0.60 - 0.80)
@@ -184,8 +272,6 @@ func ScoreOS(input OSScoreInput) OSScoreResult {
 		addScore("Windows", "Windows", 0.40, "OUI Vendor (Microsoft)")
 	} else if strings.Contains(vLower, "raspberry") || strings.Contains(hLower, "raspberrypi") {
 		addScore("Linux", "Raspberry Pi OS (Linux)", 0.75, "Vendor/Hostname (Raspberry Pi)")
-	} else if strings.Contains(vLower, "espressif") {
-		addScore("IoT", "FreeRTOS (ESP32/ESP8266)", 0.70, "OUI Vendor (Espressif)")
 	} else if strings.Contains(vLower, "canon") || strings.Contains(vLower, "epson") || strings.Contains(vLower, "brother") || strings.Contains(vLower, "fuji xerox") || strings.Contains(vLower, "ricoh") {
 		addScore("Printer", "Printer Firmware", 0.65, fmt.Sprintf("OUI Vendor (%s)", input.Vendor))
 	} else if strings.Contains(vLower, "nintendo") {

@@ -319,20 +319,84 @@ func TestScoreOS(t *testing.T) {
 		t.Errorf("expected empty OS (Unknown/Not Detected) for no signals, got %+v", resNoSignal)
 	}
 
-	// 7. Windows host identified via NetBIOS Node query
-	winNetBIOS := OSScoreInput{
-		IP:            "192.168.1.150",
-		NetBIOSName:   "DESKTOP-XYZ",
-		NetBIOSUser:   "HIROSHI",
-		NetBIOSDomain: "WORKGROUP",
-		IsNetBIOS:     true,
+	// 8. Fortinet FortiGate Firewall
+	fortiInput := OSScoreInput{
+		IP:        "192.168.1.254",
+		Hostname:  "FGT60F-HQ",
+		Vendor:    "Fortinet (FortiGate)",
+		TTL:       255,
+		HTTPTitle: "FortiGate - Administrative Access",
+		OpenPorts: "443:HTTPS,541:FortiTelemetry",
 	}
-	resNB := ScoreOS(winNetBIOS)
-	if !strings.Contains(resNB.OS, "Windows") {
-		t.Errorf("expected Windows from NetBIOS, got %+v", resNB)
+	resForti := ScoreOS(fortiInput)
+	if !strings.Contains(resForti.OS, "FortiOS") {
+		t.Errorf("expected FortiOS, got %+v", resForti)
 	}
-	if resNB.Confidence != "high" {
-		t.Errorf("expected high confidence for NetBIOS match, got %q", resNB.Confidence)
+	if resForti.Confidence != "high" {
+		t.Errorf("expected high confidence for FortiGate, got %q", resForti.Confidence)
+	}
+
+	// 9. Aruba Wireless Access Point
+	arubaInput := OSScoreInput{
+		IP:        "192.168.1.10",
+		Hostname:  "Aruba-AP-515",
+		Vendor:    "Aruba Networks (HPE)",
+		TTL:       64,
+		HTTPTitle: "Aruba Instant On WebUI",
+	}
+	resAruba := ScoreOS(arubaInput)
+	if !strings.Contains(resAruba.OS, "ArubaOS") {
+		t.Errorf("expected ArubaOS, got %+v", resAruba)
+	}
+
+	// 10. Mist Systems AP
+	mistInput := OSScoreInput{
+		IP:       "192.168.1.11",
+		Hostname: "AP43-Lobby",
+		Vendor:   "Mist Systems (Juniper)",
+		TTL:      64,
+	}
+	resMist := ScoreOS(mistInput)
+	if !strings.Contains(resMist.OS, "Mist AI") {
+		t.Errorf("expected Mist AI, got %+v", resMist)
+	}
+
+	// 11. Hikvision Surveillance Camera
+	camInput := OSScoreInput{
+		IP:        "192.168.1.200",
+		Hostname:  "IPC-HDW4631C",
+		Vendor:    "Hikvision (Camera)",
+		TTL:       64,
+		OpenPorts: "80:HTTP,554:RTSP,8000:Hikvision",
+	}
+	resCam := ScoreOS(camInput)
+	if !strings.Contains(resCam.OS, "Hikvision") {
+		t.Errorf("expected Hikvision Embedded Linux, got %+v", resCam)
+	}
+
+	// 12. Yealink VoIP Phone
+	voipInput := OSScoreInput{
+		IP:        "192.168.1.201",
+		Hostname:  "Yealink-T46U",
+		Vendor:    "Yealink (IP Phone)",
+		TTL:       64,
+		OpenPorts: "80:HTTP,5060:SIP",
+	}
+	resVoip := ScoreOS(voipInput)
+	if !strings.Contains(resVoip.OS, "Yealink") {
+		t.Errorf("expected Yealink VoIP OS, got %+v", resVoip)
+	}
+
+	// 13. SwitchBot IoT Device
+	iotInput := OSScoreInput{
+		IP:       "192.168.1.202",
+		Hostname: "SwitchBot-Hub2",
+		Vendor:   "SwitchBot (Woan Tech)",
+		TTL:      64,
+	}
+	resIoT := ScoreOS(iotInput)
+	if !strings.Contains(resIoT.OS, "SwitchBot") {
+		t.Errorf("expected SwitchBot OS, got %+v", resIoT)
 	}
 }
 

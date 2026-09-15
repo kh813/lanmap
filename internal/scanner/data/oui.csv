@@ -1,201 +1,776 @@
 00000C,Cisco
+000048,Epson Printer
+00004C,NEC
+000074,Ricoh Printer
+000083,Fuji Xerox Printer
+000085,Canon Printer
+0000AA,Xerox Printer
+0000CD,Allied Telesis
+0000F4,Allied Telesis
 000142,Cisco
+000143,Cisco
 00016C,Foxconn
-0001E8,Force10 Networks
+000184,Konica Minolta
+0001C7,Cisco
+0001C9,Cisco
+000216,Cisco
+000217,Cisco
+00024A,Cisco
+00027D,Cisco
+0002B9,Cisco
+0002BA,Cisco
+0002D1,VIVOTEK (Camera)
+0002FC,Cisco
+0002FD,Cisco
+00036B,Cisco
 000393,Apple
+0003E3,Cisco
+0003FD,Cisco
+00040D,Avaya (VoIP)
+000413,Snom (IP Phone)
+00041F,Sony
+00044D,Cisco
+00049B,Cisco
+0004C0,Cisco
+0004C1,Cisco
+0004DD,Cisco
+0004F2,Poly / Polycom (VoIP)
 000502,Apple
+000531,Cisco
+000569,VMware
+000573,Cisco
+00059A,Cisco
+0005DC,Cisco
+000628,Cisco
+000652,Cisco
+0006C1,Cisco
+0006D6,Cisco
+00070E,Cisco
+000740,BUFFALO
+000750,Cisco
+000784,Cisco
+000785,Cisco
+0007B3,Cisco
+0007B4,Cisco
+0007EB,Cisco
+000820,Cisco
+000821,Cisco
+00082F,Cisco IP Phone
+00085D,Aastra / Mitel (VoIP)
+00087C,Cisco
+00089B,QNAP NAS
+0008A3,Cisco
+0008C7,Cisco
+0008E2,Cisco
+0008E3,Cisco
+0008J4,Cisco
+00090F,Fortinet (FortiGate)
+000918,Hanwha Techwin (Camera)
+00095B,Netgear
+0009BF,Nintendo
 000A27,Apple
+000A79,Elecom
+000A8D,I-O DATA
 000A95,Apple
+000B82,Grandstream (IP Phone)
+000B86,Aruba Networks (HPE)
+000B97,Panasonic (Camera/VoIP)
+000C25,Allied Telesis
 000C29,VMware
 000C41,Cisco
+000C85,Cisco
+000C86,Cisco
+000C87,Kyocera Printer
+000CC4,Cisco
+000CC5,Cisco
+000D0B,BUFFALO
 000D3A,Microsoft
+000FB5,Netgear
 001018,Broadcom
+0010DB,Juniper Networks
+001120,Cisco
+001121,Cisco
 001124,Apple
 001132,Synology
+00115C,Cisco
+00115D,Cisco
+001192,Cisco
+001193,Cisco
+0011BB,Cisco
+0011BC,Cisco
+001200,Cisco
+001201,Cisco
+001212,Dahua (Camera)
+00121E,Juniper Networks
+001243,Cisco
+001244,Cisco
+00125A,Microsoft
+001273,NEC
+00127F,Cisco
+001280,Cisco
+001315,Sony
+001319,Cisco
+00131A,Cisco
+001349,I-O DATA
+00135F,Cisco
+001360,Cisco
+00137F,Cisco
+001380,Cisco
+0013C3,Cisco
+0013C4,Cisco
 0013E8,Intel
+00141B,Cisco
+00141C,Cisco
 001422,Dell
+001469,Cisco
+00146A,Cisco
+00146C,Netgear
 001478,TP-Link
+0014A8,Cisco
+0014A9,Cisco
+0014EE,Western Digital NAS
+0014F1,Cisco
+0014F2,Cisco
+00152B,Cisco
+00152C,Cisco
 00155D,Microsoft
+001562,Cisco
+001563,Cisco
+001565,Yealink (IP Phone)
+00156D,Ubiquiti
+001577,Allied Telesis
+0015C6,Cisco
+0015C7,Cisco
+0015FA,Cisco
+0015FB,Cisco
 00163E,Xen
-001788,Philips Lighting
+001646,Cisco
+001647,Cisco
+001656,Nintendo
+00166C,Hanwha Techwin (Camera)
+00169C,Cisco
+00169D,Cisco
+0016C7,Cisco
+0016C8,Cisco
+0016F1,Panasonic (Camera/VoIP)
+00170E,Cisco
+00170F,Cisco
+00173B,Cisco
+001759,Cisco
+00175A,Cisco
+001788,Philips Hue (Lighting)
+001794,Cisco
+001795,Cisco
+0017A4,HP Printer
+0017AB,Nintendo
+0017DF,Cisco
+0017E0,Cisco
+001818,Cisco
+001819,Cisco
+00184D,Netgear
+001873,Cisco
+001874,Cisco
+001884,I-O DATA
+0018AE,Hikvision (Camera)
+0018B9,Cisco
+0018BA,Cisco
 0018E7,Raspberry Pi
-001A11,Google
-001A8C,Sophos
+001906,Cisco
+001907,Cisco
+00191D,Nintendo
+00192F,Cisco
+001930,Cisco
+001955,Cisco
+001956,Cisco
+0019A9,Cisco
+0019AA,Cisco
+0019C5,Sony
+0019E7,Cisco
+0019E8,Cisco
+001A11,Google (Nest/Home)
+001A1E,Aruba Networks (HPE)
+001A2F,Cisco
+001A30,Cisco
+001A6C,Cisco
+001A6D,Cisco
+001A80,Sony
+001AA1,Cisco
+001AA2,Cisco
+001AEB,Allied Telesis
+001B17,NEC
+001B2F,Netgear
+001B4F,Avaya (VoIP)
+001B7A,Nintendo
+001B8B,I-O DATA
+001BA9,Brother Printer
+001BD4,Cisco IP Phone
+001BD5,Cisco IP Phone
+001BEA,Nintendo
 001C42,Parallels
+001D0F,TP-Link
 001D43,Sony
+001D73,BUFFALO
+001DBC,Nintendo
 001E2A,Netgear
+001E35,Nintendo
+001E52,Elecom
 001E67,Intel
+001E8F,Canon Printer
+001F12,Juniper Networks
+001F32,Nintendo
+001F33,Netgear
+001F74,Panasonic (Camera/VoIP)
 001FC6,ASUS
+002127,TP-Link
+002147,Nintendo
+002159,Juniper Networks
+00215A,HP Printer
 00216A,Intel
+0021A0,Cisco IP Phone
+00223F,Netgear
+00224C,Nintendo
+0022CF,I-O DATA
+0022D7,Nintendo
 002312,Apple
+002331,Nintendo
+002344,Hanwha Techwin (Camera)
+0023CC,Nintendo
+0023CD,TP-Link
+00241E,Nintendo
+002444,Nintendo
+00246C,Aruba Networks (HPE)
 002482,BUFFALO
 00248C,ASUS
 00248D,Sony PlayStation
+002497,Cisco IP Phone
+0024A5,BUFFALO
 0024B2,Netgear
+0024BE,Sony
+0024DC,Juniper Networks
+0024F3,Nintendo
+002522,Poly / Polycom (VoIP)
 002590,Super Micro
+0025A0,Nintendo
+0025B3,HP Printer
+002659,Nintendo
+002673,Ricoh Printer
+002682,NEC
+002688,Fortinet (FortiGate)
+0026AB,Epson Printer
 0026BB,Apple
 0026F2,Netgear
+002719,TP-Link
+002722,Ubiquiti
+002790,Cisco IP Phone
+003084,Allied Telesis
+003192,TP-Link
+0038DF,Cisco IP Phone
+004048,Hikvision (Camera)
+00408C,Axis Communications (Camera)
 005056,VMware
-0090A9,Western Digital
+005E58,Cisco IP Phone
+0061A5,Fortinet (FortiGate)
+007147,Amazon (Echo/Fire)
+008045,Panasonic (Camera/VoIP)
+008077,Brother Printer
+008EF2,Netgear
+00907A,Poly / Polycom (VoIP)
+0090A9,Western Digital NAS
+0090CC,Elecom
+009EC8,Xiaomi (Smart Home)
+00A0C5,Fanvil (IP Phone)
+00A0DE,Yamaha (Network)
 00E04C,Realtek
+00FC8B,Amazon (Echo/Fire)
+0242AC,Docker Container
 0418D6,Ubiquiti
+044B80,Fortinet (FortiGate)
+045D4B,Sony
+04A151,Netgear
+04AB18,Elecom
+04BD70,Allied Telesis
+04CF8C,Xiaomi (Smart Home)
 04D9F5,ASUS
+04E676,NEC
+08000F,Mitel (VoIP)
 080027,Oracle VirtualBox
+08028E,Netgear
+0836C9,Netgear
+0857FB,Amazon (Echo/Fire)
+085B0E,Fortinet (FortiGate)
+086AE5,Amazon (Echo/Fire)
+08863B,BUFFALO
+08B61F,SwitchBot (Woan Tech)
+08BD43,Netgear
+0C383E,Fanvil (IP Phone)
+0C47C9,Amazon (Echo/Fire)
 0C4DE9,Apple
 1008B1,Apple
+100C6B,Netgear
+100D7F,Netgear
+101279,Hikvision (Camera)
+105A17,Tuya Smart (IoT)
 106530,Apple
+106682,I-O DATA
+106F3F,BUFFALO
 107B44,ASUS
 109ADD,Apple
+10BF48,ASUSTOR NAS
+10DA43,Netgear
+143CC3,Xiaomi (Smart Home)
+1452A1,Hanwha Techwin (Camera)
+1459C0,Netgear
+146B9A,Elecom
 147DDA,Apple
 149877,Apple
 14CC20,TP-Link
+14CF92,TP-Link
+180C14,Canon Printer
 1831BF,ASUS
+186472,Aruba Networks (HPE)
 186590,Apple
+1868CB,Hikvision (Camera)
+1869D8,Tuya Smart (IoT)
+18742E,Amazon (Echo/Fire)
+18A6F7,TP-Link
+18C2BF,NEC
 18E829,Ubiquiti
 1C1B0D,Apple
+1C3BF3,TP-Link
+1C53F9,Google (Nest/Home)
 1C60DE,TP-Link
+1CE45D,Ubiquiti
+204C03,Aruba Networks (HPE)
 20A2E4,Apple
+20DFB9,Google (Nest/Home)
 20E52A,Netgear
+20F478,I-O DATA
+20F878,Fortinet (FortiGate)
+240AC4,Espressif (ESP32/ESP8266)
+243154,Panasonic (Camera/VoIP)
 244BFE,Apple
+244CE3,Amazon (Echo/Fire)
+245416,Hikvision (Camera)
 245A4C,Ubiquiti
-24A074,Espressif
+245EBE,Synology / QNAP
+2462AB,Espressif (ESP32/ESP8266)
+246F28,Espressif (ESP32/ESP8266)
+249AD8,Yealink (IP Phone)
+24A074,Espressif (ESP32/ESP8266)
+24DCC3,Espressif (ESP32/ESP8266)
+24DEC6,Aruba Networks (HPE)
+281878,Microsoft
+2824FF,I-O DATA
+282772,Hanwha Techwin (Camera)
+2857BE,Hikvision (Camera)
+286C07,Xiaomi (Smart Home)
+288088,Netgear
+288A1C,Juniper Networks
+289401,Netgear
+28C68E,Netgear
 28CDC1,Raspberry Pi
 28CFE9,Apple
+28F076,Elecom
+2C2131,Mist Systems (Juniper)
 2C3033,Apple
 2C4D54,ASUS
+30055C,Brother Printer
+3010B3,Panasonic (Camera/VoIP)
+30469A,Netgear
+307512,Sony PlayStation
 3096FB,Apple
-30AEA4,Espressif
+30AEA4,Espressif (ESP32/ESP8266)
 30B5C2,TP-Link
+30DE4B,TP-Link
+340804,Hikvision (Camera)
 34363B,Apple
+347587,BUFFALO
+3476C5,I-O DATA
+349454,Shelly (Allterco)
+34AF2C,Nintendo Switch
+34CE00,Xiaomi (Smart Home)
+34D270,Amazon (Echo/Fire)
 34EE16,Apple
+380146,Amazon (Echo/Fire)
+3817C3,Aruba Networks (HPE)
+3881D7,SwitchBot (Woan Tech)
 3897A4,TP-Link
+38AF29,Amcrest (Camera)
+38D547,Elecom
+38D7CA,Hanwha Techwin (Camera)
+38F7CD,Amazon (Echo/Fire)
 38F9D3,Apple
 3C0754,Apple
 3C15C2,Apple
-3C71BF,Espressif
+3C36E4,NEC
+3C5A37,Google (Nest/Home)
+3C6104,Juniper Networks
+3C6105,Espressif (ESP32/ESP8266)
+3C71BF,Espressif (ESP32/ESP8266)
+40163B,Hikvision (Camera)
+401B5F,I-O DATA
+4022D8,Espressif (ESP32/ESP8266)
+405D82,Netgear
 406C8F,Apple
+409151,Espressif (ESP32/ESP8266)
+40B4CD,Amazon (Echo/Fire)
+40D28A,Nintendo Switch
+40E3D6,Aruba Networks (HPE)
+4419B6,Hikvision (Camera)
+44650D,Amazon (Echo/Fire)
+44A56E,Netgear
 44D884,Apple
+44D9E7,Ubiquiti
+482567,Poly / Polycom (VoIP)
+483FDA,Espressif (ESP32/ESP8266)
+485519,Espressif (ESP32/ESP8266)
 48D705,Apple
+48EA63,Uniview (Camera)
+48F8B3,BUFFALO
 4C0BBE,BUFFALO
+4C11AE,Espressif (ESP32/ESP8266)
+4C11BF,Dahua (Camera)
 4C3275,Apple
-4C7525,Espressif
+4C49E3,Yamaha (Network)
+4C7525,Espressif (ESP32/ESP8266)
+4CE676,BUFFALO
+4CF55C,Panasonic (Camera/VoIP)
+501C6B,Fortinet (FortiGate)
+506A03,Netgear
 50BC96,Apple
 50C7BF,TP-Link
+50D4F7,TP-Link
+50EC50,Hikvision (Camera)
+50F5DA,Amazon (Echo/Fire)
+525400,QEMU / KVM
 542696,Apple
+5443B2,Espressif (ESP32/ESP8266)
+5448E6,Xiaomi (Smart Home)
+544E90,Elecom
+545AA6,Espressif (ESP32/ESP8266)
+546009,Google (Nest/Home)
+54AF97,TP-Link
+54C415,Hikvision (Camera)
+5803FB,Hikvision (Camera)
+582D34,SwitchBot (Woan Tech)
+584120,Xiaomi (Smart Home)
 5855CA,Apple
+5C4527,Juniper Networks
+5C5B35,Mist Systems (Juniper)
 5C80B6,Apple
+5CCF7F,Espressif (ESP32/ESP8266)
+5CD08B,Panasonic (Camera/VoIP)
+5CE28C,Mist Systems (Juniper)
+5CE931,TP-Link
+600194,Espressif (ESP32/ESP8266)
 600308,Apple
+6032B1,TP-Link
+6038E0,Netgear
 6045BD,ASUS
+608C4A,Aruba Networks (HPE)
 60A44C,TP-Link
+60E327,Ubiquiti
+640980,Xiaomi (Smart Home)
+641666,Google (Nest/Home)
+64167F,Poly / Polycom (VoIP)
 644B7E,Apple
+6490C1,Xiaomi (Smart Home)
+649EF3,Cisco IP Phone
+64D989,Cisco IP Phone
+64DB8B,Hikvision (Camera)
+6837E9,Amazon (Echo/Fire)
+68545A,Amazon (Echo/Fire)
+687251,Hanwha Techwin (Camera)
+6872C3,I-O DATA
 68A86D,Apple
+68C63A,Espressif (ESP32/ESP8266)
 68D79A,Ubiquiti
+6C198F,Panasonic (Camera/VoIP)
 6CD68A,Apple
+6CF37F,Aruba Networks (HPE)
+70039F,Espressif (ESP32/ESP8266)
 701124,Apple
+7038EE,Avaya (VoIP)
+703A0E,Aruba Networks (HPE)
+70480F,Nintendo Switch
+704CA5,Fortinet (FortiGate)
+704F57,TP-Link
+708105,Cisco IP Phone
+708976,Tuya Smart (IoT)
 708BCD,ASUS
 709E29,Sony PlayStation
+70AF6A,Hikvision (Camera)
+70B3D5,Canon Printer
+7403BD,BUFFALO
+7405A5,TP-Link
+742344,Xiaomi (Smart Home)
+742A75,Dahua (Camera)
+747548,Amazon (Echo/Fire)
+7483C2,Ubiquiti
+7488BB,Aruba Networks (HPE)
+74AC5F,Hikvision (Camera)
+74C246,Amazon (Echo/Fire)
 74E1B6,Apple
+7811DC,Xiaomi (Smart Home)
+784558,Ubiquiti
 784F43,Apple
+78542E,I-O DATA
+7883C8,TP-Link
 788A20,Ubiquiti
-7C2EBD,Google
+78A5DD,Hikvision (Camera)
+78D294,Netgear
+78E103,Amazon (Echo/Fire)
+7C1E52,Microsoft Surface
+7C2EBD,Google (Nest/Home)
+7C49EB,Xiaomi (Smart Home)
+7C87CE,Espressif (ESP32/ESP8266)
+7CBB8A,Nintendo Switch
 7CE070,Apple
+800043,Panasonic (Camera/VoIP)
+801934,Sony PlayStation
 802AA8,Ubiquiti
+805E0C,Yealink (IP Phone)
+805EC0,Yealink (IP Phone)
+807ABF,Juniper Networks
+807D3A,Hikvision (Camera)
 80E650,Apple
+840D8E,Espressif (ESP32/ESP8266)
+8416F9,TP-Link
+841888,Juniper Networks
 841B5E,Netgear
 843835,Apple
-84F3EB,Espressif
+84AFEC,BUFFALO
+84C1C1,Juniper Networks
+84D47E,Aruba Networks (HPE)
+84D6D0,Amazon (Echo/Fire)
+84DF19,NEC
+84F3EB,Espressif (ESP32/ESP8266)
+8851FB,I-O DATA
 88665A,Apple
+887556,Fortinet (FortiGate)
+88E0F3,Juniper Networks
+88E7A6,Hikvision (Camera)
+88F031,Cisco IP Phone
+8C5AC1,Elecom
 8C8590,Apple
+8CA6DF,TP-Link
+8CBEBE,Xiaomi (Smart Home)
+8CE748,Ubiquiti
+9002A9,Hikvision (Camera)
+9009D0,Synology NAS
+906CAC,Fortinet (FortiGate)
+906F18,I-O DATA
 90840D,Apple
+90905E,Juniper Networks
+9097D5,Espressif (ESP32/ESP8266)
+909A4A,TP-Link
+90A2DA,NEC
 941625,Apple
-94DB56,Xiaomi / Tuya
+94A6B7,Canon Printer
+94B40F,Aruba Networks (HPE)
+94B555,Espressif (ESP32/ESP8266)
+94B97E,Espressif (ESP32/ESP8266)
+94DB56,Tuya / Xiaomi
+94EA32,Google (Nest/Home)
 9801A7,Apple
+982CBC,Xiaomi (Smart Home)
+983B8F,BUFFALO
 984827,TP-Link
+985FD3,Microsoft Surface
+98B6E9,Nintendo Switch
+98CDAC,Espressif (ESP32/ESP8266)
+9C1463,Dahua (Camera)
+9C1C12,Aruba Networks (HPE)
 9C3DCF,Netgear
 9CD917,Apple
-A0999B,Apple
-A0F3C1,TP-Link
-A45E60,Apple
-A4CF12,Espressif
-A82066,Apple
-AC84C6,TP-Link
-AC87A3,Apple
-AC9E17,ASUS
-B03495,Apple
-B06EBF,ASUS
-B418D1,Apple
-B4FBE4,Ubiquiti
-B827EB,Raspberry Pi
-B87826,Apple
-B8BEBF,BUFFALO
-BCA511,Netgear
-00095B,Netgear
-000FB5,Netgear
-00146C,Netgear
-00184D,Netgear
-001B2F,Netgear
-001F33,Netgear
-00223F,Netgear
-008EF2,Netgear
-04A151,Netgear
-08028E,Netgear
-0836C9,Netgear
-08BD43,Netgear
-100C6B,Netgear
-100D7F,Netgear
-10DA43,Netgear
-1459C0,Netgear
-288088,Netgear
-289401,Netgear
-28C68E,Netgear
-30469A,Netgear
-405D82,Netgear
-44A56E,Netgear
-506A03,Netgear
-6038E0,Netgear
-6C198F,Netgear
-78D294,Netgear
+A002DC,Amazon (Echo/Fire)
 A00460,Netgear
+A020A6,Espressif (ESP32/ESP8266)
 A040A0,Netgear
 A06391,Netgear
-C0FFD4,Netgear
-CC40D0,Netgear
-E0469A,Netgear
-E091F5,Netgear
+A0999B,Apple
+A0BD1D,Dahua (Camera)
+A0ECF9,BUFFALO
+A0F3C1,TP-Link
+A41242,NEC
+A4134E,Ubiquiti
+A41437,Hikvision (Camera)
+A45E60,Apple
+A47733,Google (Nest/Home)
+A47B9D,Espressif (ESP32/ESP8266)
+A49B4F,Elecom
+A4C138,Tuya Smart (IoT)
+A4CF12,Espressif (ESP32/ESP8266)
+A82066,Apple
+A8BD27,Aruba Networks (HPE)
+AC1826,Epson Printer
+AC44F2,Yamaha (Network)
+AC63BE,Amazon (Echo/Fire)
+AC67B2,Espressif (ESP32/ESP8266)
+AC6B44,Hikvision (Camera)
+AC84C6,TP-Link
+AC87A3,Apple
+AC8B03,Ubiquiti
+AC9E17,ASUS
+ACA31E,Aruba Networks (HPE)
+ACCC8E,Axis Communications (Camera)
+ACD074,Espressif (ESP32/ESP8266)
+ACF7F3,Xiaomi (Smart Home)
+B03495,Apple
+B04E26,TP-Link
+B06EBF,ASUS
+B09575,TP-Link
+B0ADAA,Avaya (VoIP)
+B0C554,Dahua (Camera)
+B0C745,Panasonic (Camera/VoIP)
+B418D1,Apple
+B45D50,Aruba Networks (HPE)
+B47C9C,Amazon (Echo/Fire)
+B4A382,Hikvision (Camera)
+B4A4E3,Cisco IP Phone
+B4E62D,Espressif (ESP32/ESP8266)
+B4FBE4,Ubiquiti
+B827EB,Raspberry Pi
+B86B23,Panasonic (Camera/VoIP)
+B87826,Apple
+B88AEC,Nintendo Switch
+B8A44F,Axis Communications (Camera)
+B8BEBF,BUFFALO
+B8E856,Ubiquiti
+BC1665,Juniper Networks
+BC325B,Dahua (Camera)
+BC5436,Hikvision (Camera)
+BC60A7,Sony PlayStation
+BC8861,Fortinet (FortiGate)
+BCA511,Netgear
+BCDDC2,Espressif (ESP32/ESP8266)
 BCEE7B,ASUS
 C006C3,TP-Link
+C025E9,TP-Link
+C04A00,TP-Link
+C056E3,Hikvision (Camera)
+C074AD,Grandstream (IP Phone)
 C0847A,Apple
+C0FFD4,Netgear
+C40BCB,Xiaomi (Smart Home)
 C42C03,Apple
+C44F33,Espressif (ESP32/ESP8266)
+C45BBE,Shelly (Allterco)
+C47295,Cisco IP Phone
+C49DED,Microsoft Surface
+C8028F,Hikvision (Camera)
+C82B96,Espressif (ESP32/ESP8266)
 C869CD,Apple
+C8A9FC,I-O DATA
 CC29F5,Apple
+CC32E5,TP-Link
+CC40D0,Netgear
+CC50E3,Espressif (ESP32/ESP8266)
+CC9E00,Amazon (Echo/Fire)
+CCB11A,Panasonic (Camera/VoIP)
+CCE17F,Juniper Networks
+CCFB65,Nintendo Switch
 D0034B,Apple
+D007CA,Aruba Networks (HPE)
+D07EEB,Fortinet (FortiGate)
 D0C5D3,Samsung
+D420B0,Mist Systems (Juniper)
 D4619D,Apple
+D46E0E,TP-Link
+D4970B,Xiaomi (Smart Home)
+D4C1FC,Poly / Polycom (VoIP)
+D80D17,TP-Link
+D81F12,Tuya Smart (IoT)
 D83062,Apple
 D83ADD,Raspberry Pi
+D84732,TP-Link
+D86B35,Nintendo Switch
+D86C63,Google (Nest/Home)
+D8A01D,Espressif (ESP32/ESP8266)
+D8B190,Cisco IP Phone
+D8B370,Ubiquiti
+D8B5B9,NEC
+D8C46A,Panasonic (Camera/VoIP)
+D8C7C8,Aruba Networks (HPE)
+DC234E,Tuya Smart (IoT)
 DC2B61,Apple
-DCFB02,BUFFALO
+DC38E1,Juniper Networks
+DC4F22,Espressif (ESP32/ESP8266)
+DC5360,Microsoft Surface
+DC5475,Espressif (ESP32/ESP8266)
+DC9FDB,Ubiquiti
 DCA632,Raspberry Pi
+DCB971,Elecom
+DCB983,Hikvision (Camera)
+DCEE06,I-O DATA
+DCEFCA,Amazon (Echo/Fire)
+DCFB02,BUFFALO
+E03F49,BUFFALO
+E0469A,Netgear
+E0508B,Hikvision (Camera)
+E059B5,Allied Telesis
+E063DA,Ubiquiti
+E091F5,Netgear
+E09806,Espressif (ESP32/ESP8266)
 E0ACCB,Apple
+E0D55E,Brother Printer
+E0E751,Nintendo Switch
+E4074E,I-O DATA
+E4249C,Dahua (Camera)
 E45F01,Raspberry Pi
+E4AAEC,SwitchBot (Woan Tech)
+E4C32A,TP-Link
 E4CE8F,Apple
+E4E0A6,Amazon (Echo/Fire)
+E4F042,Google (Nest/Home)
+E4F4C6,Netgear
+E81DA8,Fortinet (FortiGate)
+E81DCA,Aruba Networks (HPE)
+E82725,Axis Communications (Camera)
+E831CD,Espressif (ESP32/ESP8266)
+E84ECE,Nintendo Switch
+E86BEA,Espressif (ESP32/ESP8266)
 E8802E,Apple
+E884C4,Elecom
+E89F6D,Espressif (ESP32/ESP8266)
+E8AC3B,Hikvision (Camera)
+EC086B,TP-Link
+EC13DB,Aruba Networks (HPE)
+EC172F,TP-Link
 EC3586,Apple
-EC94CB,Espressif
+EC6260,Espressif (ESP32/ESP8266)
+EC6C9F,I-O DATA
+EC71DB,Reolink (Camera)
+EC94CB,Espressif (ESP32/ESP8266)
+ECA907,NEC
+ECB5FA,Philips Hue (Lighting)
+ECCD6D,Allied Telesis
+ECFABC,Espressif (ESP32/ESP8266)
 F01898,Apple
+F01C2D,Juniper Networks
+F0761C,Hikvision (Camera)
+F08088,Allied Telesis
+F08173,Amazon (Echo/Fire)
+F09FC2,Ubiquiti
+F0B9AC,Panasonic (Camera/VoIP)
+F42E7F,Aruba Networks (HPE)
+F4559C,Netgear
+F45C89,Canon Printer
+F48E92,NEC
+F4CC55,Juniper Networks
+F4E3FB,Allied Telesis
 F4F15A,Apple
+F4F26D,TP-Link
+F80FF9,Google (Nest/Home)
+F81A67,TP-Link
 F82793,Apple
 F8461C,Sony PlayStation
+F84DFC,Hikvision (Camera)
+F87394,Netgear
+F87B20,Cisco IP Phone
+F88FC3,Google (Nest/Home)
+FC0F4B,Sony PlayStation
 FC253F,Apple
-007147,Amazon
-00FC8B,Amazon
-0857FB,Amazon
-086AE5,Amazon
-38F7CD,Amazon
-40B4CD,Amazon
-68545A,Amazon
-AC63BE,Amazon
-B47C9C,Amazon
-F08173,Amazon
-FC65DE,Amazon
-
+FC2B0A,Fortinet (FortiGate)
+FC65DE,Amazon (Echo/Fire)
+FCECDA,Ubiquiti

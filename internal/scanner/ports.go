@@ -18,6 +18,9 @@ const (
 	ProfilePrinter     DeviceProfile = "printer"
 	ProfileNetwork     DeviceProfile = "network"
 	ProfileNASLinux    DeviceProfile = "nas_linux"
+	ProfileVoIP        DeviceProfile = "voip"
+	ProfileCamera      DeviceProfile = "camera"
+	ProfileIoT         DeviceProfile = "iot"
 	ProfileMediaIoT    DeviceProfile = "media_iot"
 	ProfileGeneric     DeviceProfile = "generic"
 )
@@ -55,9 +58,11 @@ var profilePortMaps = map[DeviceProfile]map[int]string{
 	},
 	ProfileNetwork: {
 		22:   "SSH",
+		23:   "Telnet",
 		53:   "DNS",
 		80:   "HTTP",
 		443:  "HTTPS",
+		541:  "FortiTelemetry",
 		8080: "HTTP-Alt",
 		8443: "HTTPS-Alt",
 	},
@@ -74,11 +79,38 @@ var profilePortMaps = map[DeviceProfile]map[int]string{
 		8080: "HTTP-Alt",
 		8443: "HTTPS-Alt",
 	},
+	ProfileVoIP: {
+		80:   "HTTP (管理画面)",
+		443:  "HTTPS (管理画面)",
+		2000: "Cisco SCCP",
+		5060: "SIP (VoIP)",
+		5061: "SIPS (暗号化VoIP)",
+		8080: "HTTP-Alt",
+	},
+	ProfileCamera: {
+		80:    "HTTP (Webカメラ管理)",
+		443:   "HTTPS (Webカメラ管理)",
+		554:   "RTSP (映像配信)",
+		8000:  "Hikvision 管理",
+		8080:  "HTTP-Alt",
+		8443:  "HTTPS-Alt",
+		8899:  "ONVIF 探索",
+		37777: "Dahua 管理",
+	},
+	ProfileIoT: {
+		80:   "HTTP",
+		443:  "HTTPS",
+		1883: "MQTT (IoT)",
+		8008: "Google Cast",
+		8080: "HTTP-Alt",
+		8883: "MQTTS (暗号化IoT)",
+	},
 	ProfileMediaIoT: {
 		80:   "HTTP",
 		443:  "HTTPS",
 		554:  "RTSP (カメラ)",
 		8008: "Google Cast",
+		8080: "HTTP-Alt",
 	},
 	ProfileGeneric: {
 		22:   "SSH",
@@ -115,7 +147,39 @@ func DetermineDeviceProfile(vendor, osVendor, hostname string, ttl int) DevicePr
 		return ProfilePrinter
 	}
 
-	// 2. Apple Devices
+	// 2. IP Phones & VoIP (Yealink, Polycom, Cisco IP Phone, Grandstream, Snom, Fanvil)
+	if strings.Contains(combined, "yealink") ||
+		strings.Contains(combined, "polycom") ||
+		strings.Contains(combined, "poly (") ||
+		strings.Contains(combined, "grandstream") ||
+		strings.Contains(combined, "snom") ||
+		strings.Contains(combined, "fanvil") ||
+		strings.Contains(combined, "ip phone") ||
+		strings.Contains(combined, "voip") ||
+		strings.Contains(combined, "sip-") ||
+		strings.Contains(combined, "cisco ip phone") {
+		return ProfileVoIP
+	}
+
+	// 3. IP Cameras & CCTV / Surveillance (Hikvision, Dahua, Axis, Hanwha, Panasonic Camera, Vivotek, Reolink)
+	if strings.Contains(combined, "hikvision") ||
+		strings.Contains(combined, "dahua") ||
+		strings.Contains(combined, "axis communications") ||
+		strings.Contains(combined, "hanwha") ||
+		strings.Contains(combined, "techwin") ||
+		strings.Contains(combined, "vivotek") ||
+		strings.Contains(combined, "reolink") ||
+		strings.Contains(combined, "uniview") ||
+		strings.Contains(combined, "amcrest") ||
+		strings.Contains(combined, "ipc-") ||
+		strings.Contains(combined, "ipcam") ||
+		strings.Contains(combined, "nvr") ||
+		strings.Contains(combined, "dvr") ||
+		strings.Contains(combined, "camera") {
+		return ProfileCamera
+	}
+
+	// 4. Apple Devices
 	if strings.Contains(combined, "apple") || strings.Contains(combined, "mac") || strings.Contains(combined, "ios") || strings.Contains(combined, "iphone") || strings.Contains(combined, "ipad") {
 		if strings.Contains(combined, "iphone") ||
 			strings.Contains(combined, "ipad") ||
@@ -128,36 +192,52 @@ func DetermineDeviceProfile(vendor, osVendor, hostname string, ttl int) DevicePr
 		return ProfileAppleMac
 	}
 
-	// 3. Windows PC / Server (TTL 128 or explicit OS/hostname)
+	// 5. Windows PC / Server (TTL 128 or explicit OS/hostname)
 	if strings.Contains(combined, "windows") || strings.Contains(combined, "win10") || strings.Contains(combined, "win11") || strings.Contains(combined, "msft") || (ttl > 64 && ttl <= 128) {
 		return ProfileWindows
 	}
 
-	// 4. Network / Infrastructure Devices
-	if strings.Contains(combined, "buffalo") ||
+	// 6. Network / Infrastructure Devices (Fortinet, Aruba, Mist, Netgear, Cisco, Yamaha, Allied Telesis, Ubiquiti, etc.)
+	if strings.Contains(combined, "fortinet") ||
+		strings.Contains(combined, "fortigate") ||
+		strings.Contains(combined, "aruba") ||
+		strings.Contains(combined, "mist systems") ||
+		strings.Contains(combined, "juniper") ||
 		strings.Contains(combined, "netgear") ||
 		strings.Contains(combined, "cisco") ||
 		strings.Contains(combined, "yamaha") ||
-		strings.Contains(combined, "openwrt") ||
+		strings.Contains(combined, "allied telesis") ||
 		strings.Contains(combined, "allied") ||
-		strings.Contains(combined, "fortinet") ||
-		strings.Contains(combined, "mikrotik") ||
-		strings.Contains(combined, "aruba") ||
 		strings.Contains(combined, "unifi") ||
 		strings.Contains(combined, "ubiquiti") ||
+		strings.Contains(combined, "mikrotik") ||
+		strings.Contains(combined, "openwrt") ||
+		strings.Contains(combined, "buffalo") ||
+		strings.Contains(combined, "airstation") ||
+		strings.Contains(combined, "nec") ||
+		strings.Contains(combined, "aterm") ||
+		strings.Contains(combined, "tp-link") ||
+		strings.Contains(combined, "omada") ||
+		strings.Contains(combined, "deco") ||
+		strings.Contains(combined, "i-o data") ||
+		strings.Contains(combined, "elecom") ||
 		strings.Contains(combined, "router") ||
 		strings.Contains(combined, "access point") ||
+		strings.Contains(combined, "ap") ||
 		strings.Contains(combined, "switch") ||
 		ttl >= 200 {
 		return ProfileNetwork
 	}
 
-	// 5. NAS / Dedicated Linux Storage & Servers
+	// 7. NAS / Dedicated Storage
 	if strings.Contains(combined, "synology") ||
 		strings.Contains(combined, "qnap") ||
+		strings.Contains(combined, "asustor") ||
 		strings.Contains(combined, "truenas") ||
 		strings.Contains(combined, "freenas") ||
 		strings.Contains(combined, "proxmox") ||
+		strings.Contains(combined, "terastation") ||
+		strings.Contains(combined, "linkstation") ||
 		strings.Contains(combined, "esxi") ||
 		strings.Contains(combined, "server") ||
 		strings.Contains(combined, "nas") ||
@@ -165,18 +245,34 @@ func DetermineDeviceProfile(vendor, osVendor, hostname string, ttl int) DevicePr
 		return ProfileNASLinux
 	}
 
-	// 6. Media / IoT / Cameras
+	// 8. Media / IoT / Cast / TV
 	if strings.Contains(combined, "google") ||
 		strings.Contains(combined, "chromecast") ||
 		strings.Contains(combined, "nest") ||
 		strings.Contains(combined, "echo") ||
 		strings.Contains(combined, "alexa") ||
-		strings.Contains(combined, "camera") ||
 		strings.Contains(combined, "tv") {
 		return ProfileMediaIoT
 	}
 
-	// 7. General Linux (TTL 64)
+	// 9. IoT / Smart Home / Microcontrollers (SwitchBot, Nature Remo, ESP32, Tuya, Shelly, Hue)
+	if strings.Contains(combined, "switchbot") ||
+		strings.Contains(combined, "woan") ||
+		strings.Contains(combined, "nature remo") ||
+		strings.Contains(combined, "nature") ||
+		strings.Contains(combined, "espressif") ||
+		strings.Contains(combined, "esp32") ||
+		strings.Contains(combined, "esp8266") ||
+		strings.Contains(combined, "tuya") ||
+		strings.Contains(combined, "shelly") ||
+		strings.Contains(combined, "sonoff") ||
+		strings.Contains(combined, "philips hue") ||
+		strings.Contains(combined, "xiaomi") ||
+		strings.Contains(combined, "aqara") {
+		return ProfileIoT
+	}
+
+	// 10. General Linux (TTL 64)
 	if ttl == 64 || strings.Contains(combined, "linux") || strings.Contains(combined, "ubuntu") || strings.Contains(combined, "debian") {
 		return ProfileNASLinux
 	}
@@ -290,6 +386,12 @@ var FullScanPortMap = map[int]string{
 	443:   "HTTPS",
 	445:   "SMB (ファイル共有)",
 	548:   "AFP (Mac共有)",
+	293:   "IPP (プリンタ)",
+	294:   "IPP (プリンタ)",
+	295:   "LDAPS",
+	296:   "IMAPS",
+	297:   "POP3S",
+	541:   "FortiTelemetry",
 	554:   "RTSP (カメラ)",
 	631:   "IPP (プリンタ)",
 	636:   "LDAPS",
@@ -299,12 +401,16 @@ var FullScanPortMap = map[int]string{
 	1433:  "MSSQL",
 	1521:  "Oracle DB",
 	1723:  "PPTP VPN",
+	1883:  "MQTT (IoT)",
+	2000:  "Cisco SCCP",
 	3000:  "Node/Dev",
 	3268:  "AD-GC",
 	3306:  "MySQL",
 	3389:  "RDP (リモートデスクトップ)",
 	5000:  "Synology DSM / UPnP",
 	5001:  "Synology DSM (HTTPS)",
+	5060:  "SIP (VoIP)",
+	5061:  "SIPS (VoIP)",
 	5173:  "Vite/Dev",
 	5432:  "PostgreSQL",
 	5555:  "SoftEther VPN",
@@ -312,16 +418,19 @@ var FullScanPortMap = map[int]string{
 	5938:  "TeamViewer",
 	6379:  "Redis",
 	7070:  "AnyDesk",
-	8000:  "HTTP-Dev",
+	8000:  "Hikvision/HTTP-Dev",
 	8008:  "Google Cast",
 	8080:  "HTTP-Alt",
 	8081:  "HTTP-Alt",
 	8443:  "HTTPS-Alt",
+	8883:  "MQTTS (IoT)",
 	8888:  "HTTP-Alt",
+	8899:  "ONVIF (カメラ)",
 	9000:  "PHP-FPM/Sonar",
 	9100:  "RAW プリンタ",
 	9200:  "Elasticsearch",
 	27017: "MongoDB",
+	37777: "Dahua 管理",
 }
 
 // ScanOpenPortsFull scans all ports in FullScanPortMap
@@ -484,6 +593,42 @@ func EvaluatePortRisk(port int, service string) PortRiskInfo {
 			Category:    "SSH",
 			BadgeClass:  "bg-sky-50 text-sky-700 border-sky-200 dark:bg-sky-950/60 dark:text-sky-300 dark:border-sky-800",
 			Description: "🔑 SSH (リモート保守管理)",
+		}
+	case 554, 8899, 37777:
+		return PortRiskInfo{
+			Port:        port,
+			Service:     service,
+			Level:       RiskInfo,
+			Category:    "Camera",
+			BadgeClass:  "bg-teal-50 text-teal-700 border-teal-200 dark:bg-teal-950/60 dark:text-teal-300 dark:border-teal-800",
+			Description: "📹 監視カメラ / 映像配信ストリーム",
+		}
+	case 5060, 5061, 2000:
+		return PortRiskInfo{
+			Port:        port,
+			Service:     service,
+			Level:       RiskInfo,
+			Category:    "VoIP",
+			BadgeClass:  "bg-indigo-50 text-indigo-700 border-indigo-200 dark:bg-indigo-950/60 dark:text-indigo-300 dark:border-indigo-800",
+			Description: "📞 IP電話 / VoIP (SIP)",
+		}
+	case 1883, 8883:
+		return PortRiskInfo{
+			Port:        port,
+			Service:     service,
+			Level:       RiskInfo,
+			Category:    "IoT",
+			BadgeClass:  "bg-emerald-50 text-emerald-700 border-emerald-200 dark:bg-emerald-950/60 dark:text-emerald-300 dark:border-emerald-800",
+			Description: "🔌 IoT / スマート家電 (MQTT)",
+		}
+	case 541:
+		return PortRiskInfo{
+			Port:        port,
+			Service:     service,
+			Level:       RiskInfo,
+			Category:    "Fortinet",
+			BadgeClass:  "bg-purple-50 text-purple-700 border-purple-200 dark:bg-purple-950/60 dark:text-purple-300 dark:border-purple-800",
+			Description: "🛡️ FortiGate Telemetry",
 		}
 	default:
 		return PortRiskInfo{

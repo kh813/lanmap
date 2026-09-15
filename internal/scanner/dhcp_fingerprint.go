@@ -182,6 +182,98 @@ var knownDHCPDatabase = []dhcpSig{
 		deviceType:     "Printer",
 		confidence:     0.92,
 	},
+
+	// --- Network Equipment (Fortinet, Aruba, Mist, Cisco, Ubiquiti) ---
+	{
+		vendorClassSub: []string{"fortigate", "fortinet"},
+		osName:         "FortiOS (Fortinet)",
+		deviceType:     "Firewall / Router",
+		confidence:     0.95,
+	},
+	{
+		vendorClassSub: []string{"aruba", "instant-on"},
+		osName:         "ArubaOS (Aruba Networks / HPE)",
+		deviceType:     "Access Point",
+		confidence:     0.95,
+	},
+	{
+		vendorClassSub: []string{"mist", "juniper"},
+		osName:         "Mist AI / Junos OS (Mist Systems)",
+		deviceType:     "Access Point",
+		confidence:     0.95,
+	},
+	{
+		vendorClassSub: []string{"unifi", "ubnt"},
+		osName:         "UniFi OS (Ubiquiti)",
+		deviceType:     "Access Point / Switch",
+		confidence:     0.95,
+	},
+
+	// --- VoIP / IP Phones ---
+	{
+		vendorClassSub: []string{"yealink"},
+		osName:         "Yealink VoIP OS",
+		deviceType:     "IP Phone",
+		confidence:     0.95,
+	},
+	{
+		vendorClassSub: []string{"polycom", "poly"},
+		osName:         "Poly UC Software (VoIP)",
+		deviceType:     "IP Phone",
+		confidence:     0.95,
+	},
+	{
+		vendorClassSub: []string{"cisco-cp", "cisco ip phone"},
+		osName:         "Cisco IP Phone Firmware (SIP)",
+		deviceType:     "IP Phone",
+		confidence:     0.95,
+	},
+	{
+		vendorClassSub: []string{"grandstream"},
+		osName:         "Grandstream VoIP OS",
+		deviceType:     "IP Phone",
+		confidence:     0.95,
+	},
+
+	// --- Surveillance Cameras ---
+	{
+		vendorClassSub: []string{"hikvision"},
+		osName:         "Hikvision Embedded Linux",
+		deviceType:     "IP Camera",
+		confidence:     0.95,
+	},
+	{
+		vendorClassSub: []string{"dahua"},
+		osName:         "Dahua Embedded Linux",
+		deviceType:     "IP Camera",
+		confidence:     0.95,
+	},
+	{
+		vendorClassSub: []string{"axis"},
+		osName:         "AXIS OS (Linux)",
+		deviceType:     "IP Camera",
+		confidence:     0.95,
+	},
+
+	// --- IoT & Smart Home ---
+	{
+		vendorClassSub: []string{"switchbot"},
+		osName:         "SwitchBot OS (IoT)",
+		deviceType:     "IoT Device",
+		confidence:     0.95,
+	},
+	{
+		vendorClassSub: []string{"tuya"},
+		osName:         "Tuya Smart OS (IoT)",
+		deviceType:     "IoT Device",
+		confidence:     0.95,
+	},
+	{
+		vendorClassSub: []string{"shelly"},
+		osName:         "Shelly Firmware (Mongoose OS)",
+		deviceType:     "IoT Device",
+		confidence:     0.95,
+	},
 }
 
 // LookupDHCPFingerprint analyzes DHCP Option 55 and Option 60 to infer OS and confidence
@@ -231,7 +323,79 @@ func LookupDHCPFingerprint(paramList []byte, vendorClass, hostname string) *DHCP
 				Evidence:   fmt.Sprintf("DHCP Option 60 (%s)", vendorClass),
 			}
 		}
+		if strings.Contains(vcLower, "fortigate") || strings.Contains(vcLower, "fortinet") {
+			return &DHCPFingerprintResult{
+				OS:         "FortiOS (Fortinet)",
+				DeviceType: "Firewall / Router",
+				Confidence: 0.98,
+				Evidence:   fmt.Sprintf("DHCP Option 60 (%s)", vendorClass),
+			}
+		}
+		if strings.Contains(vcLower, "aruba") {
+			return &DHCPFingerprintResult{
+				OS:         "ArubaOS (Aruba Networks / HPE)",
+				DeviceType: "Access Point",
+				Confidence: 0.98,
+				Evidence:   fmt.Sprintf("DHCP Option 60 (%s)", vendorClass),
+			}
+		}
+		if strings.Contains(vcLower, "mist") {
+			return &DHCPFingerprintResult{
+				OS:         "Mist AI / Junos OS (Mist Systems)",
+				DeviceType: "Access Point",
+				Confidence: 0.98,
+				Evidence:   fmt.Sprintf("DHCP Option 60 (%s)", vendorClass),
+			}
+		}
+		if strings.Contains(vcLower, "yealink") {
+			return &DHCPFingerprintResult{
+				OS:         "Yealink VoIP OS",
+				DeviceType: "IP Phone",
+				Confidence: 0.98,
+				Evidence:   fmt.Sprintf("DHCP Option 60 (%s)", vendorClass),
+			}
+		}
+		if strings.Contains(vcLower, "polycom") || strings.Contains(vcLower, "poly") {
+			return &DHCPFingerprintResult{
+				OS:         "Poly UC Software (VoIP)",
+				DeviceType: "IP Phone",
+				Confidence: 0.98,
+				Evidence:   fmt.Sprintf("DHCP Option 60 (%s)", vendorClass),
+			}
+		}
+		if strings.Contains(vcLower, "hikvision") {
+			return &DHCPFingerprintResult{
+				OS:         "Hikvision Embedded Linux",
+				DeviceType: "IP Camera",
+				Confidence: 0.98,
+				Evidence:   fmt.Sprintf("DHCP Option 60 (%s)", vendorClass),
+			}
+		}
+		if strings.Contains(vcLower, "dahua") {
+			return &DHCPFingerprintResult{
+				OS:         "Dahua Embedded Linux",
+				DeviceType: "IP Camera",
+				Confidence: 0.98,
+				Evidence:   fmt.Sprintf("DHCP Option 60 (%s)", vendorClass),
+			}
+		}
+		if strings.Contains(vcLower, "switchbot") {
+			return &DHCPFingerprintResult{
+				OS:         "SwitchBot OS (IoT)",
+				DeviceType: "IoT Device",
+				Confidence: 0.98,
+				Evidence:   fmt.Sprintf("DHCP Option 60 (%s)", vendorClass),
+			}
+		}
 		if strings.Contains(vcLower, "cisco") {
+			if strings.Contains(vcLower, "cp-") || strings.Contains(vcLower, "phone") {
+				return &DHCPFingerprintResult{
+					OS:         "Cisco IP Phone Firmware (SIP)",
+					DeviceType: "IP Phone",
+					Confidence: 0.98,
+					Evidence:   fmt.Sprintf("DHCP Option 60 (%s)", vendorClass),
+				}
+			}
 			return &DHCPFingerprintResult{
 				OS:         "Cisco Network OS",
 				DeviceType: "Network",
