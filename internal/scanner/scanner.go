@@ -267,7 +267,7 @@ func (s *Scanner) scanSegmentInternal(ctx context.Context, seg *db.Segment) ([]*
 		}
 		hostname := ResolveHostname(ipStr, 400*time.Millisecond)
 
-		ttl := 64
+		ttl := 0
 		var rttPtr *float64
 		if pingOk && pingRes.Alive && pingRes.RTT > 0 {
 			rttVal := float64(pingRes.RTT.Microseconds()) / 1000.0
@@ -324,29 +324,54 @@ func (s *Scanner) scanSegmentInternal(ctx context.Context, seg *db.Segment) ([]*
 			// No active port probing in stealth mode
 		}
 
-		// 4. mDNS Model (Query target port 5353 for verified model signature)
-		rawModel := QueryMDNSDeviceInfo(ipStr, 80*time.Millisecond)
-		mdnsModel := ResolveMDNSModel(rawModel)
+		// 4. mDNS Model & Device Info (Query target port 5353 for verified model signature)
+		mdnsInfo := QueryMDNSDeviceInfoFull(ipStr, 80*time.Millisecond)
+		mdnsModel := mdnsInfo.Model
+
+		// 4.5 NetBIOS Node Status (Query target port 137 for Windows Computer Name, Logged-in User, Workgroup, MAC)
+		nbInfo := QueryNetBIOSInfo(ipStr, 80*time.Millisecond)
+		if hostname == "" && nbInfo.ComputerName != "" {
+			hostname = nbInfo.ComputerName
+		}
+		if mac == "" && nbInfo.MACAddress != "" {
+			mac = nbInfo.MACAddress
+			if vendor == "" {
+				vendor = LookupVendor(mac)
+			}
+		}
+
+		// Windows PC Model Resolution (e.g. Surface, ThinkPad, Let's note, LIFEBOOK, Dynabook)
+		winModel := ""
+		if mdnsModel == "" {
+			winModel = ResolveWindowsModel(upnpModel, upnpName, hostname, vendor)
+		}
 
 		// 5. Refined OS & Version Detection via Weighted Scoring Engine
 		scoreRes := ScoreOS(OSScoreInput{
-			IP:        ipStr,
-			Hostname:  hostname,
-			Vendor:    vendor,
-			TTL:       ttl,
-			MDNSModel: mdnsModel,
-			HTTPTitle: httpTitle,
-			UPnPName:  upnpName,
-			UPnPModel: upnpModel,
-			OpenPorts: openPorts,
-			InitialOS: osVendor,
+			IP:            ipStr,
+			Hostname:      hostname,
+			Vendor:        vendor,
+			TTL:           ttl,
+			MDNSModel:     mdnsModel,
+			MDNSDevice:    mdnsInfo.DeviceName,
+			MacOSVer:      mdnsInfo.MacOSVer,
+			NetBIOSName:   nbInfo.ComputerName,
+			NetBIOSUser:   nbInfo.UserName,
+			NetBIOSDomain: nbInfo.Workgroup,
+			IsNetBIOS:     nbInfo.IsWindows,
+			HTTPTitle:     httpTitle,
+			UPnPName:      upnpName,
+			UPnPModel:     upnpModel,
+			OpenPorts:     openPorts,
+			InitialOS:     osVendor,
 		})
 		if scoreRes.OS != "" {
 			osVendor = scoreRes.OS
 		}
 
 		// 6. User Hint Extraction (Level A Ownership Hint)
-		userHint := ExtractUserHint(hostname, mdnsModel, upnpName)
+		// Priority: NetBIOS User Name (<03>), NetBIOS Computer Name, Hostname, mDNS Device Name, UPnP
+		userHint := ExtractUserHint(nbInfo.UserName, hostname, mdnsInfo.DeviceName, mdnsModel, winModel, upnpName)
 
 		// 7. Jitter
 		var jitterPtr *float64
@@ -387,21 +412,8 @@ func (s *Scanner) scanSegmentInternal(ctx context.Context, seg *db.Segment) ([]*
 			continue
 		}
 
-		// If matched whitelist on subsequent scan, ensure approved status
+		// If matched whitelist on scan, ensure approved status
 		if isApproved {
-			staticIP := false
-			ignored := ""
-			existingUserName := userName
-			existingConnType := ""
-			if existingHost, _ := s.db.GetHost(ipStr); existingHost != nil {
-				staticIP = existingHost.IsStaticIP
-				ignored = existingHost.IgnoredPorts
-				if existingUserName == "" {
-					existingUserName = existingHost.UserName
-				}
-				existingConnType = existingHost.ManualConnectionType
-			}
-			_ = s.db.UpdateHostManual(ipStr, displayName, vendor, existingUserName, staticIP, ignored, existingConnType)
 			_, _ = s.db.Exec("UPDATE hosts SET is_approved = 1 WHERE ip = ?", ipStr)
 		}
 

@@ -13,6 +13,12 @@ type OSScoreInput struct {
 	Vendor          string // OUI vendor name
 	TTL             int
 	MDNSModel       string
+	MDNSDevice      string
+	MacOSVer        string
+	NetBIOSName     string
+	NetBIOSUser     string
+	NetBIOSDomain   string
+	IsNetBIOS       bool
 	HTTPTitle       string
 	UPnPName        string
 	UPnPModel       string
@@ -24,7 +30,7 @@ type OSScoreInput struct {
 
 // OSScoreResult holds the final deduced OS, confidence rating, and explanatory evidence
 type OSScoreResult struct {
-	OS         string  // e.g. "Windows 11 / 10", "macOS (Apple Silicon)", "Ubuntu 24.04 LTS"
+	OS         string  // e.g. "Windows 11 / 10", "macOS 15 Sequoia", "Ubuntu 24.04 LTS"
 	Confidence string  // "high", "medium", "low"
 	Evidence   string  // e.g. "DHCP Option 55, TTL (128), SMB (Port 445)"
 	Score      float64 // Numerical total weight for transparency
@@ -59,8 +65,8 @@ func ScoreOS(input OSScoreInput) OSScoreResult {
 		c.reasons = append(c.reasons, reason)
 	}
 
-	evidenceLower := strings.ToLower(fmt.Sprintf("%s %s %s %s %s",
-		input.MDNSModel, input.HTTPTitle, input.OpenPorts, input.UPnPName, input.UPnPModel))
+	evidenceLower := strings.ToLower(fmt.Sprintf("%s %s %s %s %s %s",
+		input.MDNSModel, input.MDNSDevice, input.HTTPTitle, input.OpenPorts, input.UPnPName, input.UPnPModel))
 
 	// 1. SSH Banner (Port 22) - Very High Confidence (0.95)
 	if strings.Contains(input.OpenPorts, "22") && input.IP != "" {
@@ -106,10 +112,12 @@ func ScoreOS(input OSScoreInput) OSScoreResult {
 		addScore(cat, dhcpRes.OS, dhcpRes.Confidence, dhcpRes.Evidence)
 	}
 
-	// 3. mDNS Model Signatures (0.90 - 0.95)
-	if input.MDNSModel != "" {
+	// 3. mDNS Model Signatures & macOS Version (0.90 - 0.98)
+	if input.MacOSVer != "" {
+		addScore("macOS", input.MacOSVer, 0.98, fmt.Sprintf("mDNS osxvers (%s)", input.MacOSVer))
+	} else if input.MDNSModel != "" {
 		m := input.MDNSModel
-		if strings.Contains(m, "MacBook") || strings.Contains(m, "Mac mini") || strings.Contains(m, "Mac Studio") || strings.Contains(m, "iMac") {
+		if strings.Contains(m, "MacBook") || strings.Contains(m, "Mac mini") || strings.Contains(m, "Mac Studio") || strings.Contains(m, "iMac") || strings.Contains(m, "Mac Pro") {
 			addScore("macOS", "macOS (Apple Silicon)", 0.95, fmt.Sprintf("mDNS Model (%s)", m))
 		} else if strings.Contains(m, "iPhone") {
 			addScore("iOS", "iOS (Apple iPhone)", 0.95, fmt.Sprintf("mDNS Model (%s)", m))
@@ -119,6 +127,16 @@ func ScoreOS(input OSScoreInput) OSScoreResult {
 			addScore("Apple", "tvOS (Apple TV)", 0.90, fmt.Sprintf("mDNS Model (%s)", m))
 		} else if strings.Contains(m, "HomePod") {
 			addScore("Apple", "HomePod OS", 0.90, fmt.Sprintf("mDNS Model (%s)", m))
+		}
+	}
+
+	// 3.5 NetBIOS Node Signatures (0.85 - 0.95)
+	if input.IsNetBIOS {
+		nbLower := strings.ToLower(input.NetBIOSName)
+		if strings.Contains(nbLower, "server") || strings.Contains(nbLower, "dc") || strings.Contains(nbLower, "ad") {
+			addScore("Windows", "Windows Server", 0.95, fmt.Sprintf("NetBIOS Node (%s, Domain: %s)", input.NetBIOSName, input.NetBIOSDomain))
+		} else {
+			addScore("Windows", "Windows 11 / 10", 0.92, fmt.Sprintf("NetBIOS Node (%s, Domain: %s)", input.NetBIOSName, input.NetBIOSDomain))
 		}
 	}
 
@@ -158,11 +176,14 @@ func ScoreOS(input OSScoreInput) OSScoreResult {
 		}
 	}
 
-	// 7. OUI Vendor (0.35 - 0.60)
+	// 7. OUI Vendor & Hostname patterns (0.35 - 0.75)
+	hLower := strings.ToLower(input.Hostname)
 	if strings.Contains(vLower, "apple") {
 		addScore("Apple", "macOS / iOS (Apple)", 0.40, "OUI Vendor (Apple)")
 	} else if strings.Contains(vLower, "microsoft") {
 		addScore("Windows", "Windows", 0.40, "OUI Vendor (Microsoft)")
+	} else if strings.Contains(vLower, "raspberry") || strings.Contains(hLower, "raspberrypi") {
+		addScore("Linux", "Raspberry Pi OS (Linux)", 0.75, "Vendor/Hostname (Raspberry Pi)")
 	} else if strings.Contains(vLower, "espressif") {
 		addScore("IoT", "FreeRTOS (ESP32/ESP8266)", 0.70, "OUI Vendor (Espressif)")
 	} else if strings.Contains(vLower, "canon") || strings.Contains(vLower, "epson") || strings.Contains(vLower, "brother") || strings.Contains(vLower, "fuji xerox") || strings.Contains(vLower, "ricoh") {
@@ -173,19 +194,19 @@ func ScoreOS(input OSScoreInput) OSScoreResult {
 		addScore("IoT", "PlayStation OS (Sony)", 0.85, "OUI Vendor/Name (Sony)")
 	}
 
-	// 8. Ping TTL (0.25 - 0.35)
+	// 8. Ping TTL (0.40 - 0.50)
 	if input.TTL > 0 {
 		if input.TTL > 64 && input.TTL <= 128 {
-			addScore("Windows", "Windows", 0.30, fmt.Sprintf("TTL (%d)", input.TTL))
+			addScore("Windows", "Windows", 0.50, fmt.Sprintf("TTL (%d: Windows standard)", input.TTL))
 		} else if input.TTL <= 64 {
-			addScore("Unix/Linux", "Linux / Unix", 0.25, fmt.Sprintf("TTL (%d)", input.TTL))
+			addScore("Unix/Linux", "Linux / Unix", 0.40, fmt.Sprintf("TTL (%d: Unix/Linux standard)", input.TTL))
 		} else if input.TTL > 128 {
-			addScore("Network", "Network Device / OS", 0.35, fmt.Sprintf("TTL (%d)", input.TTL))
+			addScore("Network", "Network Device / OS", 0.45, fmt.Sprintf("TTL (%d: Network standard)", input.TTL))
 		}
 	}
 
 	// 9. Initial OS Fallback
-	if input.InitialOS != "" && input.InitialOS != "Unknown" && input.InitialOS != "Linux / Unix" {
+	if input.InitialOS != "" && input.InitialOS != "Unknown" && input.InitialOS != "Linux / Unix" && input.InitialOS != "Linux / macOS / iOS / Android" && input.InitialOS != "Unknown OS" {
 		addScore("Initial", input.InitialOS, 0.20, fmt.Sprintf("Initial OS (%s)", input.InitialOS))
 	}
 
@@ -198,23 +219,19 @@ func ScoreOS(input OSScoreInput) OSScoreResult {
 	}
 
 	if bestCandidate == nil || bestCandidate.score < 0.1 {
-		fallbackOS := "Linux / Unix"
-		if input.InitialOS != "" && input.InitialOS != "Unknown" {
-			fallbackOS = input.InitialOS
-		}
 		return OSScoreResult{
-			OS:         fallbackOS,
-			Confidence: "low",
-			Evidence:   "Default heuristic fallback",
-			Score:      0.1,
+			OS:         "",
+			Confidence: "",
+			Evidence:   "",
+			Score:      0.0,
 		}
 	}
 
 	// Confidence classification
 	confidence := "low"
-	if bestCandidate.score >= 1.2 || hasDecisiveEvidence(bestCandidate.reasons) {
+	if bestCandidate.score >= 0.85 || hasDecisiveEvidence(bestCandidate.reasons) {
 		confidence = "high"
-	} else if bestCandidate.score >= 0.6 {
+	} else if bestCandidate.score >= 0.4 {
 		confidence = "medium"
 	}
 

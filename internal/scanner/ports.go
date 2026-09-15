@@ -129,7 +129,7 @@ func DetermineDeviceProfile(vendor, osVendor, hostname string, ttl int) DevicePr
 	}
 
 	// 3. Windows PC / Server (TTL 128 or explicit OS/hostname)
-	if strings.Contains(combined, "windows") || strings.Contains(combined, "win10") || strings.Contains(combined, "win11") || strings.Contains(combined, "msft") || (ttl >= 100 && ttl <= 128) {
+	if strings.Contains(combined, "windows") || strings.Contains(combined, "win10") || strings.Contains(combined, "win11") || strings.Contains(combined, "msft") || (ttl > 64 && ttl <= 128) {
 		return ProfileWindows
 	}
 

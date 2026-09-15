@@ -4,6 +4,7 @@ import (
 	"context"
 	"log"
 	"net"
+	"strings"
 	"sync"
 	"time"
 
@@ -77,7 +78,22 @@ func (m *BroadcastMonitor) listenUDPPort(ctx context.Context, port int) {
 		if n > 0 && from != nil && from.IP != nil {
 			srcIP := from.IP.To4()
 			if srcIP != nil && !srcIP.IsLoopback() && !srcIP.IsUnspecified() {
-				m.RecordPacket(srcIP.String())
+				srcIPStr := srcIP.String()
+				m.RecordPacket(srcIPStr)
+
+				// Passively decode NetBIOS Name Registration / Query broadcasts on port 137
+				if port == 137 && n >= 46 && buf[12] == 0x20 {
+					decodedName := scanner.DecodeNetBIOSName(string(buf[13:45]))
+					if decodedName != "" && !strings.HasPrefix(decodedName, "*") && !strings.HasPrefix(decodedName, "IS~") && !strings.EqualFold(decodedName, "WORKGROUP") {
+						if m.db != nil {
+							if host, err := m.db.GetHost(srcIPStr); err == nil && host != nil {
+								if host.Hostname == "" {
+									_ = m.db.UpdateHostHostname(srcIPStr, decodedName)
+								}
+							}
+						}
+					}
+				}
 			}
 		}
 	}

@@ -357,7 +357,7 @@ var translations = map[string]map[string]string{
 		"settings_update_help":            "Queries GitHub Releases for the latest binary and updates in-place safely with one click.",
 		"settings_update_check_btn":       "Check for Updates",
 		"settings_update_checking":        "⏳ Checking GitHub Releases...",
-		"settings_whitelist_btn":          "Device Whitelist Ledger",
+		"settings_whitelist_btn":          "Managed Devices List",
 		"settings_btn_save":               "💾 Save Settings",
 
 		// Settings Tabs
@@ -482,15 +482,15 @@ var translations = map[string]map[string]string{
 		"detail_edit_host_btn":           "✏️ Edit Host Details",
 
 		// Whitelist Modal
-		"whitelist_title":            "Device Whitelist Ledger (Batch Management)",
+		"whitelist_title":            "Managed Devices List (Batch Management)",
 		"whitelist_sub":              "Devices with registered hostnames or MAC addresses are automatically marked as \"🟢 Approved\" during scans and excluded from alerts.",
 		"whitelist_import_title":     "📥 Batch Import via CSV / Text",
 		"whitelist_format_hint":      "Format: Hostname, MAC Address, Serial Number, Device Name, User / Owner, Note",
 		"whitelist_note":             "* Supports TSV (Excel copy-paste) and CSV. Header row presence is auto-detected.",
 		"whitelist_import_btn":       "Import & Match Immediately",
-		"whitelist_registered_title": "Registered Whitelist Entries (%d)",
+		"whitelist_registered_title": "Registered Managed Devices (%d)",
 		"whitelist_clear_all":        "Clear All",
-		"whitelist_confirm_clear":    "Clear all whitelist entries?",
+		"whitelist_confirm_clear":    "Clear all registered managed devices?",
 		"whitelist_col_hostname":     "Hostname",
 		"whitelist_col_mac":          "MAC Address",
 		"whitelist_col_serial":       "Serial Number",
@@ -499,7 +499,7 @@ var translations = map[string]map[string]string{
 		"whitelist_col_owner":        "Device Name / Owner",
 		"whitelist_col_note":         "Note",
 		"whitelist_col_action":       "Action",
-		"whitelist_empty":            "No whitelist entries registered yet. Import using the form above.",
+		"whitelist_empty":            "No managed device records registered yet. Import using the form above.",
 
 		// Federation & Remote Sites
 		"sidebar_remote_sites":                "Remote Sites",
@@ -813,7 +813,7 @@ var translations = map[string]map[string]string{
 		"settings_update_help":            "GitHub Releases から最新バイナリを照会し、ワンクリックで安全にインプレース更新・自動再起動します。",
 		"settings_update_check_btn":       "最新アップデートを確認",
 		"settings_update_checking":        "⏳ GitHub Releases を照会中...",
-		"settings_whitelist_btn":          "社内端末台帳 (ホワイトリスト)",
+		"settings_whitelist_btn":          "管理端末リスト",
 		"settings_btn_save":               "💾 設定を保存",
 
 		// Settings Tabs
@@ -938,15 +938,15 @@ var translations = map[string]map[string]string{
 		"detail_edit_host_btn":           "✏️ ホスト情報を編集",
 
 		// Whitelist Modal
-		"whitelist_title":            "社内端末台帳 (ホワイトリスト一括管理)",
+		"whitelist_title":            "管理端末リスト (一括登録・管理)",
 		"whitelist_sub":              "登録されたホスト名・MACアドレスの端末はスキャン時に自動で「🟢 承認済み」となり、アラート通知から除外されます。",
 		"whitelist_import_title":     "📥 CSV / テキスト貼り付け一括インポート",
 		"whitelist_format_hint":      "形式: ホスト名, MACアドレス, シリアル番号, 端末名, 利用者名, 備考",
 		"whitelist_note":             "※ TSV（Excelコピー）またはカンマ区切りCSVに対応。ヘッダー行の有無は自動判定されます。",
 		"whitelist_import_btn":       "インポート & 即時照合承認",
-		"whitelist_registered_title": "登録済みホワイトリスト一覧 (%d 件)",
+		"whitelist_registered_title": "登録済み管理端末リスト (%d 件)",
 		"whitelist_clear_all":        "全件クリア",
-		"whitelist_confirm_clear":    "ホワイトリスト台帳を全件クリアしますか？",
+		"whitelist_confirm_clear":    "管理端末リストを全件クリアしますか？",
 		"whitelist_col_hostname":     "ホスト名",
 		"whitelist_col_mac":          "MACアドレス",
 		"whitelist_col_serial":       "シリアル番号",
@@ -955,7 +955,7 @@ var translations = map[string]map[string]string{
 		"whitelist_col_owner":        "端末名 / 所有者",
 		"whitelist_col_note":         "備考",
 		"whitelist_col_action":       "操作",
-		"whitelist_empty":            "台帳データはまだ登録されていません。上のフォームからインポートしてください。",
+		"whitelist_empty":            "管理端末リストはまだ登録されていません。上のフォームからインポートしてください。",
 
 		// Federation & Remote Sites
 		"sidebar_remote_sites":                "🌐 拠点LAN (Remote Sites)",

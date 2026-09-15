@@ -27,6 +27,6 @@ func DetectOSByTTL(ttl int) string {
 	case ttl <= 255:
 		return "Network Device / Cisco"
 	default:
-		return "Unknown OS"
+		return ""
 	}
 }

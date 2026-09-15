@@ -1354,3 +1354,134 @@ func TestManualConnectionTypePersistence(t *testing.T) {
 	}
 }
 
+func TestStaticIPPersistenceAcrossScans(t *testing.T) {
+	db := setupTestDB(t)
+
+	// 1. Initial host detected without MAC address (e.g. ICMP ping or manual)
+	host := &Host{
+		IP:         "192.168.1.75",
+		MACAddress: "",
+		Hostname:   "static-server",
+		Status:     "up",
+	}
+	_, _, err := db.UpsertHostOnScan(host)
+	if err != nil {
+		t.Fatalf("UpsertHostOnScan 1 failed: %v", err)
+	}
+
+	saved, err := db.GetHost("192.168.1.75")
+	if err != nil || saved == nil {
+		t.Fatalf("GetHost failed: %v", err)
+	}
+
+	// 2. User checks "Static IP" (is_static_ip = true)
+	err = db.UpdateHostManualByID(saved.ID, saved.DisplayName, saved.VendorModel, saved.UserName, true, saved.IgnoredPorts, saved.ManualConnectionType)
+	if err != nil {
+		t.Fatalf("UpdateHostManualByID failed: %v", err)
+	}
+
+	savedAfterManual, _ := db.GetHostByID(saved.ID)
+	if !savedAfterManual.IsStaticIP {
+		t.Fatalf("expected IsStaticIP to be true after manual update")
+	}
+
+	// 3. Subsequent scan resolves MAC address for the same IP
+	rescanWithMAC := &Host{
+		IP:         "192.168.1.75",
+		MACAddress: "aa:bb:cc:dd:ee:ff",
+		Hostname:   "static-server",
+		Status:     "up",
+	}
+	_, isReplaced, err := db.UpsertHostOnScan(rescanWithMAC)
+	if err != nil {
+		t.Fatalf("UpsertHostOnScan rescan failed: %v", err)
+	}
+	if isReplaced {
+		t.Errorf("expected isReplaced to be false when MAC address is discovered for same host")
+	}
+
+	savedAfterRescan, err := db.GetHost("192.168.1.75")
+	if err != nil || savedAfterRescan == nil {
+		t.Fatalf("GetHost after rescan failed: %v", err)
+	}
+
+	if !savedAfterRescan.IsStaticIP {
+		t.Errorf("BUG: IsStaticIP was reset to false after scan resolved MAC address!")
+	}
+	if savedAfterRescan.MACAddress != "aa:bb:cc:dd:ee:ff" {
+		t.Errorf("expected MAC to be updated to aa:bb:cc:dd:ee:ff, got %s", savedAfterRescan.MACAddress)
+	}
+
+	// 4. Yet another scan with MAC should keep IsStaticIP=true
+	_, _, err = db.UpsertHostOnScan(rescanWithMAC)
+	if err != nil {
+		t.Fatalf("subsequent scan failed: %v", err)
+	}
+	savedThird, _ := db.GetHost("192.168.1.75")
+	if !savedThird.IsStaticIP {
+		t.Errorf("BUG: IsStaticIP was reset to false on repeated scan!")
+	}
+}
+
+func TestCompareIPAndNumericHostSorting(t *testing.T) {
+	// 1. Direct comparison unit test
+	ips := []string{
+		"192.168.11.100",
+		"192.168.11.101",
+		"192.168.11.11",
+		"192.168.11.102",
+		"192.168.11.103",
+		"192.168.11.2",
+		"192.168.11.20",
+	}
+
+	expectedOrder := []string{
+		"192.168.11.2",
+		"192.168.11.11",
+		"192.168.11.20",
+		"192.168.11.100",
+		"192.168.11.101",
+		"192.168.11.102",
+		"192.168.11.103",
+	}
+
+	var hosts []*Host
+	for i, ip := range ips {
+		hosts = append(hosts, &Host{
+			ID:         int64(i + 1),
+			IP:         ip,
+			IsApproved: true,
+			Status:     "up",
+		})
+	}
+
+	SortHosts(hosts)
+
+	for i, h := range hosts {
+		if h.IP != expectedOrder[i] {
+			t.Errorf("expected index %d to be %s, got %s", i, expectedOrder[i], h.IP)
+		}
+	}
+
+	// 2. Database integration test with ListHostsFiltered
+	db := setupTestDB(t)
+	for _, ip := range ips {
+		_ = db.CreateManualHost(&Host{
+			IP:         ip,
+			IsApproved: true,
+			Status:     "up",
+		})
+	}
+
+	listed, err := db.ListHostsFiltered(nil, "all", 0)
+	if err != nil {
+		t.Fatalf("ListHostsFiltered failed: %v", err)
+	}
+
+	for i, h := range listed {
+		if h.IP != expectedOrder[i] {
+			t.Errorf("database listed host [%d] expected %s, got %s", i, expectedOrder[i], h.IP)
+		}
+	}
+}
+

@@ -228,7 +228,9 @@ func (h *Handler) HandleMainTablePartial(w http.ResponseWriter, r *http.Request)
 
 	for _, host := range hosts {
 		isDHCP := host.IsDHCP
-		if !isDHCP {
+		if host.IsStaticIP {
+			isDHCP = false
+		} else if !isDHCP {
 			var targetSeg *db.Segment
 			if host.SegmentID != nil {
 				targetSeg = segMap[*host.SegmentID]
@@ -283,7 +285,9 @@ func (h *Handler) HandleActionMenuPartial(w http.ResponseWriter, r *http.Request
 		http.Error(w, "Host not found", http.StatusNotFound)
 		return
 	}
-	if !host.IsDHCP {
+	if host.IsStaticIP {
+		host.IsDHCP = false
+	} else if !host.IsDHCP {
 		seg, _ := h.db.FindSegmentForIP(net.ParseIP(host.IP))
 		if seg != nil && seg.DHCPRange != "" {
 			host.IsDHCP = db.IsInDHCPRange(host.IP, seg.DHCPRange)
@@ -675,6 +679,7 @@ func (h *Handler) HandleToggleStaticIP(w http.ResponseWriter, r *http.Request, i
 		return
 	}
 	_ = h.db.UpdateHostManualByID(host.ID, host.DisplayName, host.VendorModel, host.UserName, !host.IsStaticIP, host.IgnoredPorts, host.ManualConnectionType)
+	w.Header().Set("HX-Trigger", "refreshMainTable, refreshSidebar")
 	h.HandleMainTablePartial(w, r)
 }
 
@@ -698,6 +703,7 @@ func (h *Handler) HandleUpdateHost(w http.ResponseWriter, r *http.Request, ip st
 	}
 
 	_ = h.db.UpdateHostManualByID(host.ID, displayName, vendorModel, userName, isStaticIP, ignoredPorts, manualConnectionType)
+	w.Header().Set("HX-Trigger", "refreshMainTable, refreshSidebar")
 	h.HandleMainTablePartial(w, r)
 }
 

@@ -1408,4 +1408,66 @@ func TestMonitoringSettingsModalTab(t *testing.T) {
 	}
 }
 
+func TestToggleStaticIPWebEndpoint(t *testing.T) {
+	_, router, database := setupTestWeb(t)
+
+	seg, _ := database.CreateSegment("Static LAN", "192.168.10.0/24", "eth0", true)
+	seg.DHCPRange = "192.168.10.50-192.168.10.100"
+	_ = database.UpdateSegment(seg)
+
+	// Create host inside DHCP range
+	_ = database.CreateManualHost(&db.Host{
+		IP:          "192.168.10.60",
+		SegmentID:   &seg.ID,
+		DisplayName: "My Printer",
+		Hostname:    "printer-01",
+		IsApproved:  true,
+		IsStaticIP:  false,
+		Status:      "up",
+	})
+
+	// 1. Initial main table check: host in DHCP range should be inferred as DHCP
+	req := httptest.NewRequest("GET", "/partials/main_table", nil)
+	rec := httptest.NewRecorder()
+	router.ServeHTTP(rec, req)
+	if rec.Code != http.StatusOK {
+		t.Fatalf("expected 200, got %d", rec.Code)
+	}
+	if !strings.Contains(rec.Body.String(), "data-static=\"dhcp\"") {
+		t.Errorf("expected host to be data-static=dhcp initially")
+	}
+
+	// 2. Toggle static IP on this host via POST /api/hosts/{ip}/toggle_static
+	h, _ := database.GetHost("192.168.10.60")
+	reqToggle := httptest.NewRequest("POST", fmt.Sprintf("/api/hosts/192.168.10.60/toggle_static?id=%d", h.ID), nil)
+	recToggle := httptest.NewRecorder()
+	router.ServeHTTP(recToggle, reqToggle)
+	if recToggle.Code != http.StatusOK {
+		t.Fatalf("expected 200 from toggle_static, got %d", recToggle.Code)
+	}
+
+	// Verify DB state
+	hAfter, _ := database.GetHost("192.168.10.60")
+	if !hAfter.IsStaticIP {
+		t.Fatalf("expected IsStaticIP to be true in DB after toggle")
+	}
+	if hAfter.IsDHCP {
+		t.Errorf("expected IsDHCP in DB to be false when IsStaticIP is true")
+	}
+
+	// 3. Verify main table rendered response after toggle contains data-static="static" and checked checkbox
+	body := recToggle.Body.String()
+	if !strings.Contains(body, "data-static=\"static\"") {
+		t.Errorf("expected data-static=\"static\" in response table, got body=%s", body)
+	}
+	if !strings.Contains(body, "checked") {
+		t.Errorf("expected checkbox to be checked in response")
+	}
+
+	// 4. Verify trigger header is set
+	if !strings.Contains(recToggle.Header().Get("HX-Trigger"), "refreshMainTable") {
+		t.Errorf("expected HX-Trigger to contain refreshMainTable, got %s", recToggle.Header().Get("HX-Trigger"))
+	}
+}
+
 

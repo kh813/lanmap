@@ -1,6 +1,7 @@
 package db
 
 import (
+	"bytes"
 	"database/sql"
 	"fmt"
 	"html/template"
@@ -874,7 +875,21 @@ func (db *DB) UpsertHostOnScan(h *Host) (isNew bool, isReplaced bool, err error)
 	}
 
 	if existing == nil {
-		// This MAC (or MAC-less host) is new.
+		// Check if a host previously existed on this IP
+		prevHostOnIP, err := db.GetHost(h.IP)
+		if err != nil {
+			return false, false, err
+		}
+
+		if prevHostOnIP != nil && (prevHostOnIP.MACAddress == "" || strings.EqualFold(prevHostOnIP.MACAddress, normMAC)) {
+			// Previous host on this IP had no MAC (e.g. ping-only discovery or manual creation) or matches MAC.
+			// Re-use it as the existing record to retain user configuration (is_static_ip, is_approved, is_protected, etc.)
+			existing = prevHostOnIP
+		}
+	}
+
+	if existing == nil {
+		// This MAC (or MAC-less host) is genuinely new.
 		// Check if another host was previously using this IP.
 		prevHostOnIP, err := db.GetHost(h.IP)
 		if err != nil {
@@ -907,7 +922,7 @@ func (db *DB) UpsertHostOnScan(h *Host) (isNew bool, isReplaced bool, err error)
 			?, ?, ?, ?, 100.0,
 			?, ?, ?, ?, ?,
 			?, ?, ?, 0, 0,
-			?, 0, 0, ?,
+			?, ?, ?, ?,
 			0, 0, 0, '', NULL,
 			?, ?, ?,
 			?, ?, ?, ?, ?
@@ -922,7 +937,7 @@ func (db *DB) UpsertHostOnScan(h *Host) (isNew bool, isReplaced bool, err error)
 			h.OSVendor, status, h.PingRTTMs, h.PingJitterMs,
 			h.OpenPorts, h.HTTPTitle, h.UPnPName, h.UPnPModel, h.UPnPSerial,
 			h.TLSSubject, h.TLSExpiry, h.MDNSModel,
-			h.IsApproved, h.IsDHCP, now, now, initialIPv6,
+			h.IsApproved, h.IsProtected, h.IsStaticIP, h.IsDHCP, now, now, initialIPv6,
 			h.UserName, h.UserHint, h.OSConfidence, h.OSEvidence, h.ManualConnectionType,
 		)
 		return true, isReplaced, err
@@ -970,6 +985,11 @@ func (db *DB) UpsertHostOnScan(h *Host) (isNew bool, isReplaced bool, err error)
 	firstSeen := existing.FirstSeen
 	if h.IsApproved {
 		isApproved = true
+	}
+	isProtected := existing.IsProtected || h.IsProtected
+	isStaticIP := existing.IsStaticIP
+	if h.IsStaticIP {
+		isStaticIP = true
 	}
 
 	hostname := existing.Hostname
@@ -1035,7 +1055,7 @@ func (db *DB) UpsertHostOnScan(h *Host) (isNew bool, isReplaced bool, err error)
 		mdnsModel = existing.MDNSModel
 	}
 
-	isDHCP := existing.IsDHCP || h.IsDHCP
+	isDHCP := (existing.IsDHCP || h.IsDHCP) && !isStaticIP
 
 	status := h.Status
 	if status == "" {
@@ -1083,6 +1103,8 @@ func (db *DB) UpsertHostOnScan(h *Host) (isNew bool, isReplaced bool, err error)
 		tls_expiry = ?,
 		mdns_model = ?,
 		is_approved = ?,
+		is_protected = ?,
+		is_static_ip = ?,
 		is_dhcp = ?,
 		first_seen = ?,
 		last_seen = ?,
@@ -1098,7 +1120,7 @@ func (db *DB) UpsertHostOnScan(h *Host) (isNew bool, isReplaced bool, err error)
 		osVendor, status, pingRTT, jitter, openPorts,
 		httpTitle, upnpName, upnpModel, upnpSerial,
 		tlsSubj, tlsExp, mdnsModel,
-		isApproved, isDHCP, firstSeen, now, mergedIPv6,
+		isApproved, isProtected, isStaticIP, isDHCP, firstSeen, now, mergedIPv6,
 		userName, userHint, osConfidence, osEvidence, existing.ID,
 	)
 	return false, isReplaced, err
@@ -1321,7 +1343,75 @@ func (db *DB) ListHostsFilteredWithAgent(segmentID *int64, filterMode string, da
 
 	db.enrichHostsWithPingHistory(hosts)
 
+	// Sort hosts numerically by IP address while preserving priority groups
+	SortHosts(hosts)
+
 	return hosts, rows.Err()
+}
+
+// CompareIP compares two IP strings numerically (supporting IPv4 and IPv6).
+// Returns -1 if a < b, 1 if a > b, 0 if a == b.
+func CompareIP(aStr, bStr string) int {
+	aIP := net.ParseIP(strings.TrimSpace(aStr))
+	bIP := net.ParseIP(strings.TrimSpace(bStr))
+
+	if aIP == nil && bIP == nil {
+		return strings.Compare(aStr, bStr)
+	}
+	if aIP == nil {
+		return 1
+	}
+	if bIP == nil {
+		return -1
+	}
+
+	a4 := aIP.To4()
+	b4 := bIP.To4()
+
+	// If both are IPv4
+	if a4 != nil && b4 != nil {
+		return bytes.Compare(a4, b4)
+	}
+
+	// IPv4 before IPv6
+	if a4 != nil && b4 == nil {
+		return -1
+	}
+	if a4 == nil && b4 != nil {
+		return 1
+	}
+
+	// Both IPv6
+	return bytes.Compare(aIP.To16(), bIP.To16())
+}
+
+// SortHosts sorts hosts by:
+// 1. is_storming DESC (broadcast storm alerts highest priority)
+// 2. is_approved ASC (unapproved/new hosts alert priority)
+// 3. IP address numerically (e.g. 192.168.11.11 before 192.168.11.100)
+// 4. status='up' first
+// 5. last_seen DESC
+func SortHosts(hosts []*Host) {
+	sort.SliceStable(hosts, func(i, j int) bool {
+		hi, hj := hosts[i], hosts[j]
+		if hi.IsStorming != hj.IsStorming {
+			return hi.IsStorming
+		}
+		if hi.IsApproved != hj.IsApproved {
+			return !hi.IsApproved
+		}
+		ipCmp := CompareIP(hi.IP, hj.IP)
+		if ipCmp != 0 {
+			return ipCmp < 0
+		}
+		if (hi.Status == "up") != (hj.Status == "up") {
+			return hi.Status == "up"
+		}
+		if hi.LastSeen != nil && hj.LastSeen != nil {
+			return hi.LastSeen.After(*hj.LastSeen)
+		}
+		return hi.ID < hj.ID
+	})
 }
 
 func (db *DB) enrichHostsWithPingHistory(hosts []*Host) {
@@ -1352,6 +1442,16 @@ func (db *DB) UpdateHostStatus(ip string, status string) error {
 	}
 	query = "UPDATE hosts SET status = ? WHERE ip = ?"
 	_, err := db.Exec(query, status, ip)
+	return err
+}
+
+// UpdateHostHostname updates hostname of a host if it is currently empty or unset
+func (db *DB) UpdateHostHostname(ip string, hostname string) error {
+	hostname = strings.TrimSpace(hostname)
+	if hostname == "" {
+		return nil
+	}
+	_, err := db.Exec(`UPDATE hosts SET hostname = ? WHERE ip = ? AND (hostname IS NULL OR hostname = '')`, hostname, ip)
 	return err
 }
 
@@ -1430,7 +1530,7 @@ func (db *DB) ToggleDHCPByID(id int64) (bool, error) {
 	}
 
 	newVal := !current
-	_, err = db.Exec("UPDATE hosts SET is_dhcp = ? WHERE id = ?", newVal, id)
+	_, err = db.Exec("UPDATE hosts SET is_dhcp = ?, is_static_ip = CASE WHEN ? = 1 THEN 0 ELSE is_static_ip END WHERE id = ?", newVal, newVal, id)
 	return newVal, err
 }
 
@@ -1451,11 +1551,12 @@ func (db *DB) UpdateHostManualByID(id int64, displayName, vendorModel, userName 
 		vendor_model = CASE WHEN ? != '' THEN ? ELSE vendor_model END,
 		user_name = ?,
 		is_static_ip = ?,
+		is_dhcp = CASE WHEN ? = 1 THEN 0 ELSE is_dhcp END,
 		ignored_ports = ?,
 		manual_connection_type = ?
 	WHERE id = ?
 	`
-	_, err := db.Exec(query, displayName, vendorModel, vendorModel, userName, isStaticIP, ignoredPorts, manualConnectionType, id)
+	_, err := db.Exec(query, displayName, vendorModel, vendorModel, userName, isStaticIP, isStaticIP, ignoredPorts, manualConnectionType, id)
 	return err
 }
 
