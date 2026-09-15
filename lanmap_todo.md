@@ -897,4 +897,17 @@
   - [x] `db_test.go` (`TestConnectionTypeDetection`): Synology VMM, QEMU, Hyper-V 等の接続タイプ検証
   - [x] `go test ./...` 100% PASS 確認
 
+---
+
+### 🔹 Phase 39: IEEE公式 ＆ Nmap MACプレフィックス（38,900+ OUI）完全統合と全IoT/スマート家電/OA機器ベンダー網羅 (完了)
+- [x] **39.1 OUI データベースの大規模拡充 (`internal/scanner/data/oui.csv`)**
+  - [x] 従来の787件から **38,976件（50倍以上）** の公式IEEE OUI & Nmap MACプレフィックスデータベースへ完全移行
+  - [x] スマートホーム・IoT・マイコン（Espressif ESP32/ESP8266, Tuya, SwitchBot, Nature Remo, Shelly, Sonoff, Xiaomi/Aqara, Philips Hue, WIZnet, Murata, Nordic, Microchip, TI, Realtek, MediaTek, Broadcom, Qualcomm等）の網羅
+  - [x] 国内外の白物家電・AV機器・ゲーム機・住設機器（Panasonic, Sharp, Mitsubishi, Daikin, Toshiba, Hitachi, Sony, Nintendo, Omron, Aiphone等）の完全サポート
+- [x] **39.2 OUI 解決エンジンの最適化 (`internal/scanner/oui.go`)**
+  - [x] `LookupVendor`: メモリ効率の高いハッシュマップ初期化、オールゼロ（`00:00:00:00:00:00`）ダミーMACの適切な除外処理
+- [x] **39.3 単体テスト & ビルド検証**
+  - [x] `scanner_test.go` (`TestOUILookup`): 各種IoT機器（Espressif, Tuya, SwitchBot, Philips Hue, Daikin等）の回帰テスト
+  - [x] `go test ./...` 100% PASS 確認
+
 

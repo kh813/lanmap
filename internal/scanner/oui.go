@@ -49,7 +49,7 @@ func LookupVendor(mac string) string {
 	clean = strings.ReplaceAll(clean, "-", "")
 	clean = strings.ReplaceAll(clean, ".", "")
 
-	if len(clean) < 6 {
+	if len(clean) < 6 || clean == "000000000000" || strings.Trim(clean, "0") == "" {
 		return ""
 	}
 
