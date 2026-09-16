@@ -899,15 +899,31 @@
 
 ---
 
-### 🔹 Phase 39: IEEE公式 ＆ Nmap MACプレフィックス（38,900+ OUI）完全統合と全IoT/スマート家電/OA機器ベンダー網羅 (完了)
-- [x] **39.1 OUI データベースの大規模拡充 (`internal/scanner/data/oui.csv`)**
-  - [x] 従来の787件から **38,976件（50倍以上）** の公式IEEE OUI & Nmap MACプレフィックスデータベースへ完全移行
-  - [x] スマートホーム・IoT・マイコン（Espressif ESP32/ESP8266, Tuya, SwitchBot, Nature Remo, Shelly, Sonoff, Xiaomi/Aqara, Philips Hue, WIZnet, Murata, Nordic, Microchip, TI, Realtek, MediaTek, Broadcom, Qualcomm等）の網羅
-  - [x] 国内外の白物家電・AV機器・ゲーム機・住設機器（Panasonic, Sharp, Mitsubishi, Daikin, Toshiba, Hitachi, Sony, Nintendo, Omron, Aiphone等）の完全サポート
-- [x] **39.2 OUI 解決エンジンの最適化 (`internal/scanner/oui.go`)**
-  - [x] `LookupVendor`: メモリ効率の高いハッシュマップ初期化、オールゼロ（`00:00:00:00:00:00`）ダミーMACの適切な除外処理
-- [x] **39.3 単体テスト & ビルド検証**
-  - [x] `scanner_test.go` (`TestOUILookup`): 各種IoT機器（Espressif, Tuya, SwitchBot, Philips Hue, Daikin等）の回帰テスト
+### 🔹 Phase 40: v0.0.45 リアルタイムフルスキャン結果フィードバック ＆ オフライン検知 (完了)
+- [x] **40.1 トースト通知システム（Toast Notification）実装 (`web/template/index.html`)**
+  - [x] HTMX `HX-Trigger`（`showToast`）連動の軽量・非同期トーストUIコンポーネント追加
+  - [x] 成功（緑）、失敗/到達不能（赤）、警告（黄）の自動スタック＆自動フェードアウト
+- [x] **40.2 フルスキャン・ポート診断結果の即時フィードバック (`internal/web/handler.go`, `host_detail_modal.html`)**
+  - [x] フルスキャン・ポート診断実行時に Ping および全プロトコル応答を確認し、オフライン・到達不能（`down`）時は「❌ フルスキャン失敗: 応答がありません (オフライン / 到達不能)」を表示
+  - [x] 疎通成功時は「⚡ フルスキャン成功: N個のポート・属性を検出」をトーストおよびモーダルバナーに表示
+  - [x] 上部ヘッダーの「スキャン」実行時にも検出台数のトースト通知を表示
+- [x] **40.3 単体テスト & ビルド検証**
+  - [x] `web_test.go`: `showToast` ヘッダーおよびフルスキャンエンドポイントのテスト追加
   - [x] `go test ./...` 100% PASS 確認
+
+---
+
+## 🔮 Future Roadmap (今後の実装計画)
+
+### 📌 Milestone: v0.1.0 (安定版正式リリース)
+- [ ] 現行全機能（マルチセグメント、24h/7d死活監視、OS/機種推定、ホワイトリスト台帳、Webhookアラート、トースト通知）の最終安定化・ドキュメント整備・バイナリ配布
+
+### 📌 Milestone: v0.1.2 (台帳未登録端末の自動ディープスキャン ＆ 詳細アラート連携)
+- [ ] **未承認端末の自動即時フルスキャン（Auto Deep-Scan on Unapproved Host Detection）**
+  - [ ] 資産管理台帳（ホワイトリスト）に未登録の新規端末（ホスト）がネットワークに接続された際、その端末限定で自動的に即時フルスキャン（40+主要ポート、Webタイトル、TLS証明書、UPnP/WSD、NetBIOS、mDNS）をトリガーする機能
+  - [ ] 設定画面に「未承認端末検知時に自動フルスキャンを実行する」トグルオプションを追加
+- [ ] **高精度インシデントレポート通知（Detailed Security Alert Notification）**
+  - [ ] 自動ディープスキャンで収集された詳細情報（型番・シリアル・開放ポート一覧・Web管理画面タイトル・TLSコモンネーム・推定OS）を1通にまとめた詳細インシデントWebhook通知（Slack/Teams/メール等）の送信
+
 
 

@@ -1333,5 +1333,42 @@ DHCPクライアントが要求するOption 55（Parameter Request List）のシ
 * **基本方針**:
   * レベルBに該当する盗聴・介入手法は **lanmap の設計スコープから完全に対象外** とする。
 
+---
+
+## 16. 将来ロードマップ・拡張機能設計 (Roadmap: v0.1.0 / v0.1.2)
+
+### 16.1 v0.1.0 安定版マイルストーン
+* 全主要機能（マルチセグメント、24h/7d時系列死活監視、OS/機種指紋推定、ホワイトリスト台帳、リアルタイムトースト通知、障害時自動復旧）の安定化完了後のメジャーリリース。
+
+### 16.2 v0.1.2 未承認端末の自動ディープスキャン ＆ インシデント詳細レポート機能
+企業・組織のセキュリティ運用において、資産管理台帳（ホワイトリスト）に登録されていない未知の端末（持込PC、私物スマホ、野良ルーター等）がLANに接続された際、管理者の手動操作を待たずに**即時で自律調査を行い、詳細な証拠データをレポートする**機能。
+
+#### 1. 動作フロー
+```mermaid
+sequenceDiagram
+    autonumber
+    participant Host as 新規接続端末 (未承認)
+    participant Monitor as DHCP/ARP パッシブ監視
+    participant Scanner as オンデマンド・ディープスキャナー
+    participant DB as SQLite (hosts / whitelist)
+    participant Notifier as Webhook通知エンジン
+
+    Host->>Monitor: DHCP Request / ARPパケット送信
+    Monitor->>DB: ホスト名・MACアドレスをホワイトリストと照合
+    DB-->>Monitor: 未承認端末 (is_approved = 0)
+    Note over Monitor,Scanner: 「未承認端末の自動ディープスキャン」が有効な場合
+    Monitor->>Scanner: 対象IP限定で即時フルスキャンを非同期トリガー
+    Scanner->>Host: 40+ポートスキャン / Webタイトル / TLS証明書 / UPnP / WSD
+    Host-->>Scanner: 応答データ (開放ポート, 型番, シリアル, 証明書CN)
+    Scanner->>DB: 属性情報・詳細エビデンスを自動更新
+    Scanner->>Notifier: 詳細インシデントレポートをWebhookへ送信 (Slack/Teams/メール)
+```
+
+#### 2. インシデント通知に含まれる詳細情報
+1. **基本属性**: IPアドレス、MACアドレス、ベンダー（OUI）、接続時刻、セグメント名
+2. **機器特定情報**: 推定OS（信頼度・根拠）、UPnP/WSDモデル名・シリアル番号、mDNS所有者ヒント
+3. **セキュリティ警戒情報**: 開放ポート一覧（22, 80, 443, 445, 3389, 8080等）、Web管理画面タイトル、TLS証明書コモンネーム（所属組織・ドメイン名）
+
+
 
 
