@@ -25,32 +25,37 @@
                 {{end}}
             </div>
             <p id="host-count-badge" class="text-xs text-slate-500 dark:text-slate-400 mt-0.5">
-                {{tf .Lang "table_total_hosts" (len .Hosts)}}
+                <span class="font-semibold text-slate-800 dark:text-slate-200">{{.FilterBadgeText}}</span>
+                <span class="text-[11px] text-slate-400 dark:text-slate-500 font-normal"> · {{t .Lang "table_refresh_hint"}}</span>
             </p>
         </div>
 
         <div class="flex items-center space-x-2 flex-wrap gap-2">
-            <!-- Filter Switch (Online, Today, 3 Days [Default], All) -->
+            <!-- Filter Switch (Online, Today, 3 Days [Default], All) with dynamic count badges -->
             <div class="bg-slate-200/80 dark:bg-slate-800/80 p-0.5 rounded-lg flex text-xs border border-slate-300 dark:border-slate-700">
                 <button hx-get="/partials/main_table?segment_id={{.CurrentSegmentID}}&agent_id={{.CurrentAgentID}}&filter=online"
                         hx-target="#main-content" hx-swap="outerHTML"
-                        class="px-2.5 py-1 rounded-md font-medium transition {{if eq .CurrentFilter "online"}}bg-white text-slate-900 dark:bg-slate-900 dark:text-white shadow-sm{{else}}text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-200{{end}}">
-                    {{t .Lang "table_filter_online"}}
+                        class="px-2.5 py-1 rounded-md font-medium transition flex items-center space-x-1.5 {{if eq .CurrentFilter "online"}}bg-white text-slate-900 dark:bg-slate-900 dark:text-white shadow-sm font-bold{{else}}text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-200{{end}}">
+                    <span>{{t .Lang "table_filter_online"}}</span>
+                    <span class="text-[10px] px-1.5 py-0.2 rounded-full font-mono {{if eq .CurrentFilter "online"}}bg-emerald-100 text-emerald-800 dark:bg-emerald-950 dark:text-emerald-300{{else}}bg-slate-300/70 text-slate-700 dark:bg-slate-700 dark:text-slate-300{{end}}">{{.OnlineCount}}</span>
                 </button>
                 <button hx-get="/partials/main_table?segment_id={{.CurrentSegmentID}}&agent_id={{.CurrentAgentID}}&filter=today"
                         hx-target="#main-content" hx-swap="outerHTML"
-                        class="px-2.5 py-1 rounded-md font-medium transition {{if eq .CurrentFilter "today"}}bg-white text-slate-900 dark:bg-slate-900 dark:text-white shadow-sm{{else}}text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-200{{end}}">
-                    {{t .Lang "table_filter_today"}}
+                        class="px-2.5 py-1 rounded-md font-medium transition flex items-center space-x-1.5 {{if eq .CurrentFilter "today"}}bg-white text-slate-900 dark:bg-slate-900 dark:text-white shadow-sm font-bold{{else}}text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-200{{end}}">
+                    <span>{{t .Lang "table_filter_today"}}</span>
+                    <span class="text-[10px] px-1.5 py-0.2 rounded-full font-mono {{if eq .CurrentFilter "today"}}bg-blue-100 text-blue-800 dark:bg-blue-950 dark:text-blue-300{{else}}bg-slate-300/70 text-slate-700 dark:bg-slate-700 dark:text-slate-300{{end}}">{{.TodayCount}}</span>
                 </button>
                 <button hx-get="/partials/main_table?segment_id={{.CurrentSegmentID}}&agent_id={{.CurrentAgentID}}&filter=3d"
                         hx-target="#main-content" hx-swap="outerHTML"
-                        class="px-2.5 py-1 rounded-md font-medium transition {{if or (eq .CurrentFilter "3d") (not .CurrentFilter)}}bg-white text-slate-900 dark:bg-slate-900 dark:text-white shadow-sm{{else}}text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-200{{end}}">
-                    {{t .Lang "table_filter_3d"}}
+                        class="px-2.5 py-1 rounded-md font-medium transition flex items-center space-x-1.5 {{if or (eq .CurrentFilter "3d") (not .CurrentFilter)}}bg-white text-slate-900 dark:bg-slate-900 dark:text-white shadow-sm font-bold{{else}}text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-200{{end}}">
+                    <span>{{t .Lang "table_filter_3d"}}</span>
+                    <span class="text-[10px] px-1.5 py-0.2 rounded-full font-mono {{if or (eq .CurrentFilter "3d") (not .CurrentFilter)}}bg-slate-200 text-slate-800 dark:bg-slate-800 dark:text-slate-200{{else}}bg-slate-300/70 text-slate-700 dark:bg-slate-700 dark:text-slate-300{{end}}">{{.ThreeDaysCount}}</span>
                 </button>
                 <button hx-get="/partials/main_table?segment_id={{.CurrentSegmentID}}&agent_id={{.CurrentAgentID}}&filter=all"
                         hx-target="#main-content" hx-swap="outerHTML"
-                        class="px-2.5 py-1 rounded-md font-medium transition {{if eq .CurrentFilter "all"}}bg-white text-slate-900 dark:bg-slate-900 dark:text-white shadow-sm{{else}}text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-200{{end}}">
-                    {{t .Lang "table_filter_all"}}
+                        class="px-2.5 py-1 rounded-md font-medium transition flex items-center space-x-1.5 {{if eq .CurrentFilter "all"}}bg-white text-slate-900 dark:bg-slate-900 dark:text-white shadow-sm font-bold{{else}}text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-200{{end}}">
+                    <span>{{t .Lang "table_filter_all"}}</span>
+                    <span class="text-[10px] px-1.5 py-0.2 rounded-full font-mono {{if eq .CurrentFilter "all"}}bg-slate-200 text-slate-800 dark:bg-slate-800 dark:text-slate-200{{else}}bg-slate-300/70 text-slate-700 dark:bg-slate-700 dark:text-slate-300{{end}}">{{.AllCount}}</span>
                 </button>
             </div>
 
@@ -722,18 +727,15 @@
             const countBadge = document.getElementById('host-count-badge');
             if (countBadge) {
                 const isJa = '{{.Lang}}' === 'ja';
+                const totalScopeCount = {{.TotalScopeCount}};
                 if (isFiltering) {
                     if (isJa) {
-                        countBadge.innerHTML = `<span class="text-blue-600 dark:text-blue-400 font-bold">🔍 絞り込み中:</span> ${visibleCount} / 全 ${rows.length} 台を表示`;
+                        countBadge.innerHTML = `<span class="text-blue-600 dark:text-blue-400 font-bold">🔍 絞り込み抽出:</span> <strong class="text-slate-900 dark:text-white">${visibleCount}</strong> 台を表示 (対象 ${rows.length} 台 / 全 ${totalScopeCount} 台中) <span class="text-[11px] text-slate-400 dark:text-slate-500 font-normal"> · 30秒自動更新</span>`;
                     } else {
-                        countBadge.innerHTML = `<span class="text-blue-600 dark:text-blue-400 font-bold">🔍 Filtering:</span> ${visibleCount} of ${rows.length} hosts shown`;
+                        countBadge.innerHTML = `<span class="text-blue-600 dark:text-blue-400 font-bold">🔍 Filtered:</span> <strong class="text-slate-900 dark:text-white">${visibleCount}</strong> host(s) shown (of ${rows.length} in scope / ${totalScopeCount} total) <span class="text-[11px] text-slate-400 dark:text-slate-500 font-normal"> · Auto-refresh 30s</span>`;
                     }
                 } else {
-                    if (isJa) {
-                        countBadge.innerText = `合計 ${rows.length} 台の端末が登録されています (30秒ごとに自動更新 / IPホバーでWeb名・型番・SSL・ポート詳細表示)`;
-                    } else {
-                        countBadge.innerText = `Total ${rows.length} host(s) registered (Auto-refreshes every 30s / Hover IP for details)`;
-                    }
+                    countBadge.innerHTML = `<span class="font-semibold text-slate-800 dark:text-slate-200">{{.FilterBadgeText}}</span><span class="text-[11px] text-slate-400 dark:text-slate-500 font-normal"> · {{t .Lang "table_refresh_hint"}}</span>`;
                 }
             }
         }

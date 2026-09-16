@@ -136,6 +136,7 @@ var translations = map[string]map[string]string{
 
 		// Main Table Header & Actions
 		"table_total_hosts":      "Total %d host(s) registered (Auto-refreshes every 30s / Hover IP for details)",
+		"table_refresh_hint":     "Auto-refreshes every 30s / Hover IP for details",
 		"table_filter_online":    "🟢 Online Only",
 		"table_filter_today":     "📅 Today",
 		"table_filter_3d":        "🕒 3 Days",
@@ -633,6 +634,7 @@ var translations = map[string]map[string]string{
 
 		// Main Table Header & Actions
 		"table_total_hosts":      "合計 %d 台の端末が登録されています (30秒ごとに自動更新 / IPホバーでWeb名・型番・SSL・ポート詳細表示)",
+		"table_refresh_hint":     "30秒ごとに自動更新 / IPホバーで詳細表示",
 		"table_filter_online":    "🟢 オンラインのみ",
 		"table_filter_today":     "📅 今日",
 		"table_filter_3d":        "🕒 直近3日",

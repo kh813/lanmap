@@ -264,6 +264,67 @@ func (h *Handler) HandleMainTablePartial(w http.ResponseWriter, r *http.Request)
 		host.IsDHCP = isDHCP
 	}
 
+	allHostsInScope, _ := h.db.ListHostsFilteredWithAgent(segID, "all", 0, agentIDPtr)
+	totalScopeCount := len(allHostsInScope)
+
+	onlineCount := 0
+	todayCount := 0
+	threeDaysCount := 0
+	now := time.Now()
+	loc := now.Location()
+	todayStart := time.Date(now.Year(), now.Month(), now.Day(), 0, 0, 0, 0, loc)
+	threeDaysAgo := now.AddDate(0, 0, -3)
+
+	for _, hst := range allHostsInScope {
+		if hst.Status == "up" {
+			onlineCount++
+		}
+		if (hst.LastSeen != nil && hst.LastSeen.After(todayStart)) || (!hst.FirstSeen.IsZero() && hst.FirstSeen.After(todayStart)) {
+			todayCount++
+		}
+		if (hst.LastSeen != nil && hst.LastSeen.After(threeDaysAgo)) || (!hst.FirstSeen.IsZero() && hst.FirstSeen.After(threeDaysAgo)) {
+			threeDaysCount++
+		}
+	}
+
+	var filterBadgeText string
+	switch filter {
+	case "online":
+		if lang == i18n.LangJA {
+			filterBadgeText = fmt.Sprintf("🟢 オンライン端末: %d 台 (全 %d 台中)", len(hosts), totalScopeCount)
+		} else {
+			filterBadgeText = fmt.Sprintf("🟢 Online: %d of %d host(s) shown", len(hosts), totalScopeCount)
+		}
+	case "today":
+		if lang == i18n.LangJA {
+			filterBadgeText = fmt.Sprintf("📅 今日の接続端末: %d 台 (全 %d 台中)", len(hosts), totalScopeCount)
+		} else {
+			filterBadgeText = fmt.Sprintf("📅 Today: %d of %d host(s) shown", len(hosts), totalScopeCount)
+		}
+	case "all":
+		if lang == i18n.LangJA {
+			filterBadgeText = fmt.Sprintf("📁 すべての端末: %d 台 (全件表示)", len(hosts))
+		} else {
+			filterBadgeText = fmt.Sprintf("📁 All Hosts: %d host(s)", len(hosts))
+		}
+	case "3d":
+		fallthrough
+	default:
+		if len(hosts) < totalScopeCount {
+			if lang == i18n.LangJA {
+				filterBadgeText = fmt.Sprintf("🕒 直近3日間の端末: %d 台 (全 %d 台中)", len(hosts), totalScopeCount)
+			} else {
+				filterBadgeText = fmt.Sprintf("🕒 Active in 3 days: %d of %d host(s) shown", len(hosts), totalScopeCount)
+			}
+		} else {
+			if lang == i18n.LangJA {
+				filterBadgeText = fmt.Sprintf("合計 %d 台の端末が登録されています (直近3日間)", len(hosts))
+			} else {
+				filterBadgeText = fmt.Sprintf("Total %d host(s) active in last 3 days", len(hosts))
+			}
+		}
+	}
+
 	var curSegIDStr string
 	if segID != nil {
 		curSegIDStr = strconv.FormatInt(*segID, 10)
@@ -271,6 +332,13 @@ func (h *Handler) HandleMainTablePartial(w http.ResponseWriter, r *http.Request)
 
 	data := map[string]interface{}{
 		"Hosts":            hosts,
+		"TotalScopeCount":  totalScopeCount,
+		"FilteredCount":    len(hosts),
+		"OnlineCount":      onlineCount,
+		"TodayCount":       todayCount,
+		"ThreeDaysCount":   threeDaysCount,
+		"AllCount":         totalScopeCount,
+		"FilterBadgeText":  filterBadgeText,
 		"SegmentTitle":     segTitle,
 		"SegmentCIDR":      segCIDR,
 		"CurrentSegmentID": curSegIDStr,
