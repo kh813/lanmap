@@ -124,7 +124,7 @@ func ExtractWebTitleAndModel(ip string, openPorts string, currentVendor string) 
 				continue
 			}
 			req.Close = true
-			req.Header.Set("User-Agent", "Mozilla/5.0 (Windows NT 10.0; Win64; x64) lanmap/0.0.43")
+			req.Header.Set("User-Agent", "Mozilla/5.0 (Windows NT 10.0; Win64; x64) lanmap/0.0.44")
 
 			resp, err := client.Do(req)
 			if err != nil {

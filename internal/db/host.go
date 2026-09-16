@@ -1139,13 +1139,21 @@ func (db *DB) UpsertHostOnScan(h *Host) (isNew bool, isReplaced bool, err error)
 	}
 
 	userName := existing.UserName
-	if userName == "" && h.UserName != "" {
+	if h.UserName != "" {
 		userName = h.UserName
+	}
+	if userName != "" && (strings.EqualFold(userName, hostname) || strings.EqualFold(userName, existing.Hostname)) {
+		userName = ""
 	}
 
 	userHint := h.UserHint
 	if userHint == "" {
-		userHint = existing.UserHint
+		if existing.UserHint != "" && !strings.EqualFold(existing.UserHint, hostname) && !strings.EqualFold(existing.UserHint, existing.Hostname) {
+			userHint = existing.UserHint
+		}
+	}
+	if userHint != "" && (strings.EqualFold(userHint, hostname) || strings.EqualFold(userHint, existing.Hostname)) {
+		userHint = ""
 	}
 
 	osConfidence := h.OSConfidence

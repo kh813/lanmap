@@ -323,6 +323,23 @@ func (db *DB) migrate() error {
 		WHERE LOWER(vendor_model) LIKE '%model: xserve%' OR LOWER(vendor_model) LIKE '%model: xserver%' OR LOWER(vendor_model) LIKE '%model: rackmac%' OR LOWER(vendor_model) LIKE '%xserve%' OR LOWER(vendor_model) LIKE '%xserver%';
 	`)
 
+	// Cleanse legacy bogus user_name and user_hint where they were mistakenly set to the host's own hostname
+	_, _ = db.Exec(`
+		UPDATE hosts
+		SET user_name = ''
+		WHERE user_name != '' AND LOWER(TRIM(user_name)) = LOWER(TRIM(hostname));
+	`)
+	_, _ = db.Exec(`
+		UPDATE hosts
+		SET user_hint = ''
+		WHERE user_hint != '' AND (
+			LOWER(TRIM(user_hint)) = LOWER(TRIM(hostname))
+			OR LOWER(TRIM(user_hint)) IN ('desktop', 'laptop', 'server', 'honbu', 'shiten', 'client', 'host', 'workgroup', 'domain')
+			OR LOWER(TRIM(user_hint)) LIKE 'desktop-%'
+			OR LOWER(TRIM(user_hint)) LIKE 'laptop-%'
+		);
+	`)
+
 	return nil
 }
 
