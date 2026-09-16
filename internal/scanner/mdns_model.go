@@ -263,11 +263,17 @@ func parseTXTField(raw string, key string) string {
 		return ""
 	}
 	part := raw[idx+len(target):]
-	end := strings.IndexAny(part, "\x00\r\n\t ;\"<>\x01\x02\x03\x04\x05\x06\x07\x08\x09")
+	end := strings.IndexAny(part, "\x00\r\n\t ;\"<>\x01\x02\x03\x04\x05\x06\x07\x08\x09\x0a\x0b\x0c\x0d\x0e\x0f\x10\x11\x12\x13\x14\x15\x16\x17\x18\x19\x1a\x1b\x1c\x1d\x1e\x1f")
 	if end != -1 {
 		part = part[:end]
 	}
-	return strings.TrimSpace(part)
+	var sb strings.Builder
+	for _, r := range part {
+		if r >= 32 && r <= 126 {
+			sb.WriteRune(r)
+		}
+	}
+	return strings.TrimSpace(sb.String())
 }
 
 func extractMDNSDeviceName(buf []byte) string {
@@ -293,7 +299,7 @@ func isCleanPrintableString(s string) bool {
 		return false
 	}
 	for _, r := range s {
-		if unicode.IsControl(r) {
+		if unicode.IsControl(r) || !unicode.IsPrint(r) {
 			return false
 		}
 	}
@@ -316,15 +322,27 @@ func ResolveMDNSModel(rawModel string) string {
 	if rawModel == "" {
 		return ""
 	}
+	// Sanitize printable ASCII only
+	var sb strings.Builder
+	for _, r := range rawModel {
+		if r >= 32 && r <= 126 {
+			sb.WriteRune(r)
+		}
+	}
+	cleaned := strings.TrimSpace(sb.String())
+	if cleaned == "" {
+		return ""
+	}
+
 	// Ignore generic Apple icon hints used by NAS (Synology, QNAP, Linux Samba/Avahi)
-	rawLower := strings.ToLower(rawModel)
+	rawLower := strings.ToLower(cleaned)
 	if strings.Contains(rawLower, "xserve") || strings.Contains(rawLower, "xserver") || strings.Contains(rawLower, "rackmac") {
 		return ""
 	}
-	if pretty, found := appleModelMap[rawModel]; found {
+	if pretty, found := appleModelMap[cleaned]; found {
 		return pretty
 	}
-	return fmt.Sprintf("Model: %s", rawModel)
+	return fmt.Sprintf("Model: %s", cleaned)
 }
 
 // ResolveMacOSVersion maps Darwin kernel major release number in osxvers= to marketing macOS name

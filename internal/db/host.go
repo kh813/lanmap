@@ -1069,6 +1069,9 @@ func (db *DB) UpsertHostOnScan(h *Host) (isNew bool, isReplaced bool, err error)
 	vendorModel := existing.VendorModel
 	if h.VendorModel != "" {
 		vendorModel = h.VendorModel
+	} else if strings.Contains(strings.ToLower(vendorModel), "xserve") || strings.Contains(strings.ToLower(vendorModel), "xserver") || strings.Contains(strings.ToLower(vendorModel), "rackmac") {
+		// Cleanse legacy Xserve model artifact
+		vendorModel = ""
 	}
 	osVendor := existing.OSVendor
 	if h.OSVendor != "" {
@@ -1121,8 +1124,11 @@ func (db *DB) UpsertHostOnScan(h *Host) (isNew bool, isReplaced bool, err error)
 		tlsExp = existing.TLSExpiry
 	}
 	mdnsModel := h.MDNSModel
-	if mdnsModel == "" {
-		mdnsModel = existing.MDNSModel
+	if mdnsModel == "" && existing.MDNSModel != "" {
+		exLower := strings.ToLower(existing.MDNSModel)
+		if !strings.Contains(exLower, "xserve") && !strings.Contains(exLower, "xserver") && !strings.Contains(exLower, "rackmac") {
+			mdnsModel = existing.MDNSModel
+		}
 	}
 
 	isDHCP := (existing.IsDHCP || h.IsDHCP) && !isStaticIP
@@ -2464,9 +2470,20 @@ func (h *Host) IsHardwareModel() bool {
 		return false
 	}
 
-	// If mDNSModel or UPnPModel is populated and non-empty
-	if h.MDNSModel != "" || h.UPnPModel != "" {
+	// If mDNSModel or UPnPModel is populated and non-empty (and not generic Xserve icon)
+	if h.MDNSModel != "" {
+		mLower := strings.ToLower(h.MDNSModel)
+		if !strings.Contains(mLower, "xserve") && !strings.Contains(mLower, "xserver") && !strings.Contains(mLower, "rackmac") {
+			return true
+		}
+	}
+	if h.UPnPModel != "" {
 		return true
+	}
+
+	// Filter out any lingering Xserve / Xserver / RackMac
+	if strings.Contains(vmLower, "xserve") || strings.Contains(vmLower, "xserver") || strings.Contains(vmLower, "rackmac") {
+		return false
 	}
 
 	// Specific Hardware / Model series signatures

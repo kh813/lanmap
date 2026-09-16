@@ -311,6 +311,18 @@ func (db *DB) migrate() error {
 	_, _ = db.Exec("ALTER TABLE hosts ADD COLUMN manual_connection_type VARCHAR(20) DEFAULT '';")
 	_, _ = db.Exec("ALTER TABLE whitelist_entries ADD COLUMN user_name VARCHAR(255) DEFAULT '';")
 
+	// Cleanse legacy / stale Xserve & Xserver mDNS icon artifacts in hosts table
+	_, _ = db.Exec(`
+		UPDATE hosts
+		SET mdns_model = ''
+		WHERE LOWER(mdns_model) LIKE '%xserve%' OR LOWER(mdns_model) LIKE '%xserver%' OR LOWER(mdns_model) LIKE '%rackmac%';
+	`)
+	_, _ = db.Exec(`
+		UPDATE hosts
+		SET vendor_model = ''
+		WHERE LOWER(vendor_model) LIKE '%model: xserve%' OR LOWER(vendor_model) LIKE '%model: xserver%' OR LOWER(vendor_model) LIKE '%model: rackmac%' OR LOWER(vendor_model) LIKE '%xserve%' OR LOWER(vendor_model) LIKE '%xserver%';
+	`)
+
 	return nil
 }
 

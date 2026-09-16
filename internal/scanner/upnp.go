@@ -58,7 +58,7 @@ func FetchUPnPInfo(ip string) *UPnPDeviceInfo {
 			continue
 		}
 		req.Close = true
-		req.Header.Set("User-Agent", "lanmap/0.0.38")
+		req.Header.Set("User-Agent", "lanmap/0.0.39")
 
 		resp, err := client.Do(req)
 		if err != nil {

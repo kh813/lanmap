@@ -89,6 +89,24 @@ func TestHost_VendorModelClassification(t *testing.T) {
 			isVM:          true,
 			expectedClass: "text-purple-600 dark:text-purple-400",
 		},
+		{
+			name:          "Legacy Xserve icon artifact in VendorModel",
+			vendorModel:   "Model: Xserve",
+			mdnsModel:     "Model: Xserve",
+			isHardware:    false,
+			isRandomMAC:   false,
+			isVM:          false,
+			expectedClass: "text-slate-400 dark:text-slate-500",
+		},
+		{
+			name:          "Corrupted Xserve artifact in VendorModel",
+			vendorModel:   "Model:Xserve5",
+			mdnsModel:     "",
+			isHardware:    false,
+			isRandomMAC:   false,
+			isVM:          false,
+			expectedClass: "text-slate-400 dark:text-slate-500",
+		},
 	}
 
 	for _, tt := range tests {
