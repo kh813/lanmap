@@ -323,18 +323,21 @@ func (db *DB) migrate() error {
 		WHERE LOWER(vendor_model) LIKE '%model: xserve%' OR LOWER(vendor_model) LIKE '%model: xserver%' OR LOWER(vendor_model) LIKE '%model: rackmac%' OR LOWER(vendor_model) LIKE '%xserve%' OR LOWER(vendor_model) LIKE '%xserver%';
 	`)
 
-	// Cleanse legacy bogus user_name and user_hint where they were mistakenly set to the host's own hostname
+	// Cleanse legacy bogus user_name and user_hint where they were mistakenly set to the host's own hostname or generic OS/router names
 	_, _ = db.Exec(`
 		UPDATE hosts
 		SET user_name = ''
-		WHERE user_name != '' AND LOWER(TRIM(user_name)) = LOWER(TRIM(hostname));
+		WHERE user_name != '' AND (
+			LOWER(TRIM(user_name)) = LOWER(TRIM(hostname))
+			OR LOWER(TRIM(user_name)) IN ('openwrt', 'ddwrt', 'pfsense', 'opnsense', 'vyos', 'mikrotik', 'routeros', 'synology', 'qnap', 'cisco', 'yamaha', 'fortinet', 'fortigate', 'ubiquiti', 'unifi', 'buffalo', 'nec', 'elecom', 'iodata', 'tplink', 'tp-link', 'asus', 'netgear', 'linux', 'debian', 'ubuntu', 'centos', 'almalinux', 'rocky', 'arch', 'alpine', 'fedora', 'redhat', 'freebsd', 'openbsd', 'netbsd', 'esxi', 'proxmox', 'truenas', 'freenas', 'omv', 'raspberrypi', 'raspbian', 'dietpi', 'android', 'windows', 'macos', 'darwin', 'ios', 'gateway', 'router', 'switch', 'ap', 'printer', 'server')
+		);
 	`)
 	_, _ = db.Exec(`
 		UPDATE hosts
 		SET user_hint = ''
 		WHERE user_hint != '' AND (
 			LOWER(TRIM(user_hint)) = LOWER(TRIM(hostname))
-			OR LOWER(TRIM(user_hint)) IN ('desktop', 'laptop', 'server', 'honbu', 'shiten', 'client', 'host', 'workgroup', 'domain')
+			OR LOWER(TRIM(user_hint)) IN ('openwrt', 'ddwrt', 'pfsense', 'opnsense', 'vyos', 'mikrotik', 'routeros', 'synology', 'qnap', 'cisco', 'yamaha', 'fortinet', 'fortigate', 'ubiquiti', 'unifi', 'buffalo', 'nec', 'elecom', 'iodata', 'tplink', 'tp-link', 'asus', 'netgear', 'linux', 'debian', 'ubuntu', 'centos', 'almalinux', 'rocky', 'arch', 'alpine', 'fedora', 'redhat', 'freebsd', 'openbsd', 'netbsd', 'esxi', 'proxmox', 'truenas', 'freenas', 'omv', 'raspberrypi', 'raspbian', 'dietpi', 'android', 'windows', 'macos', 'darwin', 'ios', 'gateway', 'router', 'switch', 'ap', 'printer', 'server', 'desktop', 'laptop', 'honbu', 'shiten', 'client', 'host', 'workgroup', 'domain')
 			OR LOWER(TRIM(user_hint)) LIKE 'desktop-%'
 			OR LOWER(TRIM(user_hint)) LIKE 'laptop-%'
 		);

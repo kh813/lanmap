@@ -229,6 +229,15 @@ func TestExtractUserHintNoBogusHostname(t *testing.T) {
 	if h := ExtractUserHint("", "VAIO"); h != "" {
 		t.Errorf("expected empty user hint for 'VAIO', got %q", h)
 	}
+	if h := ExtractUserHint("", "openwrt.parkside.tokyo"); h != "" {
+		t.Errorf("expected empty user hint for 'openwrt.parkside.tokyo', got %q", h)
+	}
+	if h := ExtractUserHint("", "pfsense.home.arpa"); h != "" {
+		t.Errorf("expected empty user hint for 'pfsense.home.arpa', got %q", h)
+	}
+	if h := ExtractUserHint("", "synology"); h != "" {
+		t.Errorf("expected empty user hint for 'synology', got %q", h)
+	}
 
 	// Pattern-based hostnames SHOULD be extracted
 	if h := ExtractUserHint("", "pc-suzuki"); h != "suzuki" {

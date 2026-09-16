@@ -263,7 +263,7 @@ func (m *DHCPMonitor) ProcessPacket(data []byte, from *net.UDPAddr) {
 	osEvidence := scoreRes.Evidence
 
 	// 2.5 Extract Ownership hint from Hostname
-	userHint := scanner.ExtractUserHint(pkt.Hostname, "", "")
+	userHint := scanner.ExtractUserHint("", pkt.Hostname)
 
 	// 3. Find Segment
 	seg, _ := m.db.FindSegmentForIP(targetIP)

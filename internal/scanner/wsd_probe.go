@@ -93,7 +93,7 @@ func probeWSDHTTP(ipStr string, timeout time.Duration) *WSDDeviceInfo {
 			continue
 		}
 		req.Close = true
-		req.Header.Set("User-Agent", "Mozilla/5.0 lanmap/0.0.45")
+		req.Header.Set("User-Agent", "Mozilla/5.0 lanmap/0.0.46")
 
 		resp, err := client.Do(req)
 		if err != nil {
