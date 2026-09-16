@@ -2436,3 +2436,96 @@ func (db *DB) UpdateHostExtendedProbes(ip string, openPorts, httpTitle, upnpName
 	)
 	return err
 }
+
+// IsRandomMAC returns true if the host is identified as using a randomized / private Wi-Fi MAC address
+func (h *Host) IsRandomMAC() bool {
+	vm := strings.ToLower(h.VendorModel)
+	return strings.Contains(vm, "プライベートmac") || strings.Contains(vm, "wi-fi匿名化") || strings.Contains(vm, "匿名化") || strings.Contains(vm, "randomized")
+}
+
+// IsVirtualMachine returns true if the host is identified as a VM or virtual NIC
+func (h *Host) IsVirtualMachine() bool {
+	vm := strings.ToLower(h.VendorModel)
+	return strings.Contains(vm, "仮想マシン") || strings.Contains(vm, "仮想nic") || strings.Contains(vm, "vmm")
+}
+
+// IsHardwareModel returns true if VendorModel is an identified specific device model or product brand rather than a generic NIC chip vendor or unknown
+func (h *Host) IsHardwareModel() bool {
+	vm := strings.TrimSpace(h.VendorModel)
+	if vm == "" || h.IsRandomMAC() || h.IsVirtualMachine() {
+		return false
+	}
+	vmLower := strings.ToLower(vm)
+
+	// If it's a known generic fallback
+	if vmLower == "unknown" || vmLower == "unknown vendor" || vmLower == "network device" ||
+		vm == "Windows PC" || vm == "Linux Device" || vm == "Apple Mac" || vm == "NETGEAR Device" ||
+		vm == "ASUSTOR NAS" || vm == "TerraMaster NAS" || vm == "Synology NAS" || vm == "QNAP NAS" {
+		return false
+	}
+
+	// If mDNSModel or UPnPModel is populated and non-empty
+	if h.MDNSModel != "" || h.UPnPModel != "" {
+		return true
+	}
+
+	// Specific Hardware / Model series signatures
+	modelSignatures := []string{
+		"macbook", "imac", "mac mini", "mac studio", "mac pro", "ipad", "iphone", "apple watch", "apple tv",
+		"thinkpad", "ideapad", "yoga", "surface", "let's note", "lets note", "cf-", "lifebook", "esprimo", "dynabook", "vaio",
+		"latitude", "optiplex", "xps", "precision", "inspiron", "vostro", "alienware",
+		"elitebook", "probook", "zbook", "pavilion", "envy", "omen", "victus",
+		"diskstation", "rackstation", "flashstation", "beestation",
+		"turbo nas", "terastation", "linkstation", "landisk",
+		"fortigate", "fortiwifi", "fortiswitch", "fortiap",
+		"catalyst", "meraki",
+		"instant on",
+		"eap", "omada",
+		"imagerunner", "ir-adv", "taskalfa", "ecosys", "apeos", "docucentre",
+		"yealink", "grandstream",
+	}
+
+	for _, sig := range modelSignatures {
+		if strings.Contains(vmLower, sig) {
+			return true
+		}
+	}
+
+	// Check if known purely NIC chip vendor
+	nicChipVendors := []string{
+		"intel corporate", "intel corp", "realtek", "azurewave", "murata",
+		"qualcomm", "atheros", "broadcom", "liteon", "hon hai", "foxconn",
+		"chicony", "mediatek", "marvell", "asix", "microchip", "wiznet",
+		"silicon labs", "texas instruments",
+	}
+	for _, nic := range nicChipVendors {
+		if strings.Contains(vmLower, nic) {
+			return false
+		}
+	}
+
+	// If it contains specific equipment model numbers (e.g. DS920+, TS-453D, RTX830, GS108T, WAX610, etc.)
+	for _, c := range vm {
+		if c >= '0' && c <= '9' {
+			return true
+		}
+	}
+
+	return false
+}
+
+// VendorModelClass returns the CSS styling class for rendering the vendor/model column
+func (h *Host) VendorModelClass() string {
+	if h.IsHardwareModel() {
+		return "text-slate-900 dark:text-slate-100 font-medium"
+	}
+	if h.IsRandomMAC() {
+		return "text-slate-400 dark:text-slate-500 italic"
+	}
+	if h.IsVirtualMachine() {
+		return "text-purple-600 dark:text-purple-400"
+	}
+	// Pure NIC vendor / unverified
+	return "text-slate-400 dark:text-slate-500"
+}
+

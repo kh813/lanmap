@@ -171,7 +171,7 @@
                     <div class="font-mono text-slate-800 dark:text-slate-200 font-medium">
                         {{if .Host.MACAddress}}{{.Host.MACAddress}}{{else}}-{{end}}
                     </div>
-                    <div class="text-slate-600 dark:text-slate-400 text-[11px]">
+                    <div class="text-[11px] {{.Host.VendorModelClass}}">
                         {{if .Host.VendorModel}}{{.Host.VendorModel}}{{else}}{{t .Lang "detail_unknown_vendor"}}{{end}}
                     </div>
                 </div>
