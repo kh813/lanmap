@@ -2,6 +2,7 @@ package scanner
 
 import (
 	"encoding/binary"
+	"fmt"
 	"testing"
 	"unicode/utf16"
 )
@@ -151,3 +152,95 @@ func TestResolveWindowsModelSurfaceAndThinkPad(t *testing.T) {
 		t.Errorf("expected Lenovo ThinkPad X1 Carbon Gen 10, got %q", m2)
 	}
 }
+
+func TestNetBIOSComputerNameVsUserName(t *testing.T) {
+	// Mock NBSTAT response where <03> has the same name as <00> ComputerName
+	// Header (12 bytes) + NBSTAT RR
+	hdr := make([]byte, 12)
+	hdr[6] = 0x00 // Answer RRs = 1
+	hdr[7] = 0x01
+
+	// Answer RR: Type=0x0021, Class=0x0001, TTL=0, RDLength=...
+	var ans []byte
+	ans = append(ans, 0x00)                                                       // Root name
+	ans = append(ans, []byte{0x00, 0x21, 0x00, 0x01, 0x00, 0x00, 0x00, 0x00}...) // Type NBSTAT, Class IN, TTL 0
+	ans = append(ans, []byte{0x00, 0x44}...)                                     // RDLength = 68 (1 + 3*18 + 6)
+	ans = append(ans, 0x03)                                                      // 3 names
+
+	formatName := func(name string, suffix byte, isGroup bool) []byte {
+		b := make([]byte, 18)
+		copy(b, []byte(fmt.Sprintf("%-15s", name)))
+		b[15] = suffix
+		if isGroup {
+			b[16] = 0x80
+		}
+		return b
+	}
+
+	// 1. DESKTOP-PC <00> Unique
+	ans = append(ans, formatName("DESKTOP-PC", 0x00, false)...)
+	// 2. WORKGROUP  <00> Group
+	ans = append(ans, formatName("WORKGROUP", 0x00, true)...)
+	// 3. DESKTOP-PC <03> Unique (same as computer name)
+	ans = append(ans, formatName("DESKTOP-PC", 0x03, false)...)
+	// Unit ID (MAC: 00:11:22:33:44:55)
+	ans = append(ans, []byte{0x00, 0x11, 0x22, 0x33, 0x44, 0x55}...)
+
+	packet := append(hdr, ans...)
+	info := ParseNetBIOSNodeStatus(packet)
+
+	if info.ComputerName != "DESKTOP-PC" {
+		t.Errorf("expected ComputerName DESKTOP-PC, got %q", info.ComputerName)
+	}
+	if info.UserName != "" {
+		t.Errorf("expected empty UserName when <03> matches ComputerName, got %q", info.UserName)
+	}
+
+	// Now test when <03> has an actual logged-in user name
+	ans2 := []byte{0x00}
+	ans2 = append(ans2, []byte{0x00, 0x21, 0x00, 0x01, 0x00, 0x00, 0x00, 0x00, 0x00, 0x44, 0x03}...)
+	ans2 = append(ans2, formatName("DESKTOP-PC", 0x00, false)...)
+	ans2 = append(ans2, formatName("WORKGROUP", 0x00, true)...)
+	ans2 = append(ans2, formatName("HIROSHI", 0x03, false)...)
+	ans2 = append(ans2, []byte{0x00, 0x11, 0x22, 0x33, 0x44, 0x55}...)
+
+	packet2 := append(hdr, ans2...)
+	info2 := ParseNetBIOSNodeStatus(packet2)
+
+	if info2.ComputerName != "DESKTOP-PC" {
+		t.Errorf("expected ComputerName DESKTOP-PC, got %q", info2.ComputerName)
+	}
+	if info2.UserName != "HIROSHI" {
+		t.Errorf("expected UserName HIROSHI, got %q", info2.UserName)
+	}
+}
+
+func TestExtractUserHintNoBogusHostname(t *testing.T) {
+	// Plain hostnames should NEVER be treated as user hints
+	if h := ExtractUserHint("", "THINKPAD"); h != "" {
+		t.Errorf("expected empty user hint for 'THINKPAD', got %q", h)
+	}
+	if h := ExtractUserHint("", "HONBU-PC"); h != "" {
+		t.Errorf("expected empty user hint for 'HONBU-PC', got %q", h)
+	}
+	if h := ExtractUserHint("", "FILESERVER"); h != "" {
+		t.Errorf("expected empty user hint for 'FILESERVER', got %q", h)
+	}
+	if h := ExtractUserHint("", "VAIO"); h != "" {
+		t.Errorf("expected empty user hint for 'VAIO', got %q", h)
+	}
+
+	// Pattern-based hostnames SHOULD be extracted
+	if h := ExtractUserHint("", "pc-suzuki"); h != "suzuki" {
+		t.Errorf("expected 'suzuki' for 'pc-suzuki', got %q", h)
+	}
+	if h := ExtractUserHint("", "Hiroshi's MacBook Pro"); h != "Hiroshi" {
+		t.Errorf("expected 'Hiroshi' for \"Hiroshi's MacBook Pro\", got %q", h)
+	}
+
+	// Explicit NetBIOS / DHCP username SHOULD be extracted
+	if h := ExtractUserHint("HIROSHI", "DESKTOP-PC"); h != "HIROSHI" {
+		t.Errorf("expected 'HIROSHI' when explicit username is provided, got %q", h)
+	}
+}
+

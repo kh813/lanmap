@@ -698,7 +698,7 @@ func SynthesizeDeepHostAttributes(
 		resolvedOS = scoreRes.OS
 	}
 
-	userHint := ExtractUserHint(nbInfo.UserName, resolvedHostname, mdnsInfo.DeviceName, mdnsModel, winModel, upnpName)
+	userHint := ExtractUserHint(nbInfo.UserName, resolvedHostname, mdnsInfo.DeviceName, upnpName)
 	refinedVendorModel := RefineVendorModel(currentVendor, mdnsModel, winModel, nasModel, inferredModel, resolvedOS, resolvedHostname)
 
 	return DeepHostSignals{

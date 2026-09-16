@@ -98,6 +98,13 @@ func ParseNetBIOSNodeStatus(data []byte) NetBIOSInfo {
 			offset++
 			info.IsWindows = true
 
+			type rawNBEntry struct {
+				name    string
+				suffix  byte
+				isGroup bool
+			}
+			var entries []rawNBEntry
+
 			for i := 0; i < numNames; i++ {
 				entryOffset := offset + i*18
 				if entryOffset+18 > len(data) {
@@ -109,6 +116,9 @@ func ParseNetBIOSNodeStatus(data []byte) NetBIOSInfo {
 				flags := uint16(data[entryOffset+16])<<8 | uint16(data[entryOffset+17])
 				isGroup := (flags & 0x8000) != 0
 
+				entries = append(entries, rawNBEntry{name: cleanName, suffix: suffix, isGroup: isGroup})
+
+				// Pass 1: Extract ComputerName, Workgroup, ServerName
 				switch suffix {
 				case 0x00:
 					if isGroup {
@@ -120,12 +130,6 @@ func ParseNetBIOSNodeStatus(data []byte) NetBIOSInfo {
 							info.ComputerName = cleanName
 						}
 					}
-				case 0x03:
-					if !isGroup && cleanName != "" && !strings.EqualFold(cleanName, info.ComputerName) {
-						if info.UserName == "" {
-							info.UserName = cleanName
-						}
-					}
 				case 0x20:
 					if !isGroup && info.ServerName == "" {
 						info.ServerName = cleanName
@@ -133,6 +137,21 @@ func ParseNetBIOSNodeStatus(data []byte) NetBIOSInfo {
 				case 0x1E, 0x1D:
 					if isGroup && info.Workgroup == "" {
 						info.Workgroup = cleanName
+					}
+				}
+			}
+
+			// Pass 2: Extract Logged-in UserName from <03> unique
+			// In NetBIOS, <03> is registered for the Computer Name itself AND optionally for the logged-in User Name.
+			// An entry is ONLY a User Name if it is NOT the Computer Name, NOT the Server Name, and NOT the Workgroup.
+			for _, e := range entries {
+				if e.suffix == 0x03 && !e.isGroup && e.name != "" {
+					if !strings.EqualFold(e.name, info.ComputerName) &&
+						!strings.EqualFold(e.name, info.ServerName) &&
+						!strings.EqualFold(e.name, info.Workgroup) {
+						if info.UserName == "" {
+							info.UserName = e.name
+						}
 					}
 				}
 			}

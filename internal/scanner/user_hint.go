@@ -8,8 +8,10 @@ import (
 var (
 	// Matches "Taro's MacBook", "田中's iPhone", "Alice’s PC", "taro's-macbook", "Hiroshi's MacBook Pro"
 	reApostropheS = regexp.MustCompile(`(?i)^([a-zA-Z0-9\p{Han}\p{Hiragana}\p{Katakana}_.-]+)['’]s?\s*[-_ ]?.*$`)
-	// Matches "田中 の iPhone", "田中太郎のMacBook", "Taro-no-iPhone", "taro_no_macbook", "佐藤のiPad"
-	reNoDevice = regexp.MustCompile(`(?i)^([a-zA-Z0-9\p{Han}\p{Hiragana}\p{Katakana}]+)[-_ ]?(?:no|の)[-_ ]?.*$`)
+	// Matches "田中 の iPhone", "田中太郎のMacBook", "佐藤のiPad"
+	reNoDeviceJP = regexp.MustCompile(`(?i)^([\p{Han}\p{Hiragana}\p{Katakana}a-zA-Z0-9]+)\s*の\s*.*$`)
+	// Matches "Taro-no-iPhone", "taro_no_macbook", "taro no pc"
+	reNoDeviceEN = regexp.MustCompile(`(?i)^([a-zA-Z0-9]+)[-_ ]no[-_ ](?:macbook|mac|mbp|imac|laptop|pc|iphone|ipad|air|mini|desktop|device|phone).*$`)
 	// Matches "taros-macbook-pro", "hiroshis-mac", "tanakas-pc" (hyphenated 's suffix)
 	reHyphenS = regexp.MustCompile(`(?i)^([a-zA-Z0-9\p{Han}\p{Hiragana}\p{Katakana}]{2,20})s[-_](?:macbook|mac|mbp|imac|laptop|pc|iphone|ipad|air|mini|desktop).*$`)
 	// Matches "pc-suzuki", "mac-yamada", "win-tanaka", "mbp-hiroshi", "air-taro", "pad-ken"
@@ -70,88 +72,126 @@ var genericNamesBlacklist = map[string]bool{
 	"demo":            true,
 	"local":           true,
 	"localhost":       true,
+	"honbu":           true,
+	"shiten":          true,
+	"eigyo":           true,
+	"soumu":           true,
+	"jinji":           true,
+	"keiri":           true,
+	"room":            true,
+	"meeting":         true,
+	"floor":           true,
+	"client":          true,
+	"host":            true,
+	"node":            true,
+	"user":            true,
 }
 
-// ExtractUserHint attempts to extract a person's name or owner hint from host signals
+// ExtractUserHint attempts to extract a person's name or owner hint from host signals.
+// The first source is treated as a potential explicit user source (e.g. NetBIOS UserName or DHCP username).
+// Subsequent sources (hostnames, mDNS device names, UPnP names) are evaluated ONLY with explicit ownership patterns
+// (e.g. "Taro's MacBook", "pc-suzuki", "田中 (iPhone)") to prevent plain machine hostnames from being misidentified as users.
 func ExtractUserHint(sources ...string) string {
+	if len(sources) == 0 {
+		return ""
+	}
+
+	// 1. Check all sources for explicit ownership patterns (Rules 1-8: "Taro's MacBook", "suzuki-pc", "田中のiPhone")
 	for _, raw := range sources {
 		trimmed := strings.TrimSpace(raw)
 		if trimmed == "" {
 			continue
 		}
-
-		// Strip local domain suffix (.local, .lan, etc.)
 		if dotIdx := strings.Index(trimmed, "."); dotIdx != -1 {
 			trimmed = trimmed[:dotIdx]
 		}
-
-		// 1. "Taro's MacBook" or "田中's iPhone"
-		if matches := reApostropheS.FindStringSubmatch(trimmed); len(matches) > 1 {
-			name := cleanCandidateName(matches[1])
-			if isValidUserHint(name) {
-				return name
-			}
+		if hint := extractOwnerPattern(trimmed); hint != "" {
+			return hint
 		}
+	}
 
-		// 2. "田中 の iPhone" or "田中太郎のMacBook" or "Taro-no-iPhone"
-		if matches := reNoDevice.FindStringSubmatch(trimmed); len(matches) > 1 {
-			name := cleanCandidateName(matches[1])
-			if isValidUserHint(name) {
-				return name
-			}
+	// 2. If no pattern matched, only accept standalone user if the first source is an explicit user name
+	first := strings.TrimSpace(sources[0])
+	if first != "" {
+		if dotIdx := strings.Index(first, "."); dotIdx != -1 {
+			first = first[:dotIdx]
 		}
-
-		// 3. "MacBook Pro (Hiroshi)" or "iPhone (田中)"
-		if matches := reDeviceWithParenName.FindStringSubmatch(trimmed); len(matches) > 1 {
-			name := cleanCandidateName(matches[1])
-			if isValidUserHint(name) {
-				return name
-			}
+		if isValidStandaloneUser(first) {
+			return cleanCandidateName(first)
 		}
+	}
 
-		// 4. "Hiroshi (MacBook Pro)" or "田中 (iPhone)"
-		if matches := reNameWithParenDevice.FindStringSubmatch(trimmed); len(matches) > 1 {
-			name := cleanCandidateName(matches[1])
-			if isValidUserHint(name) {
-				return name
-			}
+	return ""
+}
+
+func extractOwnerPattern(trimmed string) string {
+	// 1. "Taro's MacBook" or "田中's iPhone"
+	if matches := reApostropheS.FindStringSubmatch(trimmed); len(matches) > 1 {
+		name := cleanCandidateName(matches[1])
+		if isValidUserHint(name) {
+			return name
 		}
+	}
 
-		// 5. "pc-suzuki"
-		if matches := reDevicePrefix.FindStringSubmatch(trimmed); len(matches) > 1 {
-			name := cleanCandidateName(matches[1])
-			if isValidUserHint(name) {
-				return name
-			}
+	// 2. "田中 の iPhone", "田中太郎のMacBook", "佐藤のiPad", "Taro-no-iPhone"
+	if matches := reNoDeviceJP.FindStringSubmatch(trimmed); len(matches) > 1 {
+		name := cleanCandidateName(matches[1])
+		if isValidUserHint(name) {
+			return name
 		}
-
-		// 6. "suzuki-pc" or "hiroshi-m1"
-		if matches := reDeviceSuffix.FindStringSubmatch(trimmed); len(matches) > 1 {
-			name := cleanCandidateName(matches[1])
-			if isValidUserHint(name) {
-				return name
-			}
+	}
+	if matches := reNoDeviceEN.FindStringSubmatch(trimmed); len(matches) > 1 {
+		name := cleanCandidateName(matches[1])
+		if isValidUserHint(name) {
+			return name
 		}
+	}
 
-		// 7. "taros-macbook-pro"
-		if matches := reHyphenS.FindStringSubmatch(trimmed); len(matches) > 1 {
-			name := cleanCandidateName(matches[1])
-			if isValidUserHint(name) {
-				return name
-			}
+	// 3. "MacBook Pro (Hiroshi)" or "iPhone (田中)"
+	if matches := reDeviceWithParenName.FindStringSubmatch(trimmed); len(matches) > 1 {
+		name := cleanCandidateName(matches[1])
+		if isValidUserHint(name) {
+			return name
 		}
+	}
 
-		// 8. "MacBook-de-Taro"
-		if matches := reDeDevice.FindStringSubmatch(trimmed); len(matches) > 1 {
-			name := cleanCandidateName(matches[1])
-			if isValidUserHint(name) {
-				return name
-			}
+	// 4. "Hiroshi (MacBook Pro)" or "田中 (iPhone)"
+	if matches := reNameWithParenDevice.FindStringSubmatch(trimmed); len(matches) > 1 {
+		name := cleanCandidateName(matches[1])
+		if isValidUserHint(name) {
+			return name
 		}
+	}
 
-		// 9. Direct standalone user name (e.g. from NetBIOS <03> Messenger entry or DHCP username)
-		if isValidStandaloneUser(trimmed) {
-			return cleanCandidateName(trimmed)
+	// 5. "pc-suzuki"
+	if matches := reDevicePrefix.FindStringSubmatch(trimmed); len(matches) > 1 {
+		name := cleanCandidateName(matches[1])
+		if isValidUserHint(name) {
+			return name
+		}
+	}
+
+	// 6. "suzuki-pc" or "hiroshi-m1"
+	if matches := reDeviceSuffix.FindStringSubmatch(trimmed); len(matches) > 1 {
+		name := cleanCandidateName(matches[1])
+		if isValidUserHint(name) {
+			return name
+		}
+	}
+
+	// 7. "taros-macbook-pro"
+	if matches := reHyphenS.FindStringSubmatch(trimmed); len(matches) > 1 {
+		name := cleanCandidateName(matches[1])
+		if isValidUserHint(name) {
+			return name
+		}
+	}
+
+	// 8. "MacBook-de-Taro"
+	if matches := reDeDevice.FindStringSubmatch(trimmed); len(matches) > 1 {
+		name := cleanCandidateName(matches[1])
+		if isValidUserHint(name) {
+			return name
 		}
 	}
 
