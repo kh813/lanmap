@@ -25,6 +25,10 @@ type OSScoreInput struct {
 	OpenPorts       string
 	DHCPVendorClass string
 	DHCPParamList   []byte
+	SMBOSVersion    string
+	WSDManufacturer string
+	WSDModel        string
+	SNMPDescr       string
 	InitialOS       string
 }
 
@@ -153,6 +157,39 @@ func ScoreOS(input OSScoreInput) OSScoreResult {
 			addScore("Apple", "tvOS (Apple TV)", 0.90, fmt.Sprintf("mDNS Model (%s)", m))
 		} else if strings.Contains(m, "HomePod") {
 			addScore("Apple", "HomePod OS", 0.90, fmt.Sprintf("mDNS Model (%s)", m))
+		}
+	}
+
+	// 3.5 SMB NTLMSSP OS Version Signature (0.98)
+	if input.SMBOSVersion != "" {
+		addScore("Windows", input.SMBOSVersion, 0.98, fmt.Sprintf("SMB NTLMSSP (%s)", input.SMBOSVersion))
+	}
+
+	// 3.6 WS-Discovery (WSD) Model / Manufacturer Signature (0.92)
+	if input.WSDModel != "" || input.WSDManufacturer != "" {
+		combinedWSD := strings.ToLower(input.WSDManufacturer + " " + input.WSDModel)
+		if strings.Contains(combinedWSD, "canon") || strings.Contains(combinedWSD, "epson") || strings.Contains(combinedWSD, "brother") || strings.Contains(combinedWSD, "fuji") || strings.Contains(combinedWSD, "ricoh") || strings.Contains(combinedWSD, "kyocera") || strings.Contains(combinedWSD, "hp") && strings.Contains(combinedWSD, "laserjet") {
+			addScore("Printer", "Printer Firmware (WSD)", 0.92, fmt.Sprintf("WSD Device (%s)", input.WSDModel))
+		} else {
+			addScore("Windows", "Windows 11 / 10", 0.90, fmt.Sprintf("WSD PC (%s %s)", input.WSDManufacturer, input.WSDModel))
+		}
+	}
+
+	// 3.7 SNMP sysDescr Signature (0.95)
+	if input.SNMPDescr != "" {
+		sLower := strings.ToLower(input.SNMPDescr)
+		if strings.Contains(sLower, "synology") || strings.Contains(sLower, "dsm") {
+			addScore("Linux", "Synology DSM (Linux)", 0.96, fmt.Sprintf("SNMP sysDescr (%s)", input.SNMPDescr))
+		} else if strings.Contains(sLower, "qnap") || strings.Contains(sLower, "qts") {
+			addScore("Linux", "QNAP QTS (Linux)", 0.96, fmt.Sprintf("SNMP sysDescr (%s)", input.SNMPDescr))
+		} else if strings.Contains(sLower, "cisco") {
+			addScore("Network", "Cisco IOS", 0.95, fmt.Sprintf("SNMP sysDescr (%s)", input.SNMPDescr))
+		} else if strings.Contains(sLower, "yamaha") {
+			addScore("Network", "Yamaha Network OS", 0.95, fmt.Sprintf("SNMP sysDescr (%s)", input.SNMPDescr))
+		} else if strings.Contains(sLower, "linux") {
+			addScore("Linux", "Linux Kernel (SNMP)", 0.92, fmt.Sprintf("SNMP sysDescr (%s)", input.SNMPDescr))
+		} else if strings.Contains(sLower, "windows") {
+			addScore("Windows", "Windows (SNMP)", 0.92, fmt.Sprintf("SNMP sysDescr (%s)", input.SNMPDescr))
 		}
 	}
 

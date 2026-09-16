@@ -333,13 +333,9 @@ func (s *Scanner) scanSegmentInternal(ctx context.Context, seg *db.Segment) ([]*
 
 		// 4. mDNS Model & Device Info (Query target port 5353 for verified model signature)
 		mdnsInfo := QueryMDNSDeviceInfoFull(ipStr, 80*time.Millisecond)
-		mdnsModel := mdnsInfo.Model
 
 		// 4.5 NetBIOS Node Status (Query target port 137 for Windows Computer Name, Logged-in User, Workgroup, MAC)
 		nbInfo := QueryNetBIOSInfo(ipStr, 80*time.Millisecond)
-		if hostname == "" && nbInfo.ComputerName != "" {
-			hostname = nbInfo.ComputerName
-		}
 		if mac == "" && nbInfo.MACAddress != "" {
 			mac = nbInfo.MACAddress
 			if vendor == "" {
@@ -347,47 +343,31 @@ func (s *Scanner) scanSegmentInternal(ctx context.Context, seg *db.Segment) ([]*
 			}
 		}
 
-		// Windows PC Model Resolution (e.g. Surface, ThinkPad, Let's note, LIFEBOOK, Dynabook)
-		winModel := ""
-		if mdnsModel == "" {
-			winModel = ResolveWindowsModel(upnpModel, upnpName, hostname, vendor)
+		// 4.6 Deep Active Probes for Full Scan Mode or hosts with matching open ports
+		var smbInfo SMBDeviceInfo
+		var wsdInfo *WSDDeviceInfo
+		var snmpInfo *SNMPDeviceInfo
+
+		if scanMode == db.ScanModeFull || strings.Contains(openPorts, "445") {
+			smbInfo = QuerySMBDeviceInfo(ipStr, 100*time.Millisecond)
+		}
+		if scanMode == db.ScanModeFull || strings.Contains(openPorts, "5357") {
+			wsdInfo = QueryWSDDeviceInfo(ipStr, 120*time.Millisecond)
+		}
+		if scanMode == db.ScanModeFull || strings.Contains(openPorts, "161") {
+			snmpInfo = QuerySNMPDeviceInfo(ipStr, 100*time.Millisecond)
 		}
 
-		// NAS Model Resolution (e.g. Synology DS920+, QNAP TS-453D, Buffalo TS5410DN, I-O DATA LANDISK)
-		nasModel := ""
-		if mdnsModel == "" && winModel == "" {
-			nasModel = ResolveNASModel(upnpModel, upnpName, httpTitle, hostname, vendor)
-		}
-
-		// 5. Refined OS & Version Detection via Weighted Scoring Engine
-		scoreRes := ScoreOS(OSScoreInput{
-			IP:            ipStr,
-			Hostname:      hostname,
-			Vendor:        vendor,
-			TTL:           ttl,
-			MDNSModel:     mdnsModel,
-			MDNSDevice:    mdnsInfo.DeviceName,
-			MacOSVer:      mdnsInfo.MacOSVer,
-			NetBIOSName:   nbInfo.ComputerName,
-			NetBIOSUser:   nbInfo.UserName,
-			NetBIOSDomain: nbInfo.Workgroup,
-			IsNetBIOS:     nbInfo.IsWindows,
-			HTTPTitle:     httpTitle,
-			UPnPName:      upnpName,
-			UPnPModel:     upnpModel,
-			OpenPorts:     openPorts,
-			InitialOS:     osVendor,
-		})
-		if scoreRes.OS != "" {
-			osVendor = scoreRes.OS
-		}
-
-		// 6. User Hint Extraction (Level A Ownership Hint)
-		// Priority: NetBIOS User Name (<03>), NetBIOS Computer Name, Hostname, mDNS Device Name, UPnP
-		userHint := ExtractUserHint(nbInfo.UserName, hostname, mdnsInfo.DeviceName, mdnsModel, winModel, upnpName)
-
-		// 6.5 Refined Vendor / Model Synthesis (Prioritize verified product model over raw NIC vendor)
-		refinedVendorModel := RefineVendorModel(vendor, mdnsModel, winModel, nasModel, inferredModel, osVendor, hostname)
+		// 5. Deep Host Signals Synthesis (Hostname, Vendor/Model, OS & Evidence, User Hint)
+		signals := SynthesizeDeepHostAttributes(
+			ipStr, hostname, vendor, osVendor,
+			ttl, openPorts, httpTitle, upnpName, upnpModel, inferredModel,
+			mdnsInfo, nbInfo, smbInfo, wsdInfo, snmpInfo,
+		)
+		hostname = signals.Hostname
+		refinedVendorModel := signals.VendorModel
+		osVendor = signals.OSVendor
+		userHint := signals.UserHint
 
 		// 7. Jitter
 		var jitterPtr *float64
@@ -404,8 +384,8 @@ func (s *Scanner) scanSegmentInternal(ctx context.Context, seg *db.Segment) ([]*
 			DisplayName:  displayName,
 			VendorModel:  refinedVendorModel,
 			OSVendor:     osVendor,
-			OSConfidence: scoreRes.Confidence,
-			OSEvidence:   scoreRes.Evidence,
+			OSConfidence: signals.OSConfidence,
+			OSEvidence:   signals.OSEvidence,
 			UserName:     userName,
 			UserHint:     userHint,
 			Status:       "up",
@@ -418,7 +398,7 @@ func (s *Scanner) scanSegmentInternal(ctx context.Context, seg *db.Segment) ([]*
 			UPnPSerial:   upnpSerial,
 			TLSSubject:   tlsSubj,
 			TLSExpiry:    tlsExp,
-			MDNSModel:    mdnsModel,
+			MDNSModel:    signals.MDNSModel,
 			IsApproved:   isApproved,
 		}
 
@@ -608,3 +588,135 @@ func (s *Scanner) performDailyLowNoisePatrol(ctx context.Context) {
 			dueHost.IP, profile, openPorts, nextScan.Format("2006-01-02 15:04"))
 	}
 }
+
+// DeepHostSignals holds resolved host attributes synthesized from multi-protocol probes
+type DeepHostSignals struct {
+	Hostname         string
+	VendorModel      string
+	OSVendor         string
+	OSConfidence     string
+	OSEvidence       string
+	UserHint         string
+	MDNSModel        string
+	InferredWinModel string
+	InferredNASModel string
+	SMBComputerName  string
+	SMBDNSHostName   string
+	SMBOSVersion     string
+	WSDModel         string
+	WSDManufacturer  string
+	SNMPSysName      string
+}
+
+// SynthesizeDeepHostAttributes merges all active/passive probe results into refined host metadata
+func SynthesizeDeepHostAttributes(
+	ipStr, currentHostname, currentVendor, currentOS string,
+	ttl int, openPorts, httpTitle, upnpName, upnpModel, inferredModel string,
+	mdnsInfo MDNSDeviceInfo, nbInfo NetBIOSInfo,
+	smbInfo SMBDeviceInfo, wsdInfo *WSDDeviceInfo, snmpInfo *SNMPDeviceInfo,
+) DeepHostSignals {
+	resolvedHostname := currentHostname
+
+	// Hostname resolution priority:
+	// If currentHostname is empty or generic auto-generated ID ("DESKTOP-...", "LAPTOP-..."):
+	if resolvedHostname == "" || strings.HasPrefix(strings.ToUpper(resolvedHostname), "DESKTOP-") || strings.HasPrefix(strings.ToUpper(resolvedHostname), "LAPTOP-") {
+		if smbInfo.DNSHostName != "" {
+			resolvedHostname = smbInfo.DNSHostName
+		} else if smbInfo.ComputerName != "" {
+			resolvedHostname = smbInfo.ComputerName
+		} else if nbInfo.ComputerName != "" {
+			resolvedHostname = nbInfo.ComputerName
+		} else if wsdInfo != nil && wsdInfo.FriendlyName != "" {
+			resolvedHostname = wsdInfo.FriendlyName
+		} else if snmpInfo != nil && snmpInfo.SysName != "" {
+			resolvedHostname = snmpInfo.SysName
+		} else if mdnsInfo.DeviceName != "" {
+			resolvedHostname = mdnsInfo.DeviceName
+		}
+	}
+
+	// Model resolution:
+	mdnsModel := mdnsInfo.Model
+	winModel := ""
+	if wsdInfo != nil && wsdInfo.ModelName != "" {
+		winModel = wsdInfo.ModelName
+		if wsdInfo.Manufacturer != "" && !strings.Contains(strings.ToLower(winModel), strings.ToLower(wsdInfo.Manufacturer)) {
+			winModel = wsdInfo.Manufacturer + " " + winModel
+		}
+	}
+	if winModel == "" && mdnsModel == "" {
+		winModel = ResolveWindowsModel(upnpModel, upnpName, resolvedHostname, currentVendor)
+	}
+
+	nasModel := ""
+	if mdnsModel == "" && winModel == "" {
+		nasModel = ResolveNASModel(upnpModel, upnpName, httpTitle, resolvedHostname, currentVendor)
+		if nasModel == "" && snmpInfo != nil && snmpInfo.SysDescr != "" {
+			nasModel = ResolveNASModel(upnpModel, upnpName, snmpInfo.SysDescr, resolvedHostname, currentVendor)
+		}
+	}
+
+	wsdManufacturer := ""
+	wsdModelName := ""
+	if wsdInfo != nil {
+		wsdManufacturer = wsdInfo.Manufacturer
+		wsdModelName = wsdInfo.ModelName
+	}
+
+	snmpDescr := ""
+	snmpSysName := ""
+	if snmpInfo != nil {
+		snmpDescr = snmpInfo.SysDescr
+		snmpSysName = snmpInfo.SysName
+	}
+
+	scoreRes := ScoreOS(OSScoreInput{
+		IP:              ipStr,
+		Hostname:        resolvedHostname,
+		Vendor:          currentVendor,
+		TTL:             ttl,
+		MDNSModel:       mdnsModel,
+		MDNSDevice:      mdnsInfo.DeviceName,
+		MacOSVer:        mdnsInfo.MacOSVer,
+		NetBIOSName:     nbInfo.ComputerName,
+		NetBIOSUser:     nbInfo.UserName,
+		NetBIOSDomain:   nbInfo.Workgroup,
+		IsNetBIOS:       nbInfo.IsWindows,
+		HTTPTitle:       httpTitle,
+		UPnPName:        upnpName,
+		UPnPModel:       upnpModel,
+		OpenPorts:       openPorts,
+		SMBOSVersion:    smbInfo.OSVersion,
+		WSDManufacturer: wsdManufacturer,
+		WSDModel:        wsdModelName,
+		SNMPDescr:       snmpDescr,
+		InitialOS:       currentOS,
+	})
+
+	resolvedOS := currentOS
+	if scoreRes.OS != "" {
+		resolvedOS = scoreRes.OS
+	}
+
+	userHint := ExtractUserHint(nbInfo.UserName, resolvedHostname, mdnsInfo.DeviceName, mdnsModel, winModel, upnpName)
+	refinedVendorModel := RefineVendorModel(currentVendor, mdnsModel, winModel, nasModel, inferredModel, resolvedOS, resolvedHostname)
+
+	return DeepHostSignals{
+		Hostname:         resolvedHostname,
+		VendorModel:      refinedVendorModel,
+		OSVendor:         resolvedOS,
+		OSConfidence:     scoreRes.Confidence,
+		OSEvidence:       scoreRes.Evidence,
+		UserHint:         userHint,
+		MDNSModel:        mdnsModel,
+		InferredWinModel: winModel,
+		InferredNASModel: nasModel,
+		SMBComputerName:  smbInfo.ComputerName,
+		SMBDNSHostName:   smbInfo.DNSHostName,
+		SMBOSVersion:     smbInfo.OSVersion,
+		WSDModel:         wsdModelName,
+		WSDManufacturer:  wsdManufacturer,
+		SNMPSysName:      snmpSysName,
+	}
+}
+

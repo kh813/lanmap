@@ -202,7 +202,9 @@ func DecodeNetBIOSName(encoded string) string {
 // ResolveWindowsModel maps UPnP/WSD manufacturer and model strings or NetBIOS hostnames into refined PC models
 func ResolveWindowsModel(upnpModel, upnpName, hostname, vendor string) string {
 	combined := fmt.Sprintf("%s %s %s %s", upnpModel, upnpName, hostname, vendor)
-	combinedLower := strings.ToLower(combined)
+	rawLower := strings.ToLower(combined)
+	normalizedLower := strings.ToLower(strings.ReplaceAll(strings.ReplaceAll(combined, "-", " "), "_", " "))
+	combinedLower := rawLower + " " + normalizedLower
 
 	// Microsoft Surface Series
 	if strings.Contains(combinedLower, "surface") {
@@ -238,22 +240,28 @@ func ResolveWindowsModel(upnpModel, upnpName, hostname, vendor string) string {
 		return "Microsoft Surface"
 	}
 
-	// Lenovo ThinkPad / IdeaPad
+	// Lenovo ThinkPad / IdeaPad / Yoga
 	if strings.Contains(combinedLower, "thinkpad") {
-		if strings.Contains(combinedLower, "x1 carbon gen 13") || strings.Contains(combinedLower, "x1 carbon gen13") {
+		if strings.Contains(combinedLower, "x1 carbon gen 13") || strings.Contains(combinedLower, "x1 carbon gen13") || strings.Contains(combinedLower, "x1 carbon 13th") {
 			return "Lenovo ThinkPad X1 Carbon Gen 13"
-		} else if strings.Contains(combinedLower, "x1 carbon gen 12") || strings.Contains(combinedLower, "x1 carbon gen12") {
+		} else if strings.Contains(combinedLower, "x1 carbon gen 12") || strings.Contains(combinedLower, "x1 carbon gen12") || strings.Contains(combinedLower, "x1 carbon 12th") {
 			return "Lenovo ThinkPad X1 Carbon Gen 12"
-		} else if strings.Contains(combinedLower, "x1 carbon gen 11") || strings.Contains(combinedLower, "x1 carbon gen11") {
+		} else if strings.Contains(combinedLower, "x1 carbon gen 11") || strings.Contains(combinedLower, "x1 carbon gen11") || strings.Contains(combinedLower, "x1 carbon 11th") {
 			return "Lenovo ThinkPad X1 Carbon Gen 11"
-		} else if strings.Contains(combinedLower, "x1 carbon gen 10") || strings.Contains(combinedLower, "x1 carbon gen10") {
+		} else if strings.Contains(combinedLower, "x1 carbon gen 10") || strings.Contains(combinedLower, "x1 carbon gen10") || strings.Contains(combinedLower, "x1 carbon 10th") {
 			return "Lenovo ThinkPad X1 Carbon Gen 10"
+		} else if strings.Contains(combinedLower, "x1 carbon gen 9") || strings.Contains(combinedLower, "x1 carbon gen9") || strings.Contains(combinedLower, "x1 carbon 9th") {
+			return "Lenovo ThinkPad X1 Carbon Gen 9"
+		} else if strings.Contains(combinedLower, "x1 carbon gen 8") || strings.Contains(combinedLower, "x1 carbon gen8") || strings.Contains(combinedLower, "x1 carbon 8th") {
+			return "Lenovo ThinkPad X1 Carbon Gen 8"
 		} else if strings.Contains(combinedLower, "x1 carbon") {
 			return "Lenovo ThinkPad X1 Carbon"
 		} else if strings.Contains(combinedLower, "x1 nano") {
 			return "Lenovo ThinkPad X1 Nano"
 		} else if strings.Contains(combinedLower, "x1 yoga") {
 			return "Lenovo ThinkPad X1 Yoga"
+		} else if strings.Contains(combinedLower, "x13") {
+			return "Lenovo ThinkPad X13"
 		} else if strings.Contains(combinedLower, "x1") {
 			return "Lenovo ThinkPad X1 Series"
 		} else if strings.Contains(combinedLower, "t14s") {
@@ -273,20 +281,22 @@ func ResolveWindowsModel(upnpModel, upnpName, hostname, vendor string) string {
 	}
 
 	// Panasonic Let's note
-	if strings.Contains(combinedLower, "cf-sv") || strings.Contains(combinedLower, "cf-fv") || strings.Contains(combinedLower, "cf-sr") || strings.Contains(combinedLower, "cf-xz") || strings.Contains(combinedLower, "cf-lv") || strings.Contains(combinedLower, "let's note") || strings.Contains(combinedLower, "lets note") {
+	if strings.Contains(combinedLower, "cf-sv") || strings.Contains(combinedLower, "cf-fv") || strings.Contains(combinedLower, "cf-sr") || strings.Contains(combinedLower, "cf-xz") || strings.Contains(combinedLower, "cf-lv") || strings.Contains(combinedLower, "cf-sz") || strings.Contains(combinedLower, "let's note") || strings.Contains(combinedLower, "lets note") {
 		if strings.Contains(combinedLower, "cf-sv") {
 			return "Panasonic Let's note CF-SV Series"
 		} else if strings.Contains(combinedLower, "cf-fv") {
 			return "Panasonic Let's note CF-FV Series"
 		} else if strings.Contains(combinedLower, "cf-sr") {
 			return "Panasonic Let's note CF-SR Series"
+		} else if strings.Contains(combinedLower, "cf-sz") {
+			return "Panasonic Let's note CF-SZ Series"
 		}
 		return "Panasonic Let's note"
 	}
 
 	// Fujitsu LIFEBOOK
 	if strings.Contains(combinedLower, "lifebook") || strings.Contains(combinedLower, "esprimo") {
-		if strings.Contains(combinedLower, "u9311") || strings.Contains(combinedLower, "u9312") || strings.Contains(combinedLower, "u9313") {
+		if strings.Contains(combinedLower, "u9311") || strings.Contains(combinedLower, "u9312") || strings.Contains(combinedLower, "u9313") || strings.Contains(combinedLower, "u9314") {
 			return "Fujitsu LIFEBOOK U9300 Series (Ultralight)"
 		} else if strings.Contains(combinedLower, "u74") || strings.Contains(combinedLower, "u75") {
 			return "Fujitsu LIFEBOOK U7000 Series"
@@ -306,17 +316,26 @@ func ResolveWindowsModel(upnpModel, upnpName, hostname, vendor string) string {
 		return "Dynabook Notebook PC"
 	}
 
-	// Dell Latitude / OptiPlex / XPS / Precision
-	if strings.Contains(combinedLower, "dell") || strings.Contains(combinedLower, "latitude") || strings.Contains(combinedLower, "optiplex") || strings.Contains(combinedLower, "xps") {
+	// Dell Latitude / OptiPlex / XPS / Precision / Inspiron / Vostro
+	if strings.Contains(combinedLower, "dell") || strings.Contains(combinedLower, "latitude") || strings.Contains(combinedLower, "optiplex") || strings.Contains(combinedLower, "xps") || strings.Contains(combinedLower, "precision") || strings.Contains(combinedLower, "inspiron") || strings.Contains(combinedLower, "vostro") {
 		if strings.Contains(combinedLower, "latitude") {
-			return "Dell Latitude Laptop"
+			return "Dell Latitude"
 		} else if strings.Contains(combinedLower, "optiplex") {
-			return "Dell OptiPlex Desktop"
+			return "Dell OptiPlex"
+		} else if strings.Contains(combinedLower, "xps 13") {
+			return "Dell XPS 13"
+		} else if strings.Contains(combinedLower, "xps 15") {
+			return "Dell XPS 15"
 		} else if strings.Contains(combinedLower, "xps") {
 			return "Dell XPS"
 		} else if strings.Contains(combinedLower, "precision") {
-			return "Dell Precision Workstation"
+			return "Dell Precision"
+		} else if strings.Contains(combinedLower, "inspiron") {
+			return "Dell Inspiron"
+		} else if strings.Contains(combinedLower, "vostro") {
+			return "Dell Vostro"
 		}
+		return "Dell PC"
 	}
 
 	// HP EliteBook / ProBook / ZBook

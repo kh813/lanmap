@@ -511,12 +511,31 @@ func (h *Handler) HandleHostFullScan(w http.ResponseWriter, r *http.Request, ip 
 
 	openPorts, httpTitle, upnpName, upnpModel, upnpSerial, tlsSubj, tlsExp, inferredModel := scanner.ProbeHostPortsFull(ip, vendor, osVendor, hostname, 0)
 
+	// Execute active multi-protocol deep probes
+	mdnsInfo := scanner.QueryMDNSDeviceInfoFull(ip, 120*time.Millisecond)
+	nbInfo := scanner.QueryNetBIOSInfo(ip, 120*time.Millisecond)
+	smbInfo := scanner.QuerySMBDeviceInfo(ip, 150*time.Millisecond)
+	wsdInfo := scanner.QueryWSDDeviceInfo(ip, 200*time.Millisecond)
+	snmpInfo := scanner.QuerySNMPDeviceInfo(ip, 150*time.Millisecond)
+
+	signals := scanner.SynthesizeDeepHostAttributes(
+		ip, hostname, vendor, osVendor,
+		0, openPorts, httpTitle, upnpName, upnpModel, inferredModel,
+		mdnsInfo, nbInfo, smbInfo, wsdInfo, snmpInfo,
+	)
+
 	_ = h.db.UpdateHostExtendedProbes(ip, openPorts, httpTitle, upnpName, upnpModel, upnpSerial, tlsSubj, tlsExp)
-	if inferredModel != "" {
-		if enriched := scanner.EnrichVendorWithModel(vendor, inferredModel); enriched != vendor && enriched != "" {
-			_, _ = h.db.Exec("UPDATE hosts SET vendor_model = ? WHERE ip = ?", enriched, ip)
-		}
-	}
+	_, _ = h.db.Exec(`UPDATE hosts SET 
+		hostname = CASE WHEN hostname = '' OR hostname LIKE 'DESKTOP-%' OR hostname LIKE 'LAPTOP-%' THEN ? ELSE hostname END,
+		vendor_model = ?,
+		os_vendor = ?,
+		os_confidence = ?,
+		os_evidence = ?,
+		user_hint = ?,
+		mdns_model = ?
+		WHERE ip = ?`,
+		signals.Hostname, signals.VendorModel, signals.OSVendor, signals.OSConfidence, signals.OSEvidence, signals.UserHint, signals.MDNSModel, ip)
+
 	now := time.Now()
 	nextScan := db.CalculateNextPortScanWithJitter(now)
 	_ = h.db.UpdateHostPortScanSchedule(ip, openPorts, nextScan)
@@ -527,7 +546,17 @@ func (h *Handler) HandleHostFullScan(w http.ResponseWriter, r *http.Request, ip 
 
 	updatedHost, _ := h.getHostFromRequest(r, ip)
 	if updatedHost == nil {
-		updatedHost = &db.Host{IP: ip, OpenPorts: openPorts, HTTPTitle: httpTitle}
+		updatedHost = &db.Host{
+			IP:           ip,
+			Hostname:     signals.Hostname,
+			VendorModel:  signals.VendorModel,
+			OSVendor:     signals.OSVendor,
+			OSConfidence: signals.OSConfidence,
+			OSEvidence:   signals.OSEvidence,
+			UserHint:     signals.UserHint,
+			OpenPorts:    openPorts,
+			HTTPTitle:    httpTitle,
+		}
 	}
 
 	// If invoked from action menu targeting main-content, render updated main table
