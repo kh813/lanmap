@@ -350,6 +350,14 @@
         </div>
     </div>
 
+    <!-- On-demand Scan / Probe Feedback Status Banner -->
+    {{if .ScanMessage}}
+    <div class="px-3 py-2 rounded-lg border text-xs font-semibold flex items-center space-x-2 animate-fade-in {{if eq .ScanStatusType "success"}}bg-emerald-50 dark:bg-emerald-950/80 border-emerald-300 dark:border-emerald-800 text-emerald-800 dark:text-emerald-200{{else if eq .ScanStatusType "failed"}}bg-red-50 dark:bg-red-950/80 border-red-300 dark:border-red-800 text-red-800 dark:text-red-200{{else}}bg-amber-50 dark:bg-amber-950/80 border-amber-300 dark:border-amber-800 text-amber-800 dark:text-amber-200{{end}}">
+        <span class="text-sm shrink-0">{{if eq .ScanStatusType "success"}}✅{{else if eq .ScanStatusType "failed"}}❌{{else}}⚠️{{end}}</span>
+        <span class="flex-1">{{.ScanMessage}}</span>
+    </div>
+    {{end}}
+
     <!-- Security Risk Warning Alerts -->
     {{if .Host.HasSecurityRisk}}
     <div class="flex flex-wrap gap-1.5 pt-1">

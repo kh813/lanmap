@@ -4,6 +4,7 @@ import (
 	"context"
 	"crypto/tls"
 	"crypto/x509"
+	"encoding/json"
 	"fmt"
 	"html"
 	"html/template"
@@ -452,6 +453,7 @@ func (h *Handler) HandleHostProbePorts(w http.ResponseWriter, r *http.Request, i
 		return
 	}
 
+	lang := i18n.DetectLanguage(r)
 	currentHost, _ := h.getHostFromRequest(r, ip)
 	vendor := ""
 	osVendor := ""
@@ -462,6 +464,7 @@ func (h *Handler) HandleHostProbePorts(w http.ResponseWriter, r *http.Request, i
 		hostname = currentHost.Hostname
 	}
 
+	pingRes := scanner.Ping(targetIP, 800*time.Millisecond)
 	openPorts, httpTitle, upnpName, upnpModel, upnpSerial, tlsSubj, tlsExp, inferredModel := scanner.ProbeHostPortsWithContext(ip, vendor, osVendor, hostname, 0)
 
 	_ = h.db.UpdateHostExtendedProbes(ip, openPorts, httpTitle, upnpName, upnpModel, upnpSerial, tlsSubj, tlsExp)
@@ -471,9 +474,37 @@ func (h *Handler) HandleHostProbePorts(w http.ResponseWriter, r *http.Request, i
 		}
 	}
 
-	lang := i18n.DetectLanguage(r)
+	isAlive := pingRes.Alive || len(openPorts) > 0 || httpTitle != "" || upnpName != "" || upnpModel != ""
+
+	var scanStatusType string
+	var scanMessage string
+	if isAlive {
+		scanStatusType = "success"
+		if pingRes.Alive {
+			rttVal := float64(pingRes.RTT.Microseconds()) / 1000.0
+			_ = h.db.RecordPingHistory(ip, &rttVal, "up")
+		}
+		if len(openPorts) > 0 {
+			scanMessage = i18n.TF(lang, "toast_probe_success_ports", ip, len(openPorts))
+		} else {
+			scanMessage = i18n.TF(lang, "toast_probe_success_alive", ip)
+		}
+	} else {
+		scanStatusType = "failed"
+		_ = h.db.RecordPingHistory(ip, nil, "down")
+		scanMessage = i18n.TF(lang, "toast_probe_failed", ip)
+	}
+
+	triggerData, _ := json.Marshal(map[string]interface{}{
+		"refreshMainTable": true,
+		"showToast": map[string]interface{}{
+			"message": scanMessage,
+			"type":    scanStatusType,
+		},
+	})
+
 	w.Header().Set("Content-Type", "text/html; charset=utf-8")
-	w.Header().Set("HX-Trigger", "refreshMainTable")
+	w.Header().Set("HX-Trigger", string(triggerData))
 
 	updatedHost, _ := h.getHostFromRequest(r, ip)
 	if updatedHost == nil {
@@ -481,8 +512,10 @@ func (h *Handler) HandleHostProbePorts(w http.ResponseWriter, r *http.Request, i
 	}
 
 	_ = h.tmpl.ExecuteTemplate(w, "ports_container", map[string]interface{}{
-		"Host": updatedHost,
-		"Lang": lang,
+		"Host":           updatedHost,
+		"Lang":           lang,
+		"ScanMessage":    scanMessage,
+		"ScanStatusType": scanStatusType,
 	})
 }
 
@@ -499,6 +532,7 @@ func (h *Handler) HandleHostFullScan(w http.ResponseWriter, r *http.Request, ip 
 		return
 	}
 
+	lang := i18n.DetectLanguage(r)
 	currentHost, _ := h.getHostFromRequest(r, ip)
 	vendor := ""
 	osVendor := ""
@@ -509,6 +543,7 @@ func (h *Handler) HandleHostFullScan(w http.ResponseWriter, r *http.Request, ip 
 		hostname = currentHost.Hostname
 	}
 
+	pingRes := scanner.Ping(targetIP, 800*time.Millisecond)
 	openPorts, httpTitle, upnpName, upnpModel, upnpSerial, tlsSubj, tlsExp, inferredModel := scanner.ProbeHostPortsFull(ip, vendor, osVendor, hostname, 0)
 
 	// Execute active multi-protocol deep probes
@@ -540,9 +575,37 @@ func (h *Handler) HandleHostFullScan(w http.ResponseWriter, r *http.Request, ip 
 	nextScan := db.CalculateNextPortScanWithJitter(now)
 	_ = h.db.UpdateHostPortScanSchedule(ip, openPorts, nextScan)
 
-	lang := i18n.DetectLanguage(r)
+	isAlive := pingRes.Alive || len(openPorts) > 0 || httpTitle != "" || upnpName != "" || upnpModel != "" || nbInfo.IsWindows || smbInfo.IsWindows || smbInfo.ComputerName != "" || (wsdInfo != nil && (wsdInfo.FriendlyName != "" || wsdInfo.ModelName != "")) || (snmpInfo != nil && (snmpInfo.SysName != "" || snmpInfo.SysDescr != ""))
+
+	var scanStatusType string
+	var scanMessage string
+	if isAlive {
+		scanStatusType = "success"
+		if pingRes.Alive {
+			rttVal := float64(pingRes.RTT.Microseconds()) / 1000.0
+			_ = h.db.RecordPingHistory(ip, &rttVal, "up")
+		}
+		if len(openPorts) > 0 {
+			scanMessage = i18n.TF(lang, "toast_full_scan_success_ports", ip, len(openPorts))
+		} else {
+			scanMessage = i18n.TF(lang, "toast_full_scan_success_alive", ip)
+		}
+	} else {
+		scanStatusType = "failed"
+		_ = h.db.RecordPingHistory(ip, nil, "down")
+		scanMessage = i18n.TF(lang, "toast_full_scan_failed", ip)
+	}
+
+	triggerData, _ := json.Marshal(map[string]interface{}{
+		"refreshMainTable": true,
+		"showToast": map[string]interface{}{
+			"message": scanMessage,
+			"type":    scanStatusType,
+		},
+	})
+
 	w.Header().Set("Content-Type", "text/html; charset=utf-8")
-	w.Header().Set("HX-Trigger", "refreshMainTable")
+	w.Header().Set("HX-Trigger", string(triggerData))
 
 	updatedHost, _ := h.getHostFromRequest(r, ip)
 	if updatedHost == nil {
@@ -567,8 +630,10 @@ func (h *Handler) HandleHostFullScan(w http.ResponseWriter, r *http.Request, ip 
 
 	// Default: return updated ports container for the detail modal
 	_ = h.tmpl.ExecuteTemplate(w, "ports_container", map[string]interface{}{
-		"Host": updatedHost,
-		"Lang": lang,
+		"Host":           updatedHost,
+		"Lang":           lang,
+		"ScanMessage":    scanMessage,
+		"ScanStatusType": scanStatusType,
 	})
 }
 
@@ -1468,6 +1533,27 @@ func (h *Handler) HandleScanNow(w http.ResponseWriter, r *http.Request) {
 	if len(unapprovedHosts) > 0 {
 		_ = h.notifier.NotifyUnapprovedHosts(ctx, unapprovedHosts)
 	}
+
+	lang := i18n.DetectLanguage(r)
+	scanCount := len(reports)
+	var scanMsg string
+	var scanType string = "success"
+	if scanCount > 0 {
+		scanMsg = i18n.TF(lang, "toast_network_scan_success", scanCount)
+	} else {
+		scanMsg = i18n.T(lang, "toast_network_scan_none")
+		scanType = "warning"
+	}
+
+	triggerData, _ := json.Marshal(map[string]interface{}{
+		"refreshSidebar":   true,
+		"refreshMainTable": true,
+		"showToast": map[string]interface{}{
+			"message": scanMsg,
+			"type":    scanType,
+		},
+	})
+	w.Header().Set("HX-Trigger", string(triggerData))
 
 	h.HandleMainTablePartial(w, r)
 }

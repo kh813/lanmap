@@ -174,6 +174,32 @@ func TestWebRoutes(t *testing.T) {
 	if rec.Code != http.StatusOK || !strings.Contains(rec.Body.String(), "modal-ports-container") {
 		t.Errorf("expected 200 and modal-ports-container from probe ports endpoint, got %d body=%s", rec.Code, rec.Body.String())
 	}
+	if !strings.Contains(rec.Header().Get("HX-Trigger"), "showToast") {
+		t.Errorf("expected showToast in HX-Trigger, got: %s", rec.Header().Get("HX-Trigger"))
+	}
+
+	// 9c. Test On-demand Full Scan endpoint
+	req = httptest.NewRequest("POST", "/api/hosts/192.168.1.50/full_scan", nil)
+	rec = httptest.NewRecorder()
+	router.ServeHTTP(rec, req)
+	if rec.Code != http.StatusOK || !strings.Contains(rec.Body.String(), "modal-ports-container") {
+		t.Errorf("expected 200 and modal-ports-container from full scan endpoint, got %d body=%s", rec.Code, rec.Body.String())
+	}
+	if !strings.Contains(rec.Header().Get("HX-Trigger"), "showToast") {
+		t.Errorf("expected showToast in HX-Trigger for full scan, got: %s", rec.Header().Get("HX-Trigger"))
+	}
+
+	// 9d. Test Full Scan from Action Menu (targeting main-content)
+	req = httptest.NewRequest("POST", "/api/hosts/192.168.1.50/full_scan", nil)
+	req.Header.Set("HX-Target", "main-content")
+	rec = httptest.NewRecorder()
+	router.ServeHTTP(rec, req)
+	if rec.Code != http.StatusOK || !strings.Contains(rec.Body.String(), "main-content") {
+		t.Errorf("expected 200 and main-content from full scan with HX-Target: main-content, got %d", rec.Code)
+	}
+	if !strings.Contains(rec.Header().Get("HX-Trigger"), "showToast") {
+		t.Errorf("expected showToast in HX-Trigger for main-content full scan, got: %s", rec.Header().Get("HX-Trigger"))
+	}
 
 	// 10. Test Favicon endpoints (/favicon.ico and /static/favicon.svg)
 	req = httptest.NewRequest("GET", "/favicon.ico", nil)

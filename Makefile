@@ -1,6 +1,6 @@
 APP_NAME=lanmap
 CMD_DIR=./cmd/lanmap
-VERSION=v0.0.44
+VERSION=v0.0.45
 BUILD_DIR=./dist
 COMMIT=$(shell git rev-parse --short HEAD 2>/dev/null || echo "unknown")
 

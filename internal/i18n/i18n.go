@@ -505,6 +505,16 @@ var translations = map[string]map[string]string{
 		"detail_traffic_storm":           "(Storm Anomaly)",
 		"detail_edit_host_btn":           "✏️ Edit Host Details",
 
+		// Toast Notifications & Scan Status
+		"toast_full_scan_success_ports": "⚡ Full scan succeeded: %s (%d open ports & attributes detected)",
+		"toast_full_scan_success_alive": "⚡ Full scan succeeded: %s (host responded, 0 open ports / stealth)",
+		"toast_full_scan_failed":        "❌ Full scan failed: %s did not respond (host offline / unreachable)",
+		"toast_probe_success_ports":     "🔍 Probe succeeded: %s (%d open ports & attributes detected)",
+		"toast_probe_success_alive":     "🔍 Probe succeeded: %s (host responded, 0 open ports / stealth)",
+		"toast_probe_failed":            "❌ Probe failed: %s did not respond (host offline / unreachable)",
+		"toast_network_scan_success":    "⚡ Network scan completed: %d hosts detected/updated",
+		"toast_network_scan_none":       "⚡ Network scan completed: 0 hosts responded",
+
 		// Whitelist Modal
 		"whitelist_title":            "Managed Devices List (Batch Management)",
 		"whitelist_sub":              "Devices with registered hostnames or MAC addresses are automatically marked as \"🟢 Approved\" during scans and excluded from alerts.",
@@ -991,6 +1001,16 @@ var translations = map[string]map[string]string{
 		"detail_traffic_unit":            "pkt/分",
 		"detail_traffic_storm":           "(異常過多)",
 		"detail_edit_host_btn":           "✏️ ホスト情報を編集",
+
+		// Toast Notifications & Scan Status
+		"toast_full_scan_success_ports": "⚡ フルスキャン成功: %s (%d個の開放ポート・属性を検出)",
+		"toast_full_scan_success_alive": "⚡ フルスキャン成功: %s (応答あり・開放ポートなし/ステルス)",
+		"toast_full_scan_failed":        "❌ フルスキャン失敗: %s は応答がありません (オフライン / 到達不能)",
+		"toast_probe_success_ports":     "🔍 ポート診断成功: %s (%d個の開放ポート・属性を検出)",
+		"toast_probe_success_alive":     "🔍 ポート診断成功: %s (応答あり・開放ポートなし/ステルス)",
+		"toast_probe_failed":            "❌ ポート診断失敗: %s は応答がありません (オフライン / 到達不能)",
+		"toast_network_scan_success":    "⚡ ネットワークスキャン完了: %d台の端末を検出・更新しました",
+		"toast_network_scan_none":       "⚡ ネットワークスキャン完了: 応答のあった端末はありませんでした",
 
 		// Whitelist Modal
 		"whitelist_title":            "管理端末リスト (一括登録・管理)",
