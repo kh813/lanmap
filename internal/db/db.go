@@ -372,5 +372,20 @@ func (db *DB) seed() error {
 		_, _ = db.Exec("INSERT INTO settings (key, value) VALUES ('enable_ipv6', 'false')")
 	}
 
+	// Seed notification event target settings
+	notifDefaults := map[string]string{
+		"notify_monitored_down":    "true",
+		"notify_monitored_up":      "true",
+		"notify_unapproved_static": "false",
+		"notify_unapproved_dhcp":   "false",
+		"notify_security_alerts":   "true",
+	}
+	for k, v := range notifDefaults {
+		var cnt int
+		if err := db.QueryRow("SELECT COUNT(*) FROM settings WHERE key = ?", k).Scan(&cnt); err == nil && cnt == 0 {
+			_, _ = db.Exec("INSERT INTO settings (key, value) VALUES (?, ?)", k, v)
+		}
+	}
+
 	return nil
 }

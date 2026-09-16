@@ -104,23 +104,39 @@ func (n *Notifier) SendTestWebhook(ctx context.Context, provider, targetURL stri
 	}
 }
 
-// NotifyUnapprovedHosts sends batched alerts to all configured webhooks for non-DHCP unapproved hosts
+// NotifyUnapprovedHosts sends batched alerts to all configured webhooks according to notification event settings
 func (n *Notifier) NotifyUnapprovedHosts(ctx context.Context, hosts []*db.Host) error {
+	settings, err := n.db.GetAllSettings()
+	if err != nil {
+		return fmt.Errorf("failed to load webhook settings: %w", err)
+	}
+
+	allowStatic := (settings["notify_unapproved_static"] == "true" || settings["notify_unapproved_static"] == "1" || settings["notify_unapproved_static"] == "on")
+	allowDHCP := (settings["notify_unapproved_dhcp"] == "true" || settings["notify_unapproved_dhcp"] == "1" || settings["notify_unapproved_dhcp"] == "on")
+
+	if !allowStatic && !allowDHCP {
+		// Both unapproved alerts are disabled
+		return nil
+	}
+
 	var alertableHosts []*db.Host
 	for _, h := range hosts {
-		if h != nil && !h.IsApproved && !h.IsDHCP {
-			// Only alert for unapproved static/unknown IP hosts (ignore DHCP assigned hosts)
-			alertableHosts = append(alertableHosts, h)
+		if h == nil || h.IsApproved {
+			continue
+		}
+		if h.IsDHCP {
+			if allowDHCP {
+				alertableHosts = append(alertableHosts, h)
+			}
+		} else {
+			if allowStatic {
+				alertableHosts = append(alertableHosts, h)
+			}
 		}
 	}
 
 	if len(alertableHosts) == 0 {
 		return nil
-	}
-
-	settings, err := n.db.GetAllSettings()
-	if err != nil {
-		return fmt.Errorf("failed to load webhook settings: %w", err)
 	}
 
 	gchatURL := strings.TrimSpace(settings["webhook_gchat_url"])
@@ -426,6 +442,9 @@ func (n *Notifier) NotifyBroadcastStorm(ctx context.Context, host *db.Host, coun
 	if err != nil {
 		return err
 	}
+	if val, exists := settings["notify_security_alerts"]; exists && (val == "false" || val == "0") {
+		return nil
+	}
 
 	title := fmt.Sprintf("🚨 【lanmap 警戒アラート】ブロードキャスト過多を検知 (%s)", host.IP)
 	body := fmt.Sprintf("端末 %s (%s / %s) から直近1分間に %d パケットのブロードキャスト通信を検知しました。\n機器の暴走、ループ配線、または不正スキャンの可能性があります。",
@@ -460,12 +479,6 @@ func (n *Notifier) NotifyBroadcastStorm(ctx context.Context, host *db.Host, coun
 		})
 	}
 
-	/*
-		if lineToken := settings["webhook_line_token"]; lineToken != "" {
-			_ = n.postLineRawMessage(ctx, lineToken, fmt.Sprintf("\n%s\n%s", title, body))
-		}
-	*/
-
 	return nil
 }
 
@@ -474,6 +487,9 @@ func (n *Notifier) NotifyRogueRA(ctx context.Context, rogueMAC, rogueIP, iface s
 	settings, err := n.db.GetAllSettings()
 	if err != nil {
 		return err
+	}
+	if val, exists := settings["notify_security_alerts"]; exists && (val == "false" || val == "0") {
+		return nil
 	}
 
 	ifaceStr := ""
@@ -523,6 +539,9 @@ func (n *Notifier) NotifyVLANRouterNotice(ctx context.Context, mac, ip, iface, s
 	if err != nil {
 		return err
 	}
+	if val, exists := settings["notify_security_alerts"]; exists && (val == "false" || val == "0") {
+		return nil
+	}
 
 	title := fmt.Sprintf("⚠️ 【lanmap 注意】タグVLAN「%s」(%s) で未承認ルーター広告を検知 (%s)", segmentName, iface, ip)
 	body := fmt.Sprintf("監視対象のタグVLANインターフェース %s (セグメント: %s) にて、未承認ホスト (MAC: %s, IPv6: %s) からルーター広告(RA)を検知しました。\n該当VLANセグメントの正規ルーターである場合は、Web管理画面の端末詳細から「承認」または「保護」を設定してください。",
@@ -568,6 +587,18 @@ func (n *Notifier) NotifyMonitoredHostStatus(ctx context.Context, host *db.Host,
 	}
 
 	isDown := (newStatus == "down")
+	if isDown {
+		// Check notify_monitored_down setting (default: true)
+		if val, exists := settings["notify_monitored_down"]; exists && (val == "false" || val == "0") {
+			return nil
+		}
+	} else {
+		// Check notify_monitored_up setting (default: true)
+		if val, exists := settings["notify_monitored_up"]; exists && (val == "false" || val == "0") {
+			return nil
+		}
+	}
+
 	var icon, titleAction, stateText, colorHex string
 	if isDown {
 		icon = "🚨"

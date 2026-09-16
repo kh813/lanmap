@@ -1082,6 +1082,24 @@ func (h *Handler) HandleSaveSettings(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 
+	// Notification Event Target Settings (Toggled Checkboxes)
+	if r.Form.Has("notifications_form_submitted") {
+		chkFields := []string{
+			"notify_monitored_down",
+			"notify_monitored_up",
+			"notify_unapproved_static",
+			"notify_unapproved_dhcp",
+			"notify_security_alerts",
+		}
+		for _, f := range chkFields {
+			val := "false"
+			if r.FormValue(f) == "true" || r.FormValue(f) == "1" || r.FormValue(f) == "on" {
+				val = "true"
+			}
+			_ = h.db.SetSetting(f, val)
+		}
+	}
+
 	// Trigger sidebar and main table refresh on body
 	w.Header().Set("HX-Trigger", "refreshSidebar, refreshMainTable")
 

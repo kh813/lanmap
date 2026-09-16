@@ -354,11 +354,99 @@
             <div id="notifications-feedback"></div>
 
             <form id="notifications-form" hx-post="/api/settings" hx-target="#notifications-feedback" hx-swap="innerHTML" class="space-y-4 text-xs">
-                <!-- 外部通知連携 (Webhook Notifications) -->
+                <input type="hidden" name="notifications_form_submitted" value="true">
+
+                <!-- 1. 通知対象イベントの選択 (Notification Target Events) -->
+                <div class="bg-slate-50 dark:bg-slate-950/60 rounded-xl border border-slate-200 dark:border-slate-800 p-4 space-y-3 shadow-xs">
+                    <div class="flex items-center justify-between pb-2 border-b border-slate-200/70 dark:border-slate-800/70">
+                        <div class="flex items-center space-x-2">
+                            <span>🔔</span>
+                            <label class="font-bold text-slate-800 dark:text-slate-200 text-xs">
+                                {{t .Lang "settings_notif_events_title"}}
+                            </label>
+                        </div>
+                        <span class="text-[10.5px] text-slate-400">アラート条件設定</span>
+                    </div>
+                    <p class="text-slate-500 dark:text-slate-400 text-[10.5px]">
+                        {{t .Lang "settings_notif_events_help"}}
+                    </p>
+
+                    <div class="space-y-2.5 pt-1">
+                        <!-- 1. 監視対象ホスト Down -->
+                        <label class="flex items-start space-x-2.5 p-2.5 rounded-lg border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 hover:border-blue-400 dark:hover:border-blue-600 transition cursor-pointer shadow-xs">
+                            <input type="checkbox" name="notify_monitored_down" value="true"
+                                   class="mt-0.5 rounded text-red-600 focus:ring-red-500 h-4 w-4 border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-900 cursor-pointer shrink-0"
+                                   {{if or (eq .Settings.notify_monitored_down "true") (eq .Settings.notify_monitored_down "1") (not .Settings.notify_monitored_down)}}checked{{end}}>
+                            <div>
+                                <div class="flex items-center space-x-1.5">
+                                    <span class="font-bold text-slate-800 dark:text-slate-200 text-xs">🚨 {{t .Lang "settings_notif_monitored_down"}}</span>
+                                    <span class="px-1.5 py-0.2 rounded text-[9px] bg-red-100 text-red-700 dark:bg-red-950/60 dark:text-red-300 font-semibold border border-red-200 dark:border-red-800">重要 / おすすめ</span>
+                                </div>
+                                <p class="text-slate-500 dark:text-slate-400 text-[10.5px] mt-0.5">{{t .Lang "settings_notif_monitored_down_desc"}}</p>
+                            </div>
+                        </label>
+
+                        <!-- 2. 監視対象ホスト Up (復旧) -->
+                        <label class="flex items-start space-x-2.5 p-2.5 rounded-lg border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 hover:border-blue-400 dark:hover:border-blue-600 transition cursor-pointer shadow-xs">
+                            <input type="checkbox" name="notify_monitored_up" value="true"
+                                   class="mt-0.5 rounded text-emerald-600 focus:ring-emerald-500 h-4 w-4 border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-900 cursor-pointer shrink-0"
+                                   {{if or (eq .Settings.notify_monitored_up "true") (eq .Settings.notify_monitored_up "1") (not .Settings.notify_monitored_up)}}checked{{end}}>
+                            <div>
+                                <div class="flex items-center space-x-1.5">
+                                    <span class="font-bold text-slate-800 dark:text-slate-200 text-xs">🟢 {{t .Lang "settings_notif_monitored_up"}}</span>
+                                </div>
+                                <p class="text-slate-500 dark:text-slate-400 text-[10.5px] mt-0.5">{{t .Lang "settings_notif_monitored_up_desc"}}</p>
+                            </div>
+                        </label>
+
+                        <!-- 3. 未承認端末 (固定IP / 不明IP) -->
+                        <label class="flex items-start space-x-2.5 p-2.5 rounded-lg border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 hover:border-blue-400 dark:hover:border-blue-600 transition cursor-pointer shadow-xs">
+                            <input type="checkbox" name="notify_unapproved_static" value="true"
+                                   class="mt-0.5 rounded text-amber-600 focus:ring-amber-500 h-4 w-4 border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-900 cursor-pointer shrink-0"
+                                   {{if or (eq .Settings.notify_unapproved_static "true") (eq .Settings.notify_unapproved_static "1") (eq .Settings.notify_unapproved_static "on")}}checked{{end}}>
+                            <div>
+                                <div class="flex items-center space-x-1.5">
+                                    <span class="font-bold text-slate-800 dark:text-slate-200 text-xs">🔌 {{t .Lang "settings_notif_unapproved_static"}}</span>
+                                    <span class="px-1.5 py-0.2 rounded text-[9px] bg-slate-100 text-slate-600 dark:bg-slate-800 dark:text-slate-400 font-medium">任意設定</span>
+                                </div>
+                                <p class="text-slate-500 dark:text-slate-400 text-[10.5px] mt-0.5">{{t .Lang "settings_notif_unapproved_static_desc"}}</p>
+                            </div>
+                        </label>
+
+                        <!-- 4. 未承認端末 (DHCP端末) -->
+                        <label class="flex items-start space-x-2.5 p-2.5 rounded-lg border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 hover:border-blue-400 dark:hover:border-blue-600 transition cursor-pointer shadow-xs">
+                            <input type="checkbox" name="notify_unapproved_dhcp" value="true"
+                                   class="mt-0.5 rounded text-blue-600 focus:ring-blue-500 h-4 w-4 border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-900 cursor-pointer shrink-0"
+                                   {{if or (eq .Settings.notify_unapproved_dhcp "true") (eq .Settings.notify_unapproved_dhcp "1") (eq .Settings.notify_unapproved_dhcp "on")}}checked{{end}}>
+                            <div>
+                                <div class="flex items-center space-x-1.5">
+                                    <span class="font-bold text-slate-800 dark:text-slate-200 text-xs">🔵 {{t .Lang "settings_notif_unapproved_dhcp"}}</span>
+                                    <span class="px-1.5 py-0.2 rounded text-[9px] bg-slate-100 text-slate-600 dark:bg-slate-800 dark:text-slate-400 font-medium">任意設定</span>
+                                </div>
+                                <p class="text-slate-500 dark:text-slate-400 text-[10.5px] mt-0.5">{{t .Lang "settings_notif_unapproved_dhcp_desc"}}</p>
+                            </div>
+                        </label>
+
+                        <!-- 5. 重大セキュリティアラート -->
+                        <label class="flex items-start space-x-2.5 p-2.5 rounded-lg border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 hover:border-blue-400 dark:hover:border-blue-600 transition cursor-pointer shadow-xs">
+                            <input type="checkbox" name="notify_security_alerts" value="true"
+                                   class="mt-0.5 rounded text-purple-600 focus:ring-purple-500 h-4 w-4 border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-900 cursor-pointer shrink-0"
+                                   {{if or (eq .Settings.notify_security_alerts "true") (eq .Settings.notify_security_alerts "1") (not .Settings.notify_security_alerts)}}checked{{end}}>
+                            <div>
+                                <div class="flex items-center space-x-1.5">
+                                    <span class="font-bold text-slate-800 dark:text-slate-200 text-xs">🛡️ {{t .Lang "settings_notif_security"}}</span>
+                                </div>
+                                <p class="text-slate-500 dark:text-slate-400 text-[10.5px] mt-0.5">{{t .Lang "settings_notif_security_desc"}}</p>
+                            </div>
+                        </label>
+                    </div>
+                </div>
+
+                <!-- 2. 外部通知連携 (Webhook Notifications) -->
                 <div class="bg-slate-50 dark:bg-slate-950/60 rounded-xl border border-slate-200 dark:border-slate-800 p-4 space-y-3 shadow-xs">
                     <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-1 pb-2 border-b border-slate-200/70 dark:border-slate-800/70">
                         <div class="flex items-center space-x-2">
-                            <span>🔔</span>
+                            <span>🔗</span>
                             <label class="font-bold text-slate-800 dark:text-slate-200 text-xs">
                                 {{t .Lang "settings_webhook_label"}}
                             </label>

@@ -126,6 +126,7 @@ func TestWebhookDelivery(t *testing.T) {
 
 	_ = database.SetSetting("webhook_slack_url", server.URL+"/slack")
 	_ = database.SetSetting("webhook_discord_url", server.URL+"/discord")
+	_ = database.SetSetting("notify_unapproved_static", "true")
 
 	n := NewNotifier(database)
 
@@ -222,7 +223,7 @@ func TestNotifyMonitoredHostStatus(t *testing.T) {
 		t.Errorf("expected recovery alerts received: slack=%v, discord=%v, gchat=%v", receivedSlack, receivedDiscord, receivedGChat)
 	}
 
-	// Test DHCP Unapproved host should NOT trigger webhook
+	// Test DHCP Unapproved host should NOT trigger webhook by default
 	receivedSlack = false
 	receivedGChat = false
 	dhcpHost := &db.Host{
@@ -234,7 +235,84 @@ func TestNotifyMonitoredHostStatus(t *testing.T) {
 		t.Fatalf("NotifyUnapprovedHosts(dhcp) failed: %v", err)
 	}
 	if receivedSlack || receivedGChat {
-		t.Errorf("DHCP unapproved host should NOT trigger webhook alert")
+		t.Errorf("DHCP unapproved host should NOT trigger webhook alert by default")
+	}
+}
+
+func TestNotificationEventFilters(t *testing.T) {
+	ctx := context.Background()
+	database, _ := setupTestDB(t)
+
+	var alertCount int32
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		atomic.AddInt32(&alertCount, 1)
+		w.WriteHeader(http.StatusOK)
+	}))
+	defer server.Close()
+
+	_ = database.SetSetting("webhook_gchat_url", server.URL)
+	n := NewNotifier(database)
+
+	host := &db.Host{
+		IP:          "192.168.1.50",
+		Hostname:    "core-switch",
+		IsMonitored: true,
+	}
+	staticHost := &db.Host{
+		IP:         "192.168.1.100",
+		IsApproved: false,
+		IsDHCP:     false,
+	}
+	dhcpHost := &db.Host{
+		IP:         "192.168.1.200",
+		IsApproved: false,
+		IsDHCP:     true,
+	}
+
+	// 1. By default, notify_monitored_down is ON -> alert sent
+	atomic.StoreInt32(&alertCount, 0)
+	_ = n.NotifyMonitoredHostStatus(ctx, host, "down")
+	if atomic.LoadInt32(&alertCount) != 1 {
+		t.Errorf("expected 1 alert for monitored down, got %d", alertCount)
+	}
+
+	// 2. Disable notify_monitored_down -> alert suppressed
+	_ = database.SetSetting("notify_monitored_down", "false")
+	atomic.StoreInt32(&alertCount, 0)
+	_ = n.NotifyMonitoredHostStatus(ctx, host, "down")
+	if atomic.LoadInt32(&alertCount) != 0 {
+		t.Errorf("expected 0 alerts for monitored down when disabled, got %d", alertCount)
+	}
+
+	// 3. By default, unapproved static is OFF -> alert suppressed
+	atomic.StoreInt32(&alertCount, 0)
+	_ = n.NotifyUnapprovedHosts(ctx, []*db.Host{staticHost})
+	if atomic.LoadInt32(&alertCount) != 0 {
+		t.Errorf("expected 0 alerts for unapproved static when disabled, got %d", alertCount)
+	}
+
+	// 4. Enable unapproved static -> alert sent
+	_ = database.SetSetting("notify_unapproved_static", "true")
+	atomic.StoreInt32(&alertCount, 0)
+	_ = n.NotifyUnapprovedHosts(ctx, []*db.Host{staticHost})
+	if atomic.LoadInt32(&alertCount) != 1 {
+		t.Errorf("expected 1 alert for unapproved static when enabled, got %d", alertCount)
+	}
+
+	// 5. Enable unapproved DHCP -> alert sent
+	_ = database.SetSetting("notify_unapproved_dhcp", "true")
+	atomic.StoreInt32(&alertCount, 0)
+	_ = n.NotifyUnapprovedHosts(ctx, []*db.Host{dhcpHost})
+	if atomic.LoadInt32(&alertCount) != 1 {
+		t.Errorf("expected 1 alert for unapproved DHCP when enabled, got %d", alertCount)
+	}
+
+	// 6. Disable security alerts -> Broadcast storm suppressed
+	_ = database.SetSetting("notify_security_alerts", "false")
+	atomic.StoreInt32(&alertCount, 0)
+	_ = n.NotifyBroadcastStorm(ctx, host, 500)
+	if atomic.LoadInt32(&alertCount) != 0 {
+		t.Errorf("expected 0 alerts for broadcast storm when security alerts disabled, got %d", alertCount)
 	}
 }
 
