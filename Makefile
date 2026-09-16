@@ -1,7 +1,8 @@
 APP_NAME=lanmap
 CMD_DIR=./cmd/lanmap
-VERSION=v0.0.42
+VERSION=v0.0.43
 BUILD_DIR=./dist
+COMMIT=$(shell git rev-parse --short HEAD 2>/dev/null || echo "unknown")
 
 .PHONY: all build clean test test-federation cross-compile package
 

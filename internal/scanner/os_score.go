@@ -235,50 +235,52 @@ func ScoreOS(input OSScoreInput) OSScoreResult {
 		}
 	}
 
+	webEvidenceLower := strings.ToLower(fmt.Sprintf("%s %s %s", input.HTTPTitle, input.UPnPName, input.UPnPModel))
+
 	// 4. Web Titles & HTTP Headers (0.80 - 0.90)
-	if strings.Contains(evidenceLower, "web image monitor") || strings.Contains(evidenceLower, "ricoh") {
+	if strings.Contains(webEvidenceLower, "web image monitor") || strings.Contains(webEvidenceLower, "ricoh") {
 		addScore("Printer", "Ricoh Printer/MFP OS (Embedded Linux/BSD)", 0.92, "Web/Title (Ricoh Web Image Monitor)")
-	} else if strings.Contains(evidenceLower, "centreware") || strings.Contains(evidenceLower, "fujifilm") || strings.Contains(evidenceLower, "fuji xerox") || strings.Contains(evidenceLower, "apeos") {
+	} else if strings.Contains(webEvidenceLower, "centreware") || strings.Contains(webEvidenceLower, "fujifilm") || strings.Contains(webEvidenceLower, "fuji xerox") || strings.Contains(webEvidenceLower, "apeos") {
 		addScore("Printer", "Fujifilm MFP Firmware (Embedded Linux/BSD)", 0.92, "Web/Title (Fujifilm/FujiXerox)")
-	} else if strings.Contains(evidenceLower, "command center") || strings.Contains(evidenceLower, "taskalfa") || strings.Contains(evidenceLower, "kyocera") {
+	} else if strings.Contains(webEvidenceLower, "command center") || strings.Contains(webEvidenceLower, "taskalfa") || strings.Contains(webEvidenceLower, "kyocera") {
 		addScore("Printer", "Kyocera MFP Firmware (Embedded Linux/BSD)", 0.92, "Web/Title (Kyocera Command Center)")
-	} else if strings.Contains(evidenceLower, "pagescope") || strings.Contains(evidenceLower, "bizhub") || strings.Contains(evidenceLower, "konica") {
+	} else if strings.Contains(webEvidenceLower, "pagescope") || strings.Contains(webEvidenceLower, "bizhub") || strings.Contains(webEvidenceLower, "konica") {
 		addScore("Printer", "Konica Minolta MFP Firmware (Embedded Linux/BSD)", 0.92, "Web/Title (Konica Minolta PageScope)")
-	} else if strings.Contains(evidenceLower, "remote ui") || strings.Contains(evidenceLower, "imagerunner") || strings.Contains(evidenceLower, "canon") {
+	} else if strings.Contains(webEvidenceLower, "remote ui") || strings.Contains(webEvidenceLower, "imagerunner") || strings.Contains(webEvidenceLower, "canon") {
 		addScore("Printer", "Canon MFP Firmware (Embedded Linux)", 0.92, "Web/Title (Canon Remote UI)")
-	} else if strings.Contains(evidenceLower, "fortigate") || strings.Contains(evidenceLower, "fortinet") || strings.Contains(evidenceLower, "fortios") {
+	} else if strings.Contains(webEvidenceLower, "fortigate") || strings.Contains(webEvidenceLower, "fortinet") || strings.Contains(webEvidenceLower, "fortios") {
 		addScore("Network", "FortiOS (Fortinet)", 0.92, "Web/Title (FortiGate)")
-	} else if strings.Contains(evidenceLower, "aruba") || strings.Contains(evidenceLower, "instant on") {
+	} else if strings.Contains(webEvidenceLower, "aruba") || strings.Contains(webEvidenceLower, "instant on") {
 		addScore("Network", "ArubaOS (Aruba Networks / HPE)", 0.90, "Web/Title (Aruba)")
-	} else if strings.Contains(evidenceLower, "mist") || strings.Contains(evidenceLower, "juniper") {
+	} else if strings.Contains(webEvidenceLower, "mist") || strings.Contains(webEvidenceLower, "juniper") {
 		addScore("Network", "Mist AI / Junos OS (Mist Systems)", 0.90, "Web/Title (Mist/Juniper)")
-	} else if strings.Contains(evidenceLower, "luci 24") || strings.Contains(evidenceLower, "openwrt 24") {
+	} else if strings.Contains(webEvidenceLower, "luci 24") || strings.Contains(webEvidenceLower, "openwrt 24") {
 		addScore("Network", "OpenWrt 24.10 (Linux Router)", 0.90, "Web Title (OpenWrt 24)")
-	} else if strings.Contains(evidenceLower, "luci 23") || strings.Contains(evidenceLower, "openwrt 23") {
+	} else if strings.Contains(webEvidenceLower, "luci 23") || strings.Contains(webEvidenceLower, "openwrt 23") {
 		addScore("Network", "OpenWrt 23.05 (Linux Router)", 0.90, "Web Title (OpenWrt 23)")
-	} else if strings.Contains(evidenceLower, "openwrt") || strings.Contains(evidenceLower, "luci") {
+	} else if strings.Contains(webEvidenceLower, "openwrt") || strings.Contains(webEvidenceLower, "luci") {
 		addScore("Network", "OpenWrt (Linux Router)", 0.85, "Web Title (OpenWrt/LuCI)")
-	} else if strings.Contains(evidenceLower, "synology") || strings.Contains(evidenceLower, "dsm") {
+	} else if strings.Contains(webEvidenceLower, "synology") || strings.Contains(webEvidenceLower, "diskstation") || strings.Contains(webEvidenceLower, "rackstation") || strings.Contains(webEvidenceLower, "synology dsm") {
 		addScore("Linux", "Synology DSM (Linux)", 0.90, "Web Title (Synology DSM)")
-	} else if strings.Contains(evidenceLower, "qnap") || strings.Contains(evidenceLower, "qts") {
+	} else if strings.Contains(webEvidenceLower, "qnap") || strings.Contains(webEvidenceLower, "qts") {
 		addScore("Linux", "QNAP QTS (Linux)", 0.90, "Web Title (QNAP QTS)")
-	} else if strings.Contains(evidenceLower, "asustor") || strings.Contains(evidenceLower, "adm") {
+	} else if strings.Contains(webEvidenceLower, "asustor") || strings.Contains(webEvidenceLower, "adm") {
 		addScore("Linux", "ASUSTOR ADM (Linux)", 0.90, "Web Title (ASUSTOR)")
-	} else if strings.Contains(evidenceLower, "proxmox") {
+	} else if strings.Contains(webEvidenceLower, "proxmox") {
 		addScore("Linux", "Proxmox VE (Debian Linux)", 0.90, "Web Title (Proxmox VE)")
-	} else if strings.Contains(evidenceLower, "truenas") || strings.Contains(evidenceLower, "freenas") {
+	} else if strings.Contains(webEvidenceLower, "truenas") || strings.Contains(webEvidenceLower, "freenas") {
 		addScore("Linux", "TrueNAS SCALE (Linux)", 0.88, "Web Title (TrueNAS)")
-	} else if strings.Contains(evidenceLower, "hikvision") || strings.Contains(evidenceLower, "web components") {
+	} else if strings.Contains(webEvidenceLower, "hikvision") || strings.Contains(webEvidenceLower, "web components") {
 		addScore("Camera", "Hikvision Embedded Linux", 0.90, "Web Title (Hikvision)")
-	} else if strings.Contains(evidenceLower, "dahua") {
+	} else if strings.Contains(webEvidenceLower, "dahua") {
 		addScore("Camera", "Dahua Embedded Linux", 0.90, "Web Title (Dahua)")
-	} else if strings.Contains(evidenceLower, "axis") {
+	} else if strings.Contains(webEvidenceLower, "axis") {
 		addScore("Camera", "AXIS OS (Linux)", 0.90, "Web Title (AXIS)")
-	} else if strings.Contains(evidenceLower, "yealink") {
+	} else if strings.Contains(webEvidenceLower, "yealink") {
 		addScore("VoIP", "Yealink VoIP OS", 0.90, "Web Title (Yealink)")
-	} else if strings.Contains(evidenceLower, "polycom") || strings.Contains(evidenceLower, "soundpoint") {
+	} else if strings.Contains(webEvidenceLower, "polycom") || strings.Contains(webEvidenceLower, "soundpoint") {
 		addScore("VoIP", "Poly UC Software (VoIP)", 0.90, "Web Title (Polycom)")
-	} else if strings.Contains(evidenceLower, "grandstream") {
+	} else if strings.Contains(webEvidenceLower, "grandstream") {
 		addScore("VoIP", "Grandstream VoIP OS", 0.90, "Web Title (Grandstream)")
 	}
 
